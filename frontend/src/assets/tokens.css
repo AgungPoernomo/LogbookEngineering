@@ -1,0 +1,63 @@
+:root {
+  --color-primary: #2563EB;
+  --color-primary-soft: #DBE7FB;
+  --color-primary-text-on-soft: #3B6FD8;
+  --color-app: #F3F5F9;
+  --color-surface: #FFFFFF;
+  --color-muted: #F7F8FB;
+  --color-line: #E6E9F0;
+  --color-ink: #111827;
+  --color-ink-2: #6B7280;
+  --color-ink-3: #9CA3AF;
+  --color-success: #22A55B;
+  --color-warning: #EAB308;
+  --color-violet: #5B4BDB;
+  --color-orange: #F97316;
+  --color-danger: #EF4444;
+  --color-row-blue: #EAF1FD;
+  --color-row-red: #FDECEC;
+
+  /* Warna Aksen Plant (DASHBOARD_OVERVIEW_LOGBOOK Bagian 4.C) */
+  --color-plant-1: #2563EB;
+  --color-plant-2: #EAB308;
+  --color-plant-3: #22A55B;
+  --color-plant-4: #F97316;
+
+  --color-status-draft-bg: #F3F4F6;
+  --color-status-draft-fg: #4B5563;
+  --color-status-draft-dot: #9CA3AF;
+
+  --color-status-pending-bg: #FEF3C7;
+  --color-status-pending-fg: #B45309;
+  --color-status-pending-dot: #EAB308;
+
+  --color-status-approved-bg: #DCFCE7;
+  --color-status-approved-fg: #15803D;
+  --color-status-approved-dot: #22A55B;
+
+  --color-status-rejected-bg: #FEE2E2;
+  --color-status-rejected-fg: #B91C1C;
+  --color-status-rejected-dot: #EF4444;
+
+  --color-status-cancelled-bg: #1F2937;
+  --color-status-cancelled-fg: #FFFFFF;
+  --color-status-cancelled-dot: #374151;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-tooltip: 0 4px 12px rgba(16, 24, 40, 0.10);
+
+  /* Konstanta Layout Planner / Input Logbook (UI-SPEC 3.3) */
+  --planner-panel-width: 248px;
+  --planner-gap: 16px;
+  --planner-toolbar-h: 56px;
+  --planner-header-h: 72px;
+  --planner-time-col-w: 64px;
+  --planner-hour-h: 60px;
+  --planner-chip-h: 22px;
+  --planner-event-min-h: 22px;
+  --planner-event-inset: 4px;
+}

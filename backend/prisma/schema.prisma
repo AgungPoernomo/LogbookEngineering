@@ -1,0 +1,198 @@
+// Prisma Schema for Engineer Logbook Satoria
+// Target Database: TiDB (MySQL compatible distributed SQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum LogStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  APPROVED
+  REJECTED
+}
+
+enum NotificationChannel {
+  EMAIL
+  INAPP
+}
+
+// 1. Master Roles (Admin, Supervisor, Teknisi)
+model Role {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  users       User[]
+
+  @@map("roles")
+}
+
+// 2. Master Work Groups (Grup Kerja / Departemen)
+model WorkGroup {
+  id    BigInt @id @default(autoincrement())
+  name  String @unique @db.VarChar(100)
+  users User[]
+
+  @@map("work_groups")
+}
+
+// 3. Master Plants (Lokasi Fasilitas / Pabrik)
+model Plant {
+  id       BigInt    @id @default(autoincrement())
+  name     String    @unique @db.VarChar(100)
+  users    User[]
+  machines Machine[]
+  logbooks Logbook[]
+
+  @@map("plants")
+}
+
+// 4. Master Shifts (Jadwal Kerja Operasional)
+model Shift {
+  id         BigInt    @id @default(autoincrement())
+  name       String    @db.VarChar(50)
+  start_time String    @db.VarChar(10) // HH:mm
+  end_time   String    @db.VarChar(10) // HH:mm
+  logbooks   Logbook[]
+
+  @@map("shifts")
+}
+
+// 5. Master Machines (Mesin Utama - Dilengkapi plant_id FK)
+model Machine {
+  id          BigInt       @id @default(autoincrement())
+  name        String       @db.VarChar(100)
+  plant_id    BigInt?
+  plant       Plant?       @relation(fields: [plant_id], references: [id], onDelete: SetNull)
+  subMachines SubMachine[]
+  logbooks    Logbook[]
+
+  @@map("machines")
+}
+
+// 6. Master Sub-Machines (Bagian / Komponen Mesin)
+model SubMachine {
+  id         BigInt    @id @default(autoincrement())
+  machine_id BigInt
+  machine    Machine   @relation(fields: [machine_id], references: [id], onDelete: Cascade)
+  name       String    @db.VarChar(100)
+  logbooks   Logbook[]
+
+  @@map("sub_machines")
+}
+
+// 7. Users (Akun Pengguna)
+model User {
+  id            BigInt            @id @default(autoincrement())
+  nik           String            @unique @db.VarChar(50)
+  email         String            @unique @db.VarChar(100)
+  full_name     String            @db.VarChar(150)
+  password_hash String            @db.VarChar(255)
+  role_id       BigInt
+  role          Role              @relation(fields: [role_id], references: [id])
+  group_id      BigInt?
+  group         WorkGroup?        @relation(fields: [group_id], references: [id], onDelete: SetNull)
+  plant_id      BigInt?
+  plant         Plant?            @relation(fields: [plant_id], references: [id], onDelete: SetNull)
+  photo_url     String?           @db.VarChar(500)
+  is_active     Boolean           @default(true)
+  created_at    DateTime          @default(now())
+  logbooks      Logbook[]         @relation("UserLogbooks")
+  approvals     LogbookApproval[] @relation("SupervisorApprovals")
+  activities    UserActivity[]
+  notifications Notification[]
+
+  @@map("users")
+}
+
+// 8. Logbooks (Catatan Aktivitas Kerja Harian)
+model Logbook {
+  id                   BigInt            @id @default(autoincrement())
+  user_id              BigInt
+  user                 User              @relation("UserLogbooks", fields: [user_id], references: [id])
+  plant_id             BigInt
+  plant                Plant             @relation(fields: [plant_id], references: [id])
+  shift_id             BigInt
+  shift                Shift             @relation(fields: [shift_id], references: [id])
+  machine_id           BigInt
+  machine              Machine           @relation(fields: [machine_id], references: [id])
+  sub_machine_id       BigInt?
+  subMachine           SubMachine?       @relation(fields: [sub_machine_id], references: [id], onDelete: SetNull)
+  task_date            String            @db.VarChar(10) // YYYY-MM-DD
+  sparepart            String?           @db.VarChar(255)
+  activity_description String            @db.Text
+  start_time           String            @db.VarChar(10) // HH:mm
+  end_time             String            @db.VarChar(10) // HH:mm
+  duration_minutes     Int               @default(0)
+  status               LogStatus         @default(PENDING)
+  created_at           DateTime          @default(now())
+  approvals            LogbookApproval[]
+  notifications        Notification[]
+
+  @@index([user_id])
+  @@index([plant_id])
+  @@index([status])
+  @@index([task_date])
+  @@map("logbooks")
+}
+
+// 9. Logbook Approvals (Riwayat Keputusan Persetujuan Supervisor)
+model LogbookApproval {
+  id            BigInt         @id @default(autoincrement())
+  logbook_id    BigInt
+  logbook       Logbook        @relation(fields: [logbook_id], references: [id], onDelete: Cascade)
+  supervisor_id BigInt
+  supervisor    User           @relation("SupervisorApprovals", fields: [supervisor_id], references: [id])
+  status        ApprovalStatus
+  notes         String         @db.Text // Wajib diisi terutama saat REJECTED
+  reviewed_at   DateTime       @default(now())
+
+  @@map("logbook_approvals")
+}
+
+// 10. Notifications (Notifikasi Email & In-App)
+model Notification {
+  id              BigInt              @id @default(autoincrement())
+  user_id         BigInt
+  user            User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  logbook_id      BigInt?
+  logbook         Logbook?            @relation(fields: [logbook_id], references: [id], onDelete: SetNull)
+  type            String              @db.VarChar(50) // LOGBOOK_SUBMITTED, LOGBOOK_APPROVED, LOGBOOK_REJECTED
+  channel         NotificationChannel @default(INAPP)
+  recipient_email String?             @db.VarChar(100)
+  subject         String?             @db.VarChar(255)
+  message         String              @db.Text
+  status          String              @default("SENT") @db.VarChar(20) // PENDING, SENT, FAILED
+  error_message   String?             @db.Text
+  sent_at         DateTime?           @default(now())
+  read_at         DateTime?
+
+  @@index([user_id])
+  @@index([read_at])
+  @@map("notifications")
+}
+
+// 11. User Activities (Audit Trail Aktivitas Sensitif & Operasional)
+model UserActivity {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  activity   String   @db.VarChar(100)
+  detail     String   @db.Text
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([created_at])
+  @@map("user_activities")
+}

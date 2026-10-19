@@ -1,0 +1,176 @@
+### ===============================================================
+### Satoria Engineer Logbook — Manual API Testing Collection
+### Base URL: http://localhost:3000
+### ===============================================================
+
+@baseUrl = http://localhost:3000
+@api = {{baseUrl}}/api/v1
+
+### 1. Health Check Server
+GET {{baseUrl}}/health
+
+### 2. Health Check API v1
+GET {{api}}/health
+
+### ---------------------------------------------------------------
+### AUTENTIKASI (LOGIN DUMMY USERS)
+### ---------------------------------------------------------------
+
+### 3. Login sebagai TEKNISI (Budi Santoso)
+# @name loginTeknisi
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "teknisi@satoria.co.id",
+  "password": "password123"
+}
+
+### Simpan token teknisi dari respons di atas:
+@tokenTeknisi = {{loginTeknisi.response.body.data.token}}
+
+### 4. Login sebagai SUPERVISOR (Ir. Hendra Gunawan)
+# @name loginSpv
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "spv@satoria.co.id",
+  "password": "password123"
+}
+
+### Simpan token supervisor dari respons di atas:
+@tokenSpv = {{loginSpv.response.body.data.token}}
+
+### 5. Login sebagai ADMIN (Administrator Sistem)
+# @name loginAdmin
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "identifier": "admin@satoria.co.id",
+  "password": "password123"
+}
+
+### Simpan token admin dari respons di atas:
+@tokenAdmin = {{loginAdmin.response.body.data.token}}
+
+### 6. Cek Profil Pengguna Aktif (Me)
+GET {{api}}/auth/me
+Authorization: Bearer {{tokenTeknisi}}
+
+
+### ---------------------------------------------------------------
+### MODUL MASTER DATA
+### ---------------------------------------------------------------
+
+### 7. Ambil Data Master Plants
+GET {{api}}/master/plants
+Authorization: Bearer {{tokenTeknisi}}
+
+### 8. Ambil Data Master Machines (filter Plant 1)
+GET {{api}}/master/machines?plant_id=1
+Authorization: Bearer {{tokenTeknisi}}
+
+### 9. Ambil Data Master Shifts
+GET {{api}}/master/shifts
+Authorization: Bearer {{tokenTeknisi}}
+
+
+### ---------------------------------------------------------------
+### MODUL LOGBOOK (TEKNISI)
+### ---------------------------------------------------------------
+
+### 10. Ambil Daftar Logbook Saya (Teknisi)
+GET {{api}}/logbooks
+Authorization: Bearer {{tokenTeknisi}}
+
+### 11. Buat Logbook Baru (Submit Pending)
+POST {{api}}/logbooks
+Authorization: Bearer {{tokenTeknisi}}
+Content-Type: application/json
+
+{
+  "plant_id": 1,
+  "shift_id": 1,
+  "machine_id": 1,
+  "sub_machine_id": 1,
+  "task_date": "2026-10-18",
+  "start_time": "08:30",
+  "end_time": "11:00",
+  "sparepart": "Bearing SKF 6204",
+  "activity_description": "Preventive maintenance rutin: pelumasan bearing pompa dan kalibrasi presisi nozzle.",
+  "status": "PENDING"
+}
+
+### 12. Simpan Logbook sebagai DRAFT
+POST {{api}}/logbooks
+Authorization: Bearer {{tokenTeknisi}}
+Content-Type: application/json
+
+{
+  "plant_id": 1,
+  "shift_id": 2,
+  "machine_id": 2,
+  "task_date": "2026-10-18",
+  "start_time": "16:00",
+  "end_time": "17:30",
+  "sparepart": "-",
+  "activity_description": "Draft catatan: pengecekan suhu awal motor sealer.",
+  "status": "DRAFT"
+}
+
+
+### ---------------------------------------------------------------
+### MODUL APPROVAL & SUPERVISOR
+### ---------------------------------------------------------------
+
+### 13. Supervisor Melihat Ringkasan Frekuensi Tim Teknisi
+GET {{api}}/supervisor/team-overview
+Authorization: Bearer {{tokenSpv}}
+
+### 14. Supervisor Menyetujui Logbook (Ganti ID sesuai logbook pending)
+POST {{api}}/logbooks/2/approval
+Authorization: Bearer {{tokenSpv}}
+Content-Type: application/json
+
+{
+  "status": "APPROVED",
+  "notes": "Pekerjaan pemeliharaan telah diperiksa dan disetujui sesuai SOP."
+}
+
+### 15. Supervisor Menolak Logbook (Wajib catatan perbaikan)
+POST {{api}}/logbooks/2/approval
+Authorization: Bearer {{tokenSpv}}
+Content-Type: application/json
+
+{
+  "status": "REJECTED",
+  "notes": "Harap sertakan nomor part bearing lama yang diganti dan foto sebelum/sesudah pengerjaan."
+}
+
+
+### ---------------------------------------------------------------
+### MODUL EKSPOR LAPORAN
+### ---------------------------------------------------------------
+
+### 16. Ekspor Laporan Tim dalam Format JSON
+GET {{api}}/reports/export?format=json
+Authorization: Bearer {{tokenSpv}}
+
+### 17. Unduh Laporan Tim Format Excel (.xlsx)
+GET {{api}}/reports/export?format=excel
+Authorization: Bearer {{tokenSpv}}
+
+
+### ---------------------------------------------------------------
+### MODUL ADMIN & AUDIT TRAIL
+### ---------------------------------------------------------------
+
+### 18. Admin Melihat Daftar Seluruh Pengguna
+GET {{api}}/users
+Authorization: Bearer {{tokenAdmin}}
+
+### 19. Admin Melihat Audit Trail (user_activities)
+GET {{api}}/admin/audit-logs
+Authorization: Bearer {{tokenAdmin}}
