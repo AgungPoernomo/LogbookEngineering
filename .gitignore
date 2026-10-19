@@ -18,8 +18,16 @@ frontend/.env
 npm-debug.log*
 yarn-debug.log*
 
+# Uploaded user files
+backend/public/uploads/*
+!backend/public/uploads/*/
+!backend/public/uploads/.gitkeep
+backend/public/uploads/avatars/*
+!backend/public/uploads/avatars/.gitkeep
+
 # System & Editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+
