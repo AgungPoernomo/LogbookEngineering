@@ -14,26 +14,6 @@
           Pantau seberapa sering teknisi di tim Anda mengisi logbook harian, konsistensi kerja, dan detail pemeliharaan mesin.
         </p>
       </div>
-
-      <!-- Supervisor Identity Chip -->
-      <div class="flex items-center gap-2.5 bg-surface border border-line rounded-lg px-3 py-2 shadow-xs shrink-0 self-start md:self-auto">
-        <Avatar
-          :src="authStore.user?.photo_url"
-          :name="authStore.user?.full_name"
-          size="sm"
-        />
-        <div class="text-left text-xs">
-          <div class="font-semibold text-ink leading-tight flex items-center gap-1">
-            <span>{{ authStore.user?.full_name || 'Supervisor' }}</span>
-            <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-primary-soft text-primary">
-              Supervisor
-            </span>
-          </div>
-          <div class="text-[10px] text-ink-3">
-            {{ authStore.user?.group_name || 'Maintenance & Utility' }} • {{ authStore.user?.plant_name || 'Plant 1' }}
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- 4 KPI Ringkasan Tim -->

@@ -45,7 +45,7 @@
           type="button"
           class="relative flex items-center justify-center w-[34px] h-[34px] rounded-full border border-line bg-surface text-ink hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition"
           :aria-label="`${notifStore.unreadCount} notifikasi belum dibaca`"
-          @click="showNotifications = !showNotifications"
+          @click="toggleNotifications"
         >
           <Bell class="w-[18px] h-[18px] text-ink" />
           <span
@@ -208,28 +208,65 @@ const notifStore = useNotificationStore()
 const showNotifications = ref(false)
 const showUserMenu = ref(false)
 let pollTimer = null
+const POLL_INTERVAL = 60000 // 60 detik (menghemat bandwidth & beban server)
+
+function toggleNotifications() {
+  showNotifications.value = !showNotifications.value
+  if (showNotifications.value) {
+    notifStore.fetchNotifications()
+  }
+}
+
+function startPolling() {
+  stopPolling()
+  pollTimer = setInterval(() => {
+    if (authStore.isAuthenticated && !document.hidden) {
+      notifStore.fetchUnreadCount()
+    }
+  }, POLL_INTERVAL)
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    // Hentikan polling saat tab tidak aktif (Page Visibility API)
+    stopPolling()
+  } else {
+    // Aktifkan kembali polling dan segera refresh unread count saat tab dibuka kembali
+    if (authStore.isAuthenticated) {
+      notifStore.fetchUnreadCount()
+      startPolling()
+    }
+  }
+}
 
 onMounted(() => {
   if (authStore.isAuthenticated) {
-    notifStore.fetchNotifications()
+    notifStore.fetchUnreadCount()
+    startPolling()
   }
-  // Polling notifikasi setiap 15 detik
-  pollTimer = setInterval(() => {
-    if (authStore.isAuthenticated) {
-      notifStore.fetchNotifications()
-    }
-  }, 15000)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 
 watch(
   () => authStore.user?.id,
   (newId) => {
     if (newId) {
-      notifStore.fetchNotifications()
+      notifStore.fetchUnreadCount()
+      startPolling()
+    } else {
+      stopPolling()
     }
   }
 )

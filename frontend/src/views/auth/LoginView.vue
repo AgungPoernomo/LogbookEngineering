@@ -4,13 +4,13 @@
     <div class="space-y-1.5 text-center md:text-left">
       <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-sm text-xs font-medium bg-primary-soft text-primary-text-on-soft">
         <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-        Sistem Masuk Satoria
+        Sistem Masuk
       </div>
       <h2 class="text-xl sm:text-2xl font-semibold text-ink tracking-tight">
         Selamat Datang
       </h2>
       <p class="text-xs sm:text-sm text-ink-2">
-        Silakan masuk menggunakan NIK atau Email Satoria Anda.
+        Silakan masuk menggunakan NIK dan Password Akun Anda.
       </p>
     </div>
 
@@ -33,7 +33,7 @@
     <form @submit.prevent="handleLogin" class="space-y-4">
       <div>
         <label for="identifier" class="block text-xs font-medium text-ink mb-1.5">
-          NIK atau Alamat Email Satoria
+          NIK
         </label>
         <div class="relative">
           <input
@@ -41,7 +41,7 @@
             v-model="form.identifier"
             type="text"
             required
-            placeholder="2024-TKN-001 atau nama@satoria.co.id"
+            placeholder="123456"
             class="w-full h-10 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition placeholder:text-ink-3 placeholder:font-normal"
           />
         </div>
@@ -94,48 +94,10 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
         </svg>
-        <span>{{ loading ? 'Memverifikasi...' : 'Masuk ke Portal Satoria' }}</span>
+        <span>{{ loading ? 'Memverifikasi...' : 'Masuk ke Sistem' }}</span>
       </button>
     </form>
 
-    <!-- Preset Demo Accounts Divider -->
-    <div class="relative my-4">
-      <div class="absolute inset-0 flex items-center">
-        <div class="w-full border-t border-line" />
-      </div>
-      <div class="relative flex justify-center text-xs uppercase">
-        <span class="bg-surface px-3 text-ink-3 font-medium tracking-wider">
-          Pilihan Akun Demo Satoria (Fase 1)
-        </span>
-      </div>
-    </div>
-
-    <!-- Quick Demo Role Selectors -->
-    <div class="space-y-2">
-      <button
-        v-for="item in demoAccounts"
-        :key="item.role"
-        type="button"
-        class="w-full flex items-center justify-between p-2.5 rounded-md border border-line bg-surface hover:bg-muted transition text-left group"
-        @click="fillAndLogin(item)"
-      >
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-full bg-primary-soft text-primary font-semibold flex items-center justify-center text-xs shrink-0">
-            {{ item.role[0] }}
-          </div>
-          <div>
-            <div class="text-xs font-semibold text-ink flex items-center gap-1.5">
-              <span>{{ item.roleLabel }}</span>
-              <span class="text-[10px] font-normal text-ink-3">({{ item.identifier }})</span>
-            </div>
-            <div class="text-[11px] text-ink-2">{{ item.name }} • {{ item.dept }}</div>
-          </div>
-        </div>
-        <div class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-          Pilih →
-        </div>
-      </button>
-    </div>
   </div>
 </template>
 
@@ -143,46 +105,18 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
-import { ROLES } from '../../constants/roles'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
 const form = ref({
-  identifier: 'teknisi@satoria.co.id',
-  password: 'password123'
+  identifier: '',
+  password: ''
 })
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMessage = ref('')
-
-const demoAccounts = [
-  {
-    role: ROLES.TEKNISI,
-    roleLabel: 'Teknisi Lapangan',
-    name: 'Budi Santoso',
-    dept: 'Maintenance & Utility',
-    identifier: 'teknisi@satoria.co.id',
-    password: 'password123'
-  },
-  {
-    role: ROLES.SUPERVISOR,
-    roleLabel: 'Supervisor Engineering',
-    name: 'Ir. Hendra Gunawan',
-    dept: 'Supervision & Approval',
-    identifier: 'spv@satoria.co.id',
-    password: 'password123'
-  },
-  {
-    role: ROLES.ADMIN,
-    roleLabel: 'Administrator Satoria',
-    name: 'Agung Prasetyo',
-    dept: 'System & Master Data Admin',
-    identifier: 'admin@satoria.co.id',
-    password: 'password123'
-  }
-]
 
 async function handleLogin() {
   loading.value = true
@@ -196,11 +130,5 @@ async function handleLogin() {
   } finally {
     loading.value = false
   }
-}
-
-async function fillAndLogin(item) {
-  form.value.identifier = item.identifier
-  form.value.password = item.password
-  await handleLogin()
 }
 </script>

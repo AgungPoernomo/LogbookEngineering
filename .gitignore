@@ -25,6 +25,11 @@ backend/public/uploads/*
 backend/public/uploads/avatars/*
 !backend/public/uploads/avatars/.gitkeep
 
+# Data & CSV files
+*.csv
+*.xlsx
+*.xls
+
 # System & Editor
 .DS_Store
 Thumbs.db

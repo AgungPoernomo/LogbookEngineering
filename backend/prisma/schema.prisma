@@ -106,6 +106,7 @@ model User {
   plant_id      BigInt?
   plant         Plant?            @relation(fields: [plant_id], references: [id], onDelete: SetNull)
   photo_url     String?           @db.VarChar(500)
+  must_change_password Boolean       @default(false)
   is_active     Boolean           @default(true)
   created_at    DateTime          @default(now())
   logbooks      Logbook[]         @relation("UserLogbooks")
@@ -144,6 +145,8 @@ model Logbook {
   @@index([plant_id])
   @@index([status])
   @@index([task_date])
+  @@index([user_id, task_date])
+  @@index([status, plant_id, task_date])
   @@map("logbooks")
 }
 
@@ -175,11 +178,14 @@ model Notification {
   message         String              @db.Text
   status          String              @default("SENT") @db.VarChar(20) // PENDING, SENT, FAILED
   error_message   String?             @db.Text
+  is_read         Boolean             @default(false)
   sent_at         DateTime?           @default(now())
   read_at         DateTime?
+  created_at      DateTime            @default(now())
 
   @@index([user_id])
   @@index([read_at])
+  @@index([user_id, is_read, created_at])
   @@map("notifications")
 }
 

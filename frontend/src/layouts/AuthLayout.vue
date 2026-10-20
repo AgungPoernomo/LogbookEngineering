@@ -20,54 +20,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Center Highlights -->
-      <div class="relative z-10 my-10 space-y-6">
-        <div>
-          <span class="inline-flex items-center px-2.5 py-1 rounded-sm text-xs font-medium bg-primary/20 text-primary-soft border border-primary/30 mb-4">
-            Tahap 1 • UI & Prototipe RBAC
-          </span>
-          <h2 class="text-2xl sm:text-3xl font-semibold leading-tight text-white mb-3">
-            Digitalisasi Pencatatan & Validasi Aktivitas Teknisi
-          </h2>
-          <p class="text-xs sm:text-sm text-ink-3 leading-relaxed">
-            Meningkatkan akurasi pemeliharaan mesin pabrik, mempermudah kalkulasi durasi kerja teknisi, serta mempercepat proses persetujuan oleh Supervisor di lingkungan Satoria.
-          </p>
-        </div>
-
-        <div class="space-y-3 pt-2 text-xs sm:text-sm text-white/90">
-          <div class="flex items-center gap-3">
-            <div class="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center font-bold text-xs shrink-0">
-              ✓
-            </div>
-            <span>Kalkulasi durasi otomatis (mendukung shift malam lintas hari)</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center font-bold text-xs shrink-0">
-              ✓
-            </div>
-            <span>Alur approval supervisor dengan catatan revisi wajib</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center font-bold text-xs shrink-0">
-              ✓
-            </div>
-            <span>Ekspor rekapitulasi laporan tim ke PDF dan Excel</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center font-bold text-xs shrink-0">
-              ✓
-            </div>
-            <span>Audit trail aktivitas dan manajemen master data terpusat</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom Credits -->
-      <div class="relative z-10 text-xs text-ink-3 flex items-center justify-between border-t border-line/20 pt-4">
-        <span>© 2026 Engineer Logbook Satoria</span>
-        <span class="text-primary-soft font-medium">TiDB SQL • Vercel Ready</span>
-      </div>
     </div>
 
     <!-- Right Form Area -->

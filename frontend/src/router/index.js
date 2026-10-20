@@ -2,24 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { setupRouterGuards } from './guards'
 import { ROLES } from '../constants/roles'
 
-// Views
-import LoginView from '../views/auth/LoginView.vue'
-import DashboardDispatcher from '../views/shared/DashboardDispatcher.vue'
-import InputLogbookView from '../views/teknisi/InputLogbookView.vue'
-import RiwayatLogbookView from '../views/teknisi/RiwayatLogbookView.vue'
-import ApprovalListView from '../views/supervisor/ApprovalListView.vue'
-import TeknisiActivityView from '../views/supervisor/TeknisiActivityView.vue'
-import LaporanTimView from '../views/supervisor/LaporanTimView.vue'
-import UserManagementView from '../views/admin/UserManagementView.vue'
-import MasterDataView from '../views/admin/MasterDataView.vue'
-import MasterPlantView from '../views/admin/MasterPlantView.vue'
-import MasterMachineView from '../views/admin/MasterMachineView.vue'
-import MasterGroupView from '../views/admin/MasterGroupView.vue'
-import AuditTrailView from '../views/admin/AuditTrailView.vue'
-import ProfileView from '../views/shared/ProfileView.vue'
-import ForbiddenView from '../views/shared/ForbiddenView.vue'
-import NotFoundView from '../views/shared/NotFoundView.vue'
-
 const routes = [
   {
     path: '/',
@@ -28,25 +10,25 @@ const routes = [
   {
     path: '/login',
     name: 'login',
-    component: LoginView,
+    component: () => import('../views/auth/LoginView.vue'),
     meta: { public: true, title: 'Masuk' }
   },
   {
     path: '/dashboard',
     name: 'dashboard',
-    component: DashboardDispatcher,
+    component: () => import('../views/shared/DashboardDispatcher.vue'),
     meta: { roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Dashboard' }
   },
   {
     path: '/logbook/input',
     name: 'logbook-input',
-    component: InputLogbookView,
+    component: () => import('../views/teknisi/InputLogbookView.vue'),
     meta: { roles: [ROLES.TEKNISI], title: 'Input Logbook Harian' }
   },
   {
     path: '/logbook/riwayat',
     name: 'logbook-riwayat',
-    component: RiwayatLogbookView,
+    component: () => import('../views/teknisi/RiwayatLogbookView.vue'),
     meta: { roles: [ROLES.TEKNISI], title: 'Riwayat Logbook' }
   },
   {
@@ -58,43 +40,43 @@ const routes = [
   {
     path: '/approval',
     name: 'approval',
-    component: ApprovalListView,
+    component: () => import('../views/supervisor/ApprovalListView.vue'),
     meta: { roles: [ROLES.SUPERVISOR], title: 'Approval Logbook' }
   },
   {
     path: '/supervisor/teknisi',
     name: 'supervisor-teknisi',
-    component: TeknisiActivityView,
+    component: () => import('../views/supervisor/TeknisiActivityView.vue'),
     meta: { roles: [ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Aktivitas Teknisi Tim' }
   },
   {
     path: '/laporan',
     name: 'laporan',
-    component: LaporanTimView,
+    component: () => import('../views/supervisor/LaporanTimView.vue'),
     meta: { roles: [ROLES.SUPERVISOR], title: 'Ekspor Laporan Tim' }
   },
   {
     path: '/admin/users',
     name: 'admin-users',
-    component: UserManagementView,
+    component: () => import('../views/admin/UserManagementView.vue'),
     meta: { roles: [ROLES.ADMIN], title: 'Manajemen Pengguna' }
   },
   {
     path: '/admin/plants',
     name: 'admin-plants',
-    component: MasterPlantView,
+    component: () => import('../views/admin/MasterPlantView.vue'),
     meta: { roles: [ROLES.ADMIN], title: 'Master Plant Satoria' }
   },
   {
     path: '/admin/machines',
     name: 'admin-machines',
-    component: MasterMachineView,
+    component: () => import('../views/admin/MasterMachineView.vue'),
     meta: { roles: [ROLES.ADMIN], title: 'Master Mesin & Sub-Mesin' }
   },
   {
     path: '/admin/groups',
     name: 'admin-groups',
-    component: MasterGroupView,
+    component: () => import('../views/admin/MasterGroupView.vue'),
     meta: { roles: [ROLES.ADMIN], title: 'Master Group & Shift' }
   },
   {
@@ -104,13 +86,13 @@ const routes = [
   {
     path: '/admin/audit',
     name: 'admin-audit',
-    component: AuditTrailView,
+    component: () => import('../views/admin/AuditTrailView.vue'),
     meta: { roles: [ROLES.ADMIN], title: 'Audit Trail Aktivitas' }
   },
   {
     path: '/profil',
     name: 'profil',
-    component: ProfileView,
+    component: () => import('../views/shared/ProfileView.vue'),
     meta: { roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Profil Akun' }
   },
   // Backward redirects for old routes
@@ -137,13 +119,13 @@ const routes = [
   {
     path: '/403',
     name: 'forbidden',
-    component: ForbiddenView,
+    component: () => import('../views/shared/ForbiddenView.vue'),
     meta: { public: true, title: 'Akses Ditolak' }
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    component: NotFoundView,
+    component: () => import('../views/shared/NotFoundView.vue'),
     meta: { public: true, title: 'Halaman Tidak Ditemukan' }
   }
 ]

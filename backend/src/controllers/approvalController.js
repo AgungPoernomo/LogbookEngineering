@@ -1,7 +1,7 @@
 import prisma from '../config/prisma.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
-import { sendNotification } from '../services/mailerService.js'
+import { sendNotification, sendBulkNotifications } from '../services/mailerService.js'
 
 export async function processApproval(req, res, next) {
   try {
@@ -73,8 +73,11 @@ export async function processApproval(req, res, next) {
       `Supervisor ${req.user.full_name} (${req.user.nik}) ${actionText} logbook #${id} milik ${logbook.user.full_name}. Catatan: ${notes || '-'}`
     )
 
-    // Kirim notifikasi ke teknisi yang bersangkutan
-    await sendNotification({
+    // Kirim notifikasi ke teknisi, supervisor, dan admin (Fan-Out 1 Query createMany)
+    const notifications = []
+
+    // 1. Notifikasi ke teknisi yang bersangkutan
+    notifications.push({
       userId: logbook.user_id,
       logbookId: logbook.id,
       type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
@@ -86,8 +89,8 @@ export async function processApproval(req, res, next) {
       channel: 'INAPP'
     })
 
-    // Kirim notifikasi konfirmasi ke Supervisor yang mereview
-    await sendNotification({
+    // 2. Notifikasi konfirmasi ke Supervisor yang mereview
+    notifications.push({
       userId: req.user.id,
       logbookId: logbook.id,
       type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
@@ -97,12 +100,12 @@ export async function processApproval(req, res, next) {
       channel: 'INAPP'
     })
 
-    // Kirim notifikasi ke Administrator Sistem
+    // 3. Notifikasi ke Administrator Sistem
     const admins = await prisma.user.findMany({
       where: { role: { name: 'Admin' }, is_active: true }
     })
     for (const admin of admins) {
-      await sendNotification({
+      notifications.push({
         userId: admin.id,
         logbookId: logbook.id,
         type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
@@ -112,6 +115,8 @@ export async function processApproval(req, res, next) {
         channel: 'INAPP'
       })
     }
+
+    await sendBulkNotifications(notifications)
 
     return successResponse(res, {
       message: `Logbook berhasil ${actionText}.`,

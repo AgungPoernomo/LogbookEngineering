@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js'
 import { calculateDurationMinutes } from '../utils/duration.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
-import { sendNotification } from '../services/mailerService.js'
+import { sendNotification, sendBulkNotifications } from '../services/mailerService.js'
 
 export async function getLogbooks(req, res, next) {
   try {
@@ -211,10 +211,12 @@ export async function createLogbook(req, res, next) {
       `Logbook #${newLogbook.id} (${newLogbook.machine.name}) dibuat dengan status ${logStatus}`
     )
 
-    // Jika disubmit PENDING, kirim notifikasi ke Teknisi, Supervisor, dan Admin
+    // Jika disubmit PENDING, kirim notifikasi ke Teknisi, Supervisor, dan Admin (Fan-Out 1 Query createMany)
     if (logStatus === 'PENDING') {
+      const notifications = []
+
       // 1. Notifikasi konfirmasi ke Teknisi
-      await sendNotification({
+      notifications.push({
         userId: req.user.id,
         logbookId: newLogbook.id,
         type: 'LOGBOOK_SUBMITTED',
@@ -239,7 +241,7 @@ export async function createLogbook(req, res, next) {
       }
 
       for (const spv of supervisors) {
-        await sendNotification({
+        notifications.push({
           userId: spv.id,
           logbookId: newLogbook.id,
           type: 'LOGBOOK_PENDING_APPROVAL',
@@ -255,7 +257,7 @@ export async function createLogbook(req, res, next) {
         where: { role: { name: 'Admin' }, is_active: true }
       })
       for (const admin of admins) {
-        await sendNotification({
+        notifications.push({
           userId: admin.id,
           logbookId: newLogbook.id,
           type: 'LOGBOOK_SUBMITTED',
@@ -265,6 +267,9 @@ export async function createLogbook(req, res, next) {
           channel: 'INAPP'
         })
       }
+
+      // Eksekusi insert batch dalam satu query database
+      await sendBulkNotifications(notifications)
     }
 
     return successResponse(res, {
@@ -421,8 +426,10 @@ export async function updateLogbook(req, res, next) {
       })
 
       if (fullUpdated) {
+        const notifications = []
+
         // 1. Notifikasi Teknisi
-        await sendNotification({
+        notifications.push({
           userId: req.user.id,
           logbookId: fullUpdated.id,
           type: 'LOGBOOK_SUBMITTED',
@@ -446,7 +453,7 @@ export async function updateLogbook(req, res, next) {
           })
         }
         for (const spv of supervisors) {
-          await sendNotification({
+          notifications.push({
             userId: spv.id,
             logbookId: fullUpdated.id,
             type: 'LOGBOOK_PENDING_APPROVAL',
@@ -462,7 +469,7 @@ export async function updateLogbook(req, res, next) {
           where: { role: { name: 'Admin' }, is_active: true }
         })
         for (const admin of admins) {
-          await sendNotification({
+          notifications.push({
             userId: admin.id,
             logbookId: fullUpdated.id,
             type: 'LOGBOOK_SUBMITTED',
@@ -472,6 +479,9 @@ export async function updateLogbook(req, res, next) {
             channel: 'INAPP'
           })
         }
+
+        // Eksekusi insert massal notifikasi
+        await sendBulkNotifications(notifications)
       }
     }
 
@@ -552,10 +562,12 @@ export async function submitAllDrafts(req, res, next) {
       `${result.count} draft logbook diajukan serentak untuk approval`
     )
 
-    // Kirim notifikasi jika ada draft yang diajukan
+    // Kirim notifikasi jika ada draft yang diajukan (Fan-Out 1 Query createMany)
     if (result.count > 0) {
+      const notifications = []
+
       // 1. Notifikasi Teknisi (konfirmasi)
-      await sendNotification({
+      notifications.push({
         userId: req.user.id,
         type: 'DRAFTS_SUBMITTED',
         recipientEmail: req.user.email,
@@ -581,7 +593,7 @@ export async function submitAllDrafts(req, res, next) {
         })
       }
       for (const spv of supervisors) {
-        await sendNotification({
+        notifications.push({
           userId: spv.id,
           type: 'BULK_DRAFTS_SUBMITTED',
           recipientEmail: spv.email,
@@ -596,7 +608,7 @@ export async function submitAllDrafts(req, res, next) {
         where: { role: { name: 'Admin' }, is_active: true }
       })
       for (const admin of admins) {
-        await sendNotification({
+        notifications.push({
           userId: admin.id,
           type: 'BULK_DRAFTS_SUBMITTED',
           recipientEmail: admin.email,
@@ -605,6 +617,8 @@ export async function submitAllDrafts(req, res, next) {
           channel: 'INAPP'
         })
       }
+
+      await sendBulkNotifications(notifications)
     }
 
     return successResponse(res, {

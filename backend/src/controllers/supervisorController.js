@@ -1,91 +1,149 @@
 import prisma from '../config/prisma.js'
 import { successResponse } from '../utils/response.js'
+import { getWIBDateString, getWIBYearMonth, getWIBLastNDays } from '../utils/date.js'
 
 export async function getTeamOverview(req, res, next) {
   try {
-    const supervisorId = req.user.id
-    const supervisorPlantId = req.user.plant_id
-    const supervisorGroupId = req.user.group_id
+    const supervisorPlantId = req.user.plant_id ? Number(req.user.plant_id) : null
+    const supervisorGroupId = req.user.group_id ? Number(req.user.group_id) : null
 
-    const today = new Date()
-    const y = today.getFullYear()
-    const m = String(today.getMonth() + 1).padStart(2, '0')
-    const dStr = String(today.getDate()).padStart(2, '0')
-    const todayStr = `${y}-${m}-${dStr}`
-    const currentYearMonth = `${y}-${m}`
+    // Tanggal lokal WIB presisi (mengatasi server Vercel UTC)
+    const todayStr = getWIBDateString()
+    const currentYearMonth = getWIBYearMonth()
+    const last7DaysDates = getWIBLastNDays(7)
+    const last7DaysStrings = last7DaysDates.map(d => d.date)
 
-    // 7 hari terakhir
-    const dayLabels = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-    const last7DaysDates = []
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today)
-      d.setDate(today.getDate() - i)
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      last7DaysDates.push({ date: dateStr, dayLabel: dayLabels[d.getDay()] })
+    // 1. Ambil teknisi dan agregasi database (groupBy) secara paralel
+    const [
+      technicians,
+      statusGroups,
+      monthGroups,
+      weekGroups,
+      machineGroups,
+      machines
+    ] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: { name: 'Teknisi' }, is_active: true },
+        include: { role: true, plant: true, group: true }
+      }),
+      prisma.logbook.groupBy({
+        by: ['user_id', 'status'],
+        _count: { id: true },
+        _sum: { duration_minutes: true }
+      }),
+      prisma.logbook.groupBy({
+        by: ['user_id'],
+        where: { task_date: { startsWith: currentYearMonth } },
+        _count: { id: true }
+      }),
+      prisma.logbook.groupBy({
+        by: ['user_id', 'task_date'],
+        where: { task_date: { in: last7DaysStrings } },
+        _count: { id: true }
+      }),
+      prisma.logbook.groupBy({
+        by: ['user_id', 'machine_id'],
+        _count: { id: true }
+      }),
+      prisma.machine.findMany({
+        select: { id: true, name: true }
+      })
+    ])
+
+    const machineMap = new Map(machines.map(m => [Number(m.id), m.name]))
+
+    // 2. Index hasil groupBy ke Map untuk lookup O(1)
+    // Map user_id -> { totalLogs, totalDuration, statusCounts }
+    const userStatusMap = new Map()
+    for (const sg of statusGroups) {
+      const uid = Number(sg.user_id)
+      if (!userStatusMap.has(uid)) {
+        userStatusMap.set(uid, {
+          totalLogs: 0,
+          totalDuration: 0,
+          approved: 0,
+          pending: 0,
+          rejected: 0,
+          draft: 0
+        })
+      }
+      const uData = userStatusMap.get(uid)
+      const count = sg._count.id
+      const duration = sg._sum.duration_minutes || 0
+      uData.totalLogs += count
+      uData.totalDuration += duration
+      const st = String(sg.status).toLowerCase()
+      if (uData[st] !== undefined) {
+        uData[st] += count
+      }
     }
 
-    // Ambil seluruh user Teknisi yang aktif
-    const technicians = await prisma.user.findMany({
-      where: {
-        role: { name: 'Teknisi' },
-        is_active: true
-      },
-      include: {
-        role: true,
-        plant: true,
-        group: true,
-        logbooks: {
-          orderBy: [{ task_date: 'desc' }, { start_time: 'desc' }],
-          include: {
-            machine: true,
-            subMachine: true,
-            shift: true
-          }
-        }
-      }
-    })
+    // Map user_id -> monthLogs
+    const userMonthMap = new Map()
+    for (const mg of monthGroups) {
+      userMonthMap.set(Number(mg.user_id), mg._count.id)
+    }
 
+    // Map user_id -> Map(task_date -> count)
+    const userWeekMap = new Map()
+    for (const wg of weekGroups) {
+      const uid = Number(wg.user_id)
+      if (!userWeekMap.has(uid)) {
+        userWeekMap.set(uid, new Map())
+      }
+      userWeekMap.get(uid).set(wg.task_date, wg._count.id)
+    }
+
+    // Map user_id -> topMachineName
+    const userTopMachineMap = new Map()
+    const userMachineCounts = new Map()
+    for (const mg of machineGroups) {
+      const uid = Number(mg.user_id)
+      const count = mg._count.id
+      if (!userMachineCounts.has(uid) || count > userMachineCounts.get(uid)) {
+        userMachineCounts.set(uid, count)
+        userTopMachineMap.set(uid, machineMap.get(Number(mg.machine_id)) || 'Mesin')
+      }
+    }
+
+    // 3. Susun overview teknisi
     const technicianOverview = technicians.map(tech => {
-      const isDirectTeam = (
+      const uid = Number(tech.id)
+      const isDirectTeam = Boolean(
         (supervisorPlantId && tech.plant_id && Number(tech.plant_id) === supervisorPlantId) ||
         (supervisorGroupId && tech.group_id && Number(tech.group_id) === supervisorGroupId)
       )
 
-      const userLogs = tech.logbooks
-      const totalLogs = userLogs.length
-      const monthLogs = userLogs.filter(l => l.task_date.startsWith(currentYearMonth)).length
+      const statusData = userStatusMap.get(uid) || {
+        totalLogs: 0,
+        totalDuration: 0,
+        approved: 0,
+        pending: 0,
+        rejected: 0,
+        draft: 0
+      }
 
+      const totalLogs = statusData.totalLogs
+      const monthLogs = userMonthMap.get(uid) || 0
+
+      // Hitung baris 7 hari terakhir
+      const techWeekData = userWeekMap.get(uid) || new Map()
       const last7Days = last7DaysDates.map(dayInfo => {
-        const count = userLogs.filter(l => l.task_date === dayInfo.date).length
+        const count = techWeekData.get(dayInfo.date) || 0
         return { ...dayInfo, count }
       })
       const weekLogs = last7Days.reduce((acc, d) => acc + d.count, 0)
-      const todayLogs = userLogs.filter(l => l.task_date === todayStr).length
+      const todayLogs = techWeekData.get(todayStr) || 0
       const isActiveToday = todayLogs > 0
 
-      const totalDurationMinutes = userLogs.reduce((acc, l) => acc + l.duration_minutes, 0)
-
       const statusCounts = {
-        approved: userLogs.filter(l => l.status === 'APPROVED').length,
-        pending: userLogs.filter(l => l.status === 'PENDING').length,
-        rejected: userLogs.filter(l => l.status === 'REJECTED').length,
-        draft: userLogs.filter(l => l.status === 'DRAFT').length
+        approved: statusData.approved,
+        pending: statusData.pending,
+        rejected: statusData.rejected,
+        draft: statusData.draft
       }
 
-      // Hitung mesin paling sering ditangani
-      const machineCounts = {}
-      userLogs.forEach(l => {
-        const mName = l.machine?.name
-        if (mName) machineCounts[mName] = (machineCounts[mName] || 0) + 1
-      })
-      let topMachine = '-'
-      let maxCount = 0
-      for (const [mName, count] of Object.entries(machineCounts)) {
-        if (count > maxCount) {
-          maxCount = count
-          topMachine = mName
-        }
-      }
+      const topMachine = userTopMachineMap.get(uid) || '-'
 
       // Kategori frekuensi
       let frequencyScore = 'Aktif Normal'
@@ -98,58 +156,53 @@ export async function getTeamOverview(req, res, next) {
         frequencyBadgeClass = 'bg-status-rejected-bg text-status-rejected-fg border-danger/30'
       }
 
-      const lastLog = userLogs[0] ? {
-        task_date: userLogs[0].task_date,
-        start_time: userLogs[0].start_time,
-        machine_name: userLogs[0].machine?.name
-      } : null
-
       return {
-        id: Number(tech.id),
+        id: uid,
         nik: tech.nik,
         full_name: tech.full_name,
         email: tech.email,
-        photo_url: tech.photo_url,
+        photo_url: tech.photo_url || null,
+        role: tech.role?.name,
         plant_id: tech.plant_id ? Number(tech.plant_id) : null,
-        plant_name: tech.plant?.name || '-',
+        plant_name: tech.plant?.name || 'Line Umum',
         group_id: tech.group_id ? Number(tech.group_id) : null,
-        group_name: tech.group?.name || '-',
-        isDirectTeam,
-        totalLogs,
-        monthLogs,
-        weekLogs,
-        todayLogs,
-        isActiveToday,
-        last7Days,
-        totalDurationMinutes,
-        statusCounts,
-        topMachine,
-        frequencyScore,
-        frequencyBadgeClass,
-        lastLog,
-        logs: userLogs.map(l => ({
-          id: Number(l.id),
-          task_date: l.task_date,
-          start_time: l.start_time,
-          end_time: l.end_time,
-          duration_minutes: l.duration_minutes,
-          machine_name: l.machine?.name,
-          sub_machine_name: l.subMachine?.name || '-',
-          shift_name: l.shift?.name || '-',
-          activity_description: l.activity_description,
-          sparepart: l.sparepart,
-          status: l.status
-        }))
+        group_name: tech.group?.name || 'Umum',
+        is_direct_team: isDirectTeam,
+        total_logs: totalLogs,
+        month_logs: monthLogs,
+        week_logs: weekLogs,
+        today_logs: todayLogs,
+        is_active_today: isActiveToday,
+        total_duration_minutes: statusData.totalDuration,
+        status_counts: statusCounts,
+        top_machine: topMachine,
+        frequency_score: frequencyScore,
+        frequency_badge_class: frequencyBadgeClass,
+        last_7_days: last7Days
       }
     })
 
+    // 4. Hitung ringkasan tim keseluruhan
+    const directTeamCount = technicianOverview.filter(t => t.is_direct_team).length
+    const activeTodayCount = technicianOverview.filter(t => t.is_active_today).length
+    const totalLogsMonth = technicianOverview.reduce((acc, t) => acc + t.month_logs, 0)
+    const avgLogsPerTech = technicians.length > 0
+      ? Math.round((totalLogsMonth / technicians.length) * 10) / 10
+      : 0
+    const avgDailyLogsTeam = Math.round((totalLogsMonth / 30) * 10) / 10
+
     return successResponse(res, {
-      message: 'Ringkasan aktivitas teknisi tim berhasil diambil.',
+      message: 'Overview aktivitas teknisi tim berhasil diambil.',
       data: {
-        technicians: technicianOverview,
-        total_technicians: technicianOverview.length,
-        direct_team_count: technicianOverview.filter(t => t.isDirectTeam).length,
-        active_today_count: technicianOverview.filter(t => t.isActiveToday).length
+        summary: {
+          total_technicians: technicians.length,
+          direct_team_count: directTeamCount,
+          active_today_count: activeTodayCount,
+          total_logs_month: totalLogsMonth,
+          avg_logs_per_technician: avgLogsPerTech,
+          avg_daily_logs_team: avgDailyLogsTeam
+        },
+        technicians: technicianOverview
       }
     })
   } catch (err) {

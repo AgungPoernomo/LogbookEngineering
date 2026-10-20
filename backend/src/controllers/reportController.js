@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs'
 import prisma from '../config/prisma.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
+import { getWIBDateString, getWIBLastNDays, getDaysDifference } from '../utils/date.js'
 
 export async function exportReport(req, res, next) {
   try {
@@ -14,20 +15,51 @@ export async function exportReport(req, res, next) {
       format = 'excel'
     } = req.query
 
-    const where = {}
+    let finalStartDate = start_date
+    let finalEndDate = end_date
+
+    // Default 31 hari terakhir jika tidak ditentukan
+    if (!finalStartDate && !finalEndDate) {
+      finalEndDate = getWIBDateString()
+      const pastDays = getWIBLastNDays(31)
+      finalStartDate = pastDays[0].date
+    } else if (!finalStartDate) {
+      const pastDays = getWIBLastNDays(31, new Date(finalEndDate))
+      finalStartDate = pastDays[0].date
+    } else if (!finalEndDate) {
+      finalEndDate = getWIBDateString()
+    }
+
+    if (finalStartDate > finalEndDate) {
+      return errorResponse(res, {
+        message: 'Tanggal mulai (start_date) tidak boleh lebih besar dari tanggal akhir (end_date).',
+        statusCode: 400
+      })
+    }
+
+    // Batasi rentang ekspor maksimal 93 hari (3 bulan) untuk mencegah OOM memori ExcelJS
+    const diffDays = getDaysDifference(finalStartDate, finalEndDate)
+    if (diffDays > 93) {
+      return errorResponse(res, {
+        message: 'Rentang tanggal ekspor dibatasi maksimal 93 hari (3 bulan) demi menjaga stabilitas dan efisiensi memori server. Silakan pilih rentang tanggal yang lebih spesifik.',
+        statusCode: 400
+      })
+    }
+
+    const where = {
+      task_date: {
+        gte: finalStartDate,
+        lte: finalEndDate
+      }
+    }
 
     if (plant_id) where.plant_id = BigInt(plant_id)
     if (machine_id) where.machine_id = BigInt(machine_id)
     if (status && status !== 'ALL') where.status = status
 
-    if (start_date || end_date) {
-      where.task_date = {}
-      if (start_date) where.task_date.gte = start_date
-      if (end_date) where.task_date.lte = end_date
-    }
-
     const logbooks = await prisma.logbook.findMany({
       where,
+      take: 3000,
       orderBy: [{ task_date: 'desc' }, { start_time: 'desc' }],
       include: {
         user: { select: { full_name: true, nik: true, group: { select: { name: true } } } },

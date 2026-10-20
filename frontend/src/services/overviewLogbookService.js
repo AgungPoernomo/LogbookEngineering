@@ -68,14 +68,17 @@ export const overviewLogbookService = {
     const todayStr = toLocalDateString(new Date())
     const yesterdayStr = addDays(todayStr, -1)
 
-    // Siapkan daftar plant (4 plant)
-    const plants = (masterData.plants || []).slice(0, 4)
+    // Siapkan daftar plant (4 plant utama untuk Card Section C)
+    const allPlants = masterData.plants || []
+    const plants = allPlants.slice(0, 4)
     const plantColors = {
       1: { hex: '#2563EB', name: 'primary', bg: 'bg-primary', text: 'text-primary' },
       2: { hex: '#EAB308', name: 'warning', bg: 'bg-warning', text: 'text-warning' },
       3: { hex: '#22A55B', name: 'success', bg: 'bg-success', text: 'text-success' },
-      4: { hex: '#F97316', name: 'orange', bg: 'bg-orange', text: 'text-orange' }
+      4: { hex: '#F97316', name: 'orange', bg: 'bg-orange', text: 'text-orange' },
+      30001: { hex: '#8B5CF6', name: 'purple', bg: 'bg-purple-500', text: 'text-purple-600' }
     }
+    const defaultPlantColor = { hex: '#64748B', name: 'slate', bg: 'bg-slate-500', text: 'text-slate-600' }
 
     // 3. Terapkan filter pada kumpulan log
     let filteredLogs = [...allLogs]
@@ -283,39 +286,83 @@ export const overviewLogbookService = {
         plant_color: plantColors[l.plant_id] || plantColors[1]
       }))
 
-    // 7. Data Distribusi Logbook per Line / Mesin (% Line Terbanyak)
-    const lineCounts = {}
+    // 7. Data Distribusi Logbook per Line & Mesin (Section E)
+    const totalLogsForDistribution = filteredLogs.length || 1
+
+    // 7a. Distribusi per Line (Plant) dengan Pengisian Log Terbanyak
+    const plantCounts = {}
+    allPlants.forEach(p => {
+      plantCounts[p.id] = {
+        plantId: p.id,
+        name: p.name,
+        code: p.name.toUpperCase().replace(/\s+/g, '-'),
+        color: plantColors[p.id] || defaultPlantColor,
+        count: 0
+      }
+    })
+
     filteredLogs.forEach(l => {
-      const key = l.machine_name || (l.machine_id ? `Mesin-${l.machine_id}` : 'Line Umum')
-      if (!lineCounts[key]) {
-        const plant = plants.find(p => p.id === l.plant_id)
-        lineCounts[key] = {
-          machineId: l.machine_id,
-          name: l.machine_name || 'Line Produksi',
-          code: l.machine_code || `EQ-0${l.machine_id || 1}`,
-          plantId: l.plant_id,
-          plantName: plant ? plant.name : (l.plant_name || `Plant ${l.plant_id}`),
-          color: plantColors[l.plant_id] || plantColors[1],
+      const pid = l.plant_id
+      if (pid && !plantCounts[pid]) {
+        const found = allPlants.find(p => p.id === pid)
+        plantCounts[pid] = {
+          plantId: pid,
+          name: found ? found.name : (l.plant_name || `Line ${pid}`),
+          code: `LINE-${pid}`,
+          color: plantColors[pid] || defaultPlantColor,
           count: 0
         }
       }
-      lineCounts[key].count++
+      if (pid && plantCounts[pid]) {
+        plantCounts[pid].count++
+      }
     })
 
-    const totalLogsForLines = filteredLogs.length || 1
-    const topLines = Object.values(lineCounts)
+    const topLines = Object.values(plantCounts)
+      .filter(item => item.count > 0 || [1, 2, 3, 4].includes(Number(item.plantId)))
+      .sort((a, b) => b.count - a.count)
+      .map((item, idx) => ({
+        rank: idx + 1,
+        ...item,
+        percentage: Math.round((item.count / totalLogsForDistribution) * 100)
+      }))
+
+    // 7b. Distribusi per Mesin (disertai keterangan Line-nya) dengan Log Terbanyak
+    const machineCounts = {}
+    filteredLogs.forEach(l => {
+      const machineName = l.machine_name || (l.machine_id ? `Mesin-${l.machine_id}` : 'Mesin Lain')
+      const plant = allPlants.find(p => p.id === l.plant_id)
+      const plantName = plant ? plant.name : (l.plant_name || `Line ${l.plant_id}`)
+      const key = `${machineName}__${l.plant_id}`
+
+      if (!machineCounts[key]) {
+        machineCounts[key] = {
+          machineId: l.machine_id,
+          name: machineName,
+          plantId: l.plant_id,
+          plantName: plantName,
+          color: plantColors[l.plant_id] || defaultPlantColor,
+          count: 0
+        }
+      }
+      machineCounts[key].count++
+    })
+
+    const topMachines = Object.values(machineCounts)
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
       .map((item, idx) => ({
         rank: idx + 1,
         ...item,
-        percentage: Math.round((item.count / totalLogsForLines) * 100)
+        percentage: Math.round((item.count / totalLogsForDistribution) * 100)
       }))
 
     const topLinesSummary = {
       lines: topLines,
+      machines: topMachines,
       totalLogs: filteredLogs.length,
-      topLine: topLines[0] || null
+      topLine: topLines[0] || null,
+      topMachine: topMachines[0] || null
     }
 
     // 8. Data User Aktif per Plant (Bagian E)

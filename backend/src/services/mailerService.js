@@ -67,7 +67,9 @@ export async function sendNotification({
         message,
         status,
         error_message: errorMessage,
-        sent_at: new Date()
+        is_read: false,
+        sent_at: new Date(),
+        created_at: new Date()
       }
     })
     return notification
@@ -76,3 +78,48 @@ export async function sendNotification({
     return null
   }
 }
+
+/**
+ * Mengirim sekumpulan notifikasi sekaligus menggunakan prisma.notification.createMany (Fan-Out 1 Query)
+ */
+export async function sendBulkNotifications(notifications) {
+  if (!notifications || notifications.length === 0) return []
+
+  const records = notifications.map(n => ({
+    user_id: BigInt(n.userId),
+    logbook_id: n.logbookId ? BigInt(n.logbookId) : null,
+    type: n.type,
+    channel: n.channel || 'INAPP',
+    recipient_email: n.recipientEmail || null,
+    subject: n.subject,
+    message: n.message,
+    status: 'SENT',
+    is_read: false,
+    sent_at: new Date(),
+    created_at: new Date()
+  }))
+
+  try {
+    const result = await prisma.notification.createMany({
+      data: records
+    })
+
+    if (isSmtpEnabled && transporter) {
+      const emailNotifications = notifications.filter(n => n.channel === 'EMAIL' && n.recipientEmail)
+      Promise.all(emailNotifications.map(n =>
+        transporter.sendMail({
+          from: process.env.SMTP_FROM || '"Engineer Logbook Satoria" <noreply@satoria.co.id>',
+          to: n.recipientEmail,
+          subject: n.subject,
+          text: n.message
+        }).catch(err => console.error('[MAILER BULK ERROR]:', err.message))
+      ))
+    }
+
+    return result
+  } catch (err) {
+    console.error('[NOTIFICATION DB BULK ERROR]:', err.message)
+    return null
+  }
+}
+

@@ -1,8 +1,9 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import '@fontsource/inter'
-import '@fontsource/inter/500.css'
-import '@fontsource/inter/600.css'
+// Hanya muat bobot 400, 500, 600 untuk subset latin (mengeliminasi aset Cyrillic/Greek/Vietnamese)
+import '@fontsource/inter/latin-400.css'
+import '@fontsource/inter/latin-500.css'
+import '@fontsource/inter/latin-600.css'
 import './assets/tokens.css'
 import './assets/main.css'
 import App from './App.vue'
