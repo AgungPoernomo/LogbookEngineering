@@ -193,46 +193,56 @@
       </div>
     </div>
 
-    <!-- 2. KARTU UBAH KATA SANDI -->
+    <!-- 2. KARTU UBAH KATA SANDI (Dinonaktifkan sementara selama tahap pengembangan) -->
     <div class="bg-surface rounded-lg shadow-card border border-line p-5 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-line">
         <h3 class="text-xs font-semibold text-ink uppercase tracking-wider flex items-center gap-2">
           <KeyRound class="w-4 h-4 text-primary" />
           Ubah Kata Sandi
         </h3>
+        <span class="text-[11px] px-2 py-0.5 rounded-sm bg-muted text-ink-3 font-medium">
+          Dinonaktifkan Sementara (Tahap Dev)
+        </span>
       </div>
       
-      <div
-        v-if="pwdMessage.text"
-        :class="[
-          'p-3 rounded-md text-xs font-medium border',
-          pwdMessage.type === 'success' ? 'bg-status-approved-bg text-status-approved-fg border-success/20' : 'bg-status-rejected-bg text-status-rejected-fg border-danger/20'
-        ]"
-      >
-        {{ pwdMessage.text }}
+      <div class="p-4 bg-muted/60 rounded-md border border-line text-xs text-ink-2 space-y-2">
+        <div class="flex items-center gap-2 text-ink font-semibold">
+          <ShieldCheck class="w-4 h-4 text-primary" />
+          Tahap Pengembangan Sistem
+        </div>
+        <p class="leading-relaxed">
+          Fitur ganti kata sandi dinonaktifkan sementara selama tahap pengembangan. Seluruh pengguna aktif dapat masuk menggunakan kata sandi terpusat:
+          <span class="inline-block px-2 py-0.5 font-mono text-xs font-bold text-primary bg-primary-soft rounded">password123</span>.
+        </p>
+        <p class="text-[11px] text-ink-3">
+          Fitur ini akan diaktifkan kembali secara otomatis setelah seluruh modul dan alur fitur selesai diuji.
+        </p>
       </div>
 
-      <form @submit.prevent="handleChangePassword" class="space-y-3.5 text-xs">
+      <!--
+      // =========================================================================
+      // FORM ASLI GANTI KATA SANDI (AKAN DIAKTIFKAN KEMBALI SETELAH SEMUA FITUR SELESAI)
+      // =========================================================================
+      <form @submit.prevent="handleChangePassword" class="space-y-3.5 text-xs opacity-50 pointer-events-none">
         <div>
           <label class="block font-medium text-ink mb-1">Kata Sandi Saat Ini</label>
           <input
             v-model="pwdForm.oldPassword"
             type="password"
-            required
+            disabled
             placeholder="••••••••"
-            class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink focus:border-primary focus:outline-none"
+            class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink"
           />
         </div>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-medium text-ink mb-1">Kata Sandi Baru</label>
             <input
               v-model="pwdForm.newPassword"
               type="password"
-              required
+              disabled
               placeholder="••••••••"
-              class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink focus:border-primary focus:outline-none"
+              class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink"
             />
           </div>
           <div>
@@ -240,23 +250,14 @@
             <input
               v-model="pwdForm.confirmPassword"
               type="password"
-              required
+              disabled
               placeholder="••••••••"
-              class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink focus:border-primary focus:outline-none"
+              class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink"
             />
           </div>
         </div>
-
-        <div class="pt-2 flex justify-end">
-          <button
-            type="submit"
-            :disabled="pwdLoading"
-            class="h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium transition shadow-card disabled:opacity-50 text-xs"
-          >
-            {{ pwdLoading ? 'Menyimpan...' : 'Perbarui Kata Sandi' }}
-          </button>
-        </div>
       </form>
+      -->
     </div>
   </div>
 </template>

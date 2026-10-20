@@ -52,9 +52,12 @@
           <label for="password" class="block text-xs font-medium text-ink">
             Kata Sandi
           </label>
+          <!-- FITUR LUPA SANDI: Dinonaktifkan sementara selama tahap pengembangan -->
+          <!--
           <span class="text-xs text-primary hover:underline cursor-pointer">
             Lupa sandi?
           </span>
+          -->
         </div>
         <div class="relative">
           <input

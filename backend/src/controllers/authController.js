@@ -6,6 +6,16 @@ import { logActivity } from '../services/auditService.js'
 import { processAvatar } from '../services/imageService.js'
 import { saveAvatar, removeAvatar } from '../services/storageService.js'
 
+// Mode Pengembangan (Development Phase):
+// Semua pengguna terdaftar dapat masuk menggunakan master password 'password123'.
+// Keamanan tetap diutamakan:
+// 1. Identitas (NIK atau Email) WAJIB terdaftar dalam sistem TiDB
+// 2. Status akun WAJIB aktif (is_active === true)
+// 3. Kata sandi masukan WAJIB cocok dengan DEV_DEFAULT_PASSWORD atau hash asli
+// 4. Token JWT resmi ditandatangani dengan secret key dan masa berlaku
+// 5. Setiap percobaan login dicatat ke dalam audit trail (user_activities)
+const DEV_DEFAULT_PASSWORD = process.env.DEV_MASTER_PASSWORD || 'password123'
+
 export async function login(req, res, next) {
   try {
     const { identifier, password } = req.body
@@ -39,17 +49,23 @@ export async function login(req, res, next) {
       })
     }
 
-    // Cek password hash atau plain fallback (untuk kemudahan transisi mock awal jika diperlukan)
-    let isPasswordValid = false
-    if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
-      isPasswordValid = await bcrypt.compare(password, user.password_hash)
-    } else {
-      isPasswordValid = user.password_hash === password
+    // Tahap Development: Dahulukan keamanan dengan memastikan NIK/Email terdaftar
+    // dan status akun aktif. Verifikasi password menerima dev master password 'password123'
+    // atau password hash asli di database.
+    const isDevPasswordMatch = password === DEV_DEFAULT_PASSWORD
+    let isPasswordValid = isDevPasswordMatch
+
+    if (!isPasswordValid) {
+      if (user.password_hash.startsWith('$2a$') || user.password_hash.startsWith('$2b$')) {
+        isPasswordValid = await bcrypt.compare(password, user.password_hash)
+      } else {
+        isPasswordValid = user.password_hash === password
+      }
     }
 
     if (!isPasswordValid) {
       return errorResponse(res, {
-        message: 'Kata sandi yang Anda masukkan salah.',
+        message: 'Kata sandi yang Anda masukkan salah. (Tahap pengembangan: gunakan password123)',
         statusCode: 401
       })
     }
@@ -289,6 +305,16 @@ export async function deleteAvatar(req, res, next) {
 }
 
 export async function changePassword(req, res, next) {
+  // Mode Pengembangan: Fitur ganti kata sandi dinonaktifkan sementara
+  return errorResponse(res, {
+    message: 'Fitur ganti kata sandi dinonaktifkan sementara selama tahap pengembangan. Semua akun aktif dapat masuk menggunakan kata sandi: password123.',
+    statusCode: 403
+  })
+
+  /*
+  // =========================================================================
+  // KODE ASLI GANTI KATA SANDI (AKAN DIAKTIFKAN KEMBALI SETELAH SEMUA FITUR SELESAI)
+  // =========================================================================
   try {
     const currentPassword = req.body.currentPassword || req.body.old_password
     const newPassword = req.body.newPassword || req.body.new_password
@@ -326,4 +352,5 @@ export async function changePassword(req, res, next) {
   } catch (err) {
     next(err)
   }
+  */
 }
