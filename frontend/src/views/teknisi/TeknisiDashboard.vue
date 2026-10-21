@@ -33,71 +33,10 @@
       Memuat informasi Line kerja Anda...
     </div>
 
-    <!-- ======================================================== -->
-    <!-- BAGIAN KONTEN DASHBOARD UTAMA                            -->
-    <!-- ======================================================== -->
-    <div class="space-y-4">
-      <!-- AREA & PERALATAN MESIN DI LINE SAYA (Goal 3: Notice Area & Mesin) -->
-      <div class="bg-surface rounded-lg shadow-card p-4 sm:p-5 border border-line space-y-3">
-        <div class="flex items-center justify-between pb-3 border-b border-line">
-          <div class="flex items-center gap-2">
-            <Cpu class="w-4 h-4 text-primary" />
-            <h2 class="text-sm font-bold text-ink uppercase tracking-wide">
-              Area & Mesin Operasional Line
-            </h2>
-            <span class="text-[10px] font-semibold bg-muted px-2 py-0.5 rounded text-ink-2">
-              {{ lineMachines.length }} Mesin Terdaftar
-            </span>
-          </div>
-          <RouterLink
-            to="/logbook/input"
-            class="text-xs font-medium text-primary hover:underline flex items-center gap-1"
-          >
-            <span>+ Input Logbook</span>
-          </RouterLink>
-        </div>
-
-        <!-- Grid Mesin di Line Ini -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div
-            v-for="machine in lineMachines"
-            :key="machine.id"
-            class="p-3 rounded-lg border border-line bg-muted/20 hover:bg-muted/40 transition flex flex-col justify-between space-y-2 group"
-          >
-            <div class="flex items-start justify-between gap-2">
-              <div class="min-w-0">
-                <span class="text-[10px] font-mono font-semibold text-primary block">
-                  {{ machine.code }}
-                </span>
-                <h3 class="text-xs font-bold text-ink truncate group-hover:text-primary transition" :title="machine.name">
-                  {{ machine.name }}
-                </h3>
-                <div class="text-[10px] text-ink-3 mt-0.5">
-                  {{ machine.subMachinesCount }} Komponen / Sub-Mesin
-                </div>
-              </div>
-              <div class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                <Wrench class="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            <!-- Status Servis Terakhir -->
-            <div class="pt-2 border-t border-line/60 text-[10px] text-ink-2 flex items-center justify-between">
-              <span v-if="machine.lastLog" class="truncate">
-                Terakhir: <strong class="text-ink">{{ machine.lastLog.user_name }}</strong> ({{ machine.lastLog.start_time }})
-              </span>
-              <span v-else class="text-ink-3 italic">
-                Belum ada log hari ini
-              </span>
-              <span class="font-mono text-primary font-semibold shrink-0">
-                {{ machine.totalLogs }} log
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RIWAYAT & AKTIVITAS LOGBOOK DI LINE (Goal 1 & 2: Riwayat Log Line & Teknisi Lain) -->
+      
+    
+    
+    <!-- RIWAYAT & AKTIVITAS LOGBOOK DI LINE (Goal 1 & 2: Riwayat Log Line & Teknisi Lain) -->
       <div class="bg-surface rounded-lg shadow-card p-4 sm:p-5 border border-line space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-line gap-2.5">
           <div>
@@ -223,6 +162,10 @@
         </div>
       </div>
 
+    <!-- ======================================================== -->
+    <!-- BAGIAN KONTEN DASHBOARD UTAMA                            -->
+    <!-- ======================================================== -->
+    <div class="space-y-4">
       <!-- Baris Gabungan: Tren Aktivitas Line & Rekan Teknisi di Line Saya -->
       <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start">
         <StatisticsChartCard
@@ -277,6 +220,66 @@
           </div>
         </div>
       </div>
+
+      <!-- AREA & PERALATAN MESIN DI LINE SAYA (Goal 3: Notice Area & Mesin) -->
+      <div class="bg-surface rounded-lg shadow-card p-4 sm:p-5 border border-line space-y-3">
+        <div class="flex items-center justify-between pb-3 border-b border-line">
+          <div class="flex items-center gap-2">
+            <Cpu class="w-4 h-4 text-primary" />
+            <h2 class="text-sm font-bold text-ink uppercase tracking-wide">
+              Area & Mesin Operasional Line
+            </h2>
+            <span class="text-[10px] font-semibold bg-muted px-2 py-0.5 rounded text-ink-2">
+              {{ lineMachines.length }} Mesin Terdaftar
+            </span>
+          </div>
+          <RouterLink
+            to="/logbook/input"
+            class="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+          >
+          </RouterLink>
+        </div>
+
+        <!-- Grid Mesin di Line Ini -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div
+            v-for="machine in lineMachines"
+            :key="machine.id"
+            class="p-3 rounded-lg border border-line bg-muted/20 hover:bg-muted/40 transition flex flex-col justify-between space-y-2 group"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="text-[10px] font-mono font-semibold text-primary block">
+                  {{ machine.code }}
+                </span>
+                <h3 class="text-xs font-bold text-ink truncate group-hover:text-primary transition" :title="machine.name">
+                  {{ machine.name }}
+                </h3>
+                <div class="text-[10px] text-ink-3 mt-0.5">
+                  {{ machine.subMachinesCount }} Komponen / Sub-Mesin
+                </div>
+              </div>
+              <div class="w-7 h-7 rounded bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                <Wrench class="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            <!-- Status Servis Terakhir -->
+            <div class="pt-2 border-t border-line/60 text-[10px] text-ink-2 flex items-center justify-between">
+              <span v-if="machine.lastLog" class="truncate">
+                Terakhir: <strong class="text-ink">{{ machine.lastLog.user_name }}</strong> ({{ machine.lastLog.start_time }})
+              </span>
+              <span v-else class="text-ink-3 italic">
+                Belum ada log hari ini
+              </span>
+              <span class="font-mono text-primary font-semibold shrink-0">
+                {{ machine.totalLogs }} log
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal Detail Logbook Pilihan -->

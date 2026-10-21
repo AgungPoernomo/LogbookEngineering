@@ -127,7 +127,9 @@ function handleMouseUp(e) {
     const finalEnd = minStart + duration
 
     emit('create-slot', {
+      date: props.dateStr,
       task_date: props.dateStr,
+      time: minutesToHhmm(minStart),
       start_time: minutesToHhmm(minStart),
       end_time: minutesToHhmm(finalEnd)
     })
@@ -145,14 +147,16 @@ function handleClick(e) {
     const endMin = Math.min(1440, startMin + 60)
 
     emit('create-slot', {
+      date: props.dateStr,
       task_date: props.dateStr,
+      time: minutesToHhmm(startMin),
       start_time: minutesToHhmm(startMin),
       end_time: minutesToHhmm(endMin)
     })
   }
 }
 
-function handleBlockClick(segment) {
-  emit('click-block', segment)
+function handleBlockClick(payload) {
+  emit('click-block', payload)
 }
 </script>

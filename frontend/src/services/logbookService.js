@@ -130,6 +130,29 @@ export const logbookService = {
       status: 'REJECTED',
       notes: notes.trim()
     })
+  },
+
+  // Logika Baru: Approval per User (Teknisi)
+  async getPendingByTechnician() {
+    const res = await api.get('/approvals/technicians')
+    return Array.isArray(res) ? res : (res.data || [])
+  },
+
+  async approveByTechnician(userId, notes = '') {
+    return await api.post(`/approvals/technician/${userId}`, {
+      status: 'APPROVED',
+      notes: notes || 'Disetujui per teknisi sesuai SOP pemeliharaan.'
+    })
+  },
+
+  async rejectByTechnician(userId, notes) {
+    if (!notes || !notes.trim()) {
+      throw new Error('Catatan penolakan / alasan revisi wajib diisi saat menolak logbook.')
+    }
+    return await api.post(`/approvals/technician/${userId}`, {
+      status: 'REJECTED',
+      notes: notes.trim()
+    })
   }
 }
 

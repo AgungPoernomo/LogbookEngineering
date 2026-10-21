@@ -5,14 +5,14 @@
 | Item | Keterangan |
 |---|---|
 | **Nama Proyek** | Engineer Logbook Satoria |
-| **Status** | Tahap 2 - Backend REST API, Skema TiDB & Integrasi |
+| **Status** | Produksi & Stabil (CI/CD Otomatis, Sentry Monitoring, TiDB Cloud) |
 | **Frontend** | Vue.js 3 + Tailwind CSS |
 | **Backend** | Node.js Express + Prisma ORM |
 | **Database** | TiDB (SQL, kompatibel MySQL) |
 | **Deployment** | Vercel |
 | **Repositori** | GitHub (private) |
 | **IDE** | Antigravity IDE |
-| **Versi Dokumen** | 4.0 |
+| **Versi Dokumen** | 4.8 |
 
 ---
 
@@ -223,10 +223,11 @@ flowchart LR
 | **Auth** | JWT + bcrypt / argon2 | Autentikasi stateless & hashing kata sandi |
 | **Deployment** | Vercel & TiDB Cloud | Hosting serverless & database cloud terkelola |
 
-### 7.2 Strategi Dua Tahap (Two-Phase Development)
+### 7.2 Realisasi Dua Tahap & Status Operasional
 
-- **Tahap 1 (Fokus Saat Ini):** Pembangunan seluruh antarmuka (UI) & logika antarmuka menggunakan **Data Dummy** yang terisolasi dalam modul service (`src/services/` & `src/mock/`).
-- **Tahap 2:** Pembangunan Backend API, skema TiDB, pengiriman Notifikasi Email, dan integrasi penuh.
+- **Tahap 1 (Selesai):** Pembangunan seluruh antarmuka pengguna (UI) & logika antarmuka yang terstandarisasi, responsif, dan telah diverifikasi.
+- **Tahap 2 (Selesai):** Pembangunan Backend REST API Express.js, skema TiDB Cloud (Prisma ORM), autentikasi JWT & otorisasi RBAC ketat, pengiriman Notifikasi In-App & Email, Avatar Object Storage, dan eliminasi penuh data mock.
+- **Fokus Operasional Saat Ini:** Pengujian keandalan & otorisasi (RBAC security test), integrasi CI otomatis (GitHub Actions `npm test` & `npm run build`), pemisahan environment database dev vs prod, monitoring galat Sentry, serta manajemen cadangan (*backup & disaster recovery*) TiDB Cloud.
 
 ---
 
@@ -969,20 +970,37 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 }
 ```
 
-### 13.2 Endpoint API Utama (Draf)
+### 13.2 Endpoint API Utama (Produksi / Aktif)
 
 | Metode | Endpoint | Keterangan | Hak Akses |
 |---|---|---|---|
-| POST | `/auth/login` | Authentication JWT | Publik |
-| GET | `/auth/me` | Ambil Profil Pengguna Aktif | Semua |
-| GET | `/logbooks` | Ambil Daftar Logbook (Filter status/plant/tanggal) | Semua (Disesuaikan RBAC) |
-| POST | `/logbooks` | Buat Logbook Baru (Draft/Pending) | Teknisi |
-| PUT | `/logbooks/:id` | Update Logbook (Hanya Draft/Rejected) | Teknisi |
-| POST | `/logbooks/:id/approval` | Action Approve / Reject Logbook | Supervisor |
-| GET | `/master/:type` | Ambil Data Master (plants, shifts, machines, sub-machines) | Semua |
-| POST/PUT | `/master/:type` | Kelola Data Master | Admin |
-| GET | `/reports/export` | Generasi File PDF / Excel | Supervisor |
-| GET | `/admin/audit-logs` | Ambil Catatan Audit `user_activities` | Admin |
+| POST | `/api/v1/auth/login` | Autentikasi JWT (NIK / Email & dev/real password) | Publik |
+| GET | `/api/v1/auth/me` | Ambil Profil Pengguna Aktif & Data Peran | Terotentikasi (Semua Peran) |
+| PUT | `/api/v1/auth/profile` | Perbarui Nama Lengkap & Email Profil Pribadi | Terotentikasi (Semua Peran) |
+| POST | `/api/v1/auth/avatar` | Unggah Foto Profil (WebP Resize & Cloudflare R2 / Local Storage) | Terotentikasi (Semua Peran) |
+| DELETE | `/api/v1/auth/avatar` | Hapus Foto Profil Pengguna | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/logbooks` | Ambil Daftar Logbook (Filter status/plant/tanggal/mesin/search) | Semua (Teknisi terisolasi per akun) |
+| POST | `/api/v1/logbooks` | Buat Logbook Baru (`DRAFT` atau `PENDING`) | Teknisi, Admin |
+| POST | `/api/v1/logbooks/submit-all-drafts` | Ajukan Seluruh Draft Logbook ke Supervisor Sekaligus | Teknisi |
+| GET | `/api/v1/logbooks/:id` | Detail Logbook (Teknisi hanya akses catatan miliknya) | Semua (Teknisi terisolasi per akun) |
+| PUT | `/api/v1/logbooks/:id` | Edit Logbook (Hanya milik sendiri & status Draft/Rejected) | Teknisi, Admin |
+| DELETE | `/api/v1/logbooks/:id` | Hapus Logbook (Hanya milik sendiri & status Draft) | Teknisi, Admin |
+| POST | `/api/v1/logbooks/:id/approval` | Action Approve / Reject Logbook (wajib catatan bila ditolak) | Supervisor, Admin |
+| GET | `/api/v1/logbooks/:id/approvals` | Riwayat Persetujuan Logbook | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/master/:type` | Ambil Data Master (`plants`, `shifts`, `machines`, `sub-machines`, `groups`, `roles`) | Terotentikasi (Semua Peran) |
+| POST | `/api/v1/master/:type` | Tambah Data Master Baru | Admin |
+| PUT | `/api/v1/master/:type/:id` | Perbarui Data Master | Admin |
+| DELETE | `/api/v1/master/:type/:id` | Nonaktifkan / Hapus Data Master | Admin |
+| GET | `/api/v1/users` | Daftar Seluruh Pengguna Sistem | Admin |
+| POST | `/api/v1/users` | Tambah Akun Pengguna Baru | Admin |
+| PUT | `/api/v1/users/:id` | Edit Akun Pengguna & Toggle Status Aktif | Admin |
+| GET | `/api/v1/supervisor/team-overview` | Metrik Frekuensi & Konsistensi Pengisian Tim Teknisi | Supervisor, Admin |
+| GET | `/api/v1/reports/export` | Generasi & Unduh Berkas Spreadsheet Excel (.xlsx) | Supervisor, Admin |
+| GET | `/api/v1/notifications` | Daftar Notifikasi In-App Pengguna (Paging) | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/notifications/unread-count` | Polling Cepat Jumlah Notifikasi Belum Dibaca | Terotentikasi (Semua Peran) |
+| PATCH | `/api/v1/notifications/:id/read` | Tandai Notifikasi Telah Dibaca | Terotentikasi (Semua Peran) |
+| PATCH | `/api/v1/notifications/read-all` | Tandai Semua Notifikasi Telah Dibaca | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/admin/audit-logs` | Catatan Audit Trail Aktivitas (`user_activities`) | Admin |
 
 ---
 
@@ -1008,19 +1026,45 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
      - `CORS_ORIGIN`: URL domain frontend di Vercel (contoh: `https://<nama-frontend>.vercel.app`)
      - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (Notifikasi Email)
 
-3. **Database**: TiDB Cloud (Koneksi aman TLS/SSL).
+3. **Database TiDB Cloud & Kebijakan Cadangan (Backup & Disaster Recovery)**:
+   - **Kluster & Region**: TiDB Cloud Serverless (AliCloud `ap-southeast-1`, Singapore).
+   - **Pemisahan Dev & Prod**:
+     - Frontend development terhubung ke backend Express lokal (`http://localhost:3000`).
+     - Backend development wajib menggunakan branch terpisah via **TiDB Cloud Serverless Branching** (misal branch `dev` dari cluster `main`) atau database katalog terpisah (`satoria_logbook_dev`), mencegah data development dan testing mencemari database produksi.
+     - File kredensial `.env` dan variasinya diproteksi ketat pada `.gitignore` (root dan frontend).
+   - **Kebijakan Cadangan TiDB Cloud Sesuai Tier**:
+     - *Automated Daily Backups*: TiDB Cloud Serverless melakukan snapshot penuh (*full snapshot*) otomatis setiap hari tanpa mengganggu performa transaksi aktif.
+     - *Point-In-Time Recovery (PITR)*: Retensi snapshot dan log perubahan transaksi memungkinkan pemulihan data ke detik tertentu (*point-in-time*) dalam jendela retensi tier aktif (1 hari untuk Free Tier Serverless, hingga 7–30 hari untuk Standard/Dedicated Tier).
+     - *Ketahanan Multi-AZ (RPO = 0)*: TiDB mendistribusikan 3 replika data berbasis konsensus Raft lintas *Multiple Availability Zones* (Multi-AZ) menjamin ketahanan terhadap kegagalan perangkat keras tanpa kehilangan data.
+     - *Zero-Copy Branching*: Database dapat di-branch dalam hitungan detik sebagai cadangan instan sebelum migrasi skema besar.
+
+4. **Monitoring Galat (Sentry Error Monitoring)**:
+   - **Paket**: `@sentry/node` terintegrasi pada Express backend (`src/config/sentry.js`) dan *Central Error Handler* (`src/middlewares/errorHandler.js`).
+   - **Tier Gratis (Developer Tier)**:
+     - 10.000 error events per bulan (bebas biaya selamanya).
+     - 100.000 performance tracing spans per bulan.
+     - Notifikasi instan via email saat terjadi error kritis (HTTP 500+).
+   - **Aktivasi**: Pasang `SENTRY_DSN` pada environment variable Vercel dan `.env` server. Jika variabel tidak diisi, Sentry akan *bypass* secara aman tanpa mengganggu runtime.
 
 ---
 
-## 15. Panduan Git & GitHub
+## 15. Panduan Git, GitHub & Otomasi CI
 
-### Convention Branch & Commits
+### 15.1 Convention Branch & Commits
 
 - Branching: `main` (Production), `feature/<nama-fitur>`, `fix/<nama-bug>`.
 - Commit Messages:
   - `feat: tambah form logbook teknisi`
   - `fix: kalkulasi durasi shift melintasi tengah malam`
+  - `test: tambah pengujian otorisasi RBAC`
   - `docs: update README spesifikasi Satoria`
+
+### 15.2 Otomasi CI (GitHub Actions)
+
+Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan dieksekusi otomatis pada setiap `push` dan `pull request`:
+- **Backend Job**: Melakukan instalasi dependensi, `npx prisma generate`, dan menjalankan seluruh pengujian otomatis `npm test` (31 skenario uji mencakup utilitas, JWT, autentikasi, avatar, zona waktu WIB, dan matriks otorisasi RBAC).
+- **Frontend Job**: Melakukan instalasi dependensi, pengujian unit Vitest `npm test` (kalkulasi kalender layout), dan build bundler produksi Vite `npm run build`.
+- Menjamin tidak ada kode yang mengalami regresi atau galat sintaks/tipe data yang dapat masuk ke repositori utama tanpa terverifikasi.
 
 ---
 
@@ -1044,13 +1088,34 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 
 ## 18. Pengujian
 
-- **Unit Testing**: Vitest untuk fungsi utility (durasi shift, validator).
-- **UAT Checklist**:
-  - [ ] Teknisi sukses menginput logbook dan durasi terhitung otomatis.
-  - [ ] Logbook berstatus `Pending` memunculkan notifikasi supervisor.
-  - [ ] Supervisor dapat me-reject logbook wajib beserta alasannya.
-  - [ ] Admin dapat mengelola Master Data Plant & Shift tanpa error.
-  - [ ] Ekspor laporan PDF/Excel menyajikan data sesuai filter.
+### 18.1 Automated Testing Suite
+
+1. **Backend Test Suite (Node.js Test Runner - 31 Skenario Lulus 100%)**:
+   - `test/authorization.test.js` (**Pengujian Otorisasi RBAC & Isolasi Data**):
+     - Membuktikan Teknisi A ditolak (HTTP 403) saat mencoba membuka (`GET`), mengedit (`PUT`), atau menghapus (`DELETE`) logbook milik Teknisi B.
+     - Membuktikan Teknisi B (pemilik sah), Supervisor, dan Admin diizinkan membuka detail logbook (HTTP 200).
+     - Membuktikan Teknisi ditolak (HTTP 403) saat memanggil endpoint approval (`POST /logbooks/:id/approval`).
+     - Membuktikan Supervisor ditolak (HTTP 403) saat mencoba menambah, mengedit, atau menghapus master data (`plants`, `shifts`, `machines`), namun diizinkan membaca (`GET`).
+   - `test/timezone.test.js` (**Pengujian Zona Waktu WIB & Shift Malam**):
+     - Memvalidasi presisi penanggalan WIB (UTC+7) di serverless Vercel (UTC).
+     - Kalkulasi durasi shift lintas tengah malam (Shift 3 & Long Shift).
+   - `test/image.test.js` & `test/upload.test.js` (**Pemrosesan Gambar & Upload Avatar**):
+     - Konversi WebP 320x320 px, kompresi, dan validasi MIME type/token.
+   - `test/api.test.js` (**Endpoint Dasar & Keamanan**):
+     - Health check, 401 unauthenticated, 400 validation, dan 404 routing.
+
+2. **Frontend Test Suite (Vitest & Vite Build - 9 Skenario Lulus 100%)**:
+   - `src/utils/calendarLayout.test.js`: Validasi clustering kalender mingguan, snapping grid 15 menit, penanggalan WIB, dan segmentasi event lintas hari.
+   - `npm run build`: Kompilasi produksi Vite bebas galat dengan dynamic code splitting (81.6 kB bundle).
+
+### 18.2 UAT Checklist
+
+- [x] Teknisi sukses menginput logbook dan durasi terhitung otomatis.
+- [x] Logbook berstatus `Pending` memunculkan notifikasi supervisor.
+- [x] Supervisor dapat me-reject logbook wajib beserta alasannya.
+- [x] Admin dapat mengelola Master Data Plant & Shift tanpa error.
+- [x] Ekspor laporan PDF/Excel menyajikan data sesuai filter.
+- [x] Pengujian otorisasi RBAC mencegah kebocoran data antar-teknisi dan eskalasi hak akses.
 
 ---
 
@@ -1128,6 +1193,14 @@ Dokumen ini adalah **sumber kebenaran tunggal (*Single Source of Truth*)** untuk
 | 3.8 | 20 Oktober 2026 | **Penghapusan Komponen Akun Demo pada Halaman Login (`LoginView.vue`) & Penyelarasan Input Pengguna Riil**:<br>- Menghapus seluruh daftar akun demo preset (Teknisi, Supervisor, Admin) beserta pembatas "Pilihan Akun Demo Satoria (Fase 1)" dari template antarmuka `LoginView.vue`.<br>- Membersihkan state `demoAccounts`, fungsi `fillAndLogin`, dan referensi konstanta `ROLES` yang tidak lagi digunakan pada `<script setup>`.<br>- Mengosongkan nilai awal formulir input login (`form.identifier` dan `form.password`) agar pengguna memasukkan kredensial NIK/Email dan kata sandi secara mandiri.<br>- Pengujian build produksi frontend Vite (`npm run build`) sukses 100% tanpa error. |
 | 3.9 | 20 Oktober 2026 | **Penyempurnaan Section E Overview Dashboard: Pemisahan Presisi "Line dengan Pengisian Log Terbanyak" dan "Mesin (dengan Keterangan Line) dengan Log Terbanyak" (`TopLinesProgressCard.vue` & `overviewLogbookService.js`)**:<br>- **Perbaikan Logika Agregasi Data (`overviewLogbookService.js`)**:<br>  - Sebelumnya Section E mengelompokkan data berdasarkan mesin namun diberi label 'Line'. Kini dilakukan pemisahan agregasi secara presisi:<br>    1. `summary.lines`: Menghitung akumulasi logbook per **Line/Plant** fasilitas operasional (`Line 1`, `Line 2`, `General`, `Line 3`, `Line 4`) diurutkan dari yang memiliki log terbanyak lengkap dengan persentase dan warna aksen line.<br>    2. `summary.machines`: Menghitung akumulasi logbook per **Mesin** dengan menyertakan keterangan relasi **Line** tempat mesin tersebut berada (misal: `AUTOCLAVE (Line 2)`, `OTHER (Line 1)`).<br>- **Penyempurnaan Antarmuka Kartu (`TopLinesProgressCard.vue`)**:<br>  - Mengatur tata letak berjenjang: Bagian atas menampilkan daftar **Line dengan Pengisian Log Terbanyak** (dengan progress bar dan persentase kontribusi), dan bagian bawah menampilkan daftar **Mesin (disertai keterangan Linenya) dengan Log Terbanyak** (dengan badge Line berwarna, progress bar, dan persentase kontribusi).<br>  - Footer kartu menyajikan metrik total logbook terdistribusi, *Line Teraktif*, serta *Mesin Terbanyak*.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 9 pengujian unit test Vitest (`npm test`) lulus 100% dan build produksi frontend Vite (`npm run build`) sukses tanpa pesan error. |
 | 4.0 | 20 Oktober 2026 | **Peningkatan Performa Menyeluruh: Polling Cerdas, Fan-Out Notifikasi Single Query, Database Indexing TiDB, Agregasi Database groupBy, Lazy Loading Rute, dan Pengujian Presisi Zona Waktu WIB (UTC+7)**:<br>1. **Polling Notifikasi Cerdas & Endpoint Ringan**:<br>   - Interval polling dinaikkan dari 15 detik menjadi 60 detik di `Navbar.vue` guna menghemat bandwidth dan kapasitas serverless.<br>   - Integrasi Page Visibility API (`document.hidden` & `visibilitychange`): polling otomatis dihentikan saat pengguna beralih tab dan segera aktif kembali saat tab dibuka.<br>   - Pembuatan endpoint ringan `GET /api/v1/notifications/unread-count` untuk polling hitungan notifikasi belum dibaca tanpa memuat seluruh array data notifikasi.<br>2. **Fan-Out Notifikasi Single Query (`createMany`)**:<br>   - Pengajuan logbook, pembaruan, submit all drafts, dan approval kini mengompilasi notifikasi ke Teknisi, Supervisor, dan seluruh Admin dalam satu array dan mengeksekusinya dalam **1 query tunggal database** melalui `prisma.notification.createMany` via `sendBulkNotifications`, menggantikan perulangan *insert* individual (`sendNotification`).<br>3. **Penyempurnaan Indeks Majemuk Basis Data & Pagination**:<br>   - Menambahkan compound index pada skema database TiDB (`schema.prisma`):<br>     - `logbooks`: `@@index([user_id, task_date])` dan `@@index([status, plant_id, task_date])`.<br>     - `notifications`: `@@index([user_id, is_read, created_at])`.<br>   - Menerapkan parameter pagination baku (`page`, `limit`, `skip`, `meta`) pada seluruh endpoint daftar notifikasi dan logbook.<br>4. **Optimalisasi Ekspor Excel & Agregasi Database Supervisor**:<br>   - `supervisorController.js`: Menghilangkan penarikan seluruh baris logbook ke memori Node.js; kini seluruh ringkasan kinerja tim, durasi, status approval, aktivitas 7 hari, dan top machine dihitung langsung di database menggunakan Prisma `groupBy` (mempercepat respons dari ratusan MB memori menjadi kalkulasi instan ~1 detik).<br>   - `reportController.js`: Membatasi rentang tanggal ekspor Excel maksimal 93 hari (3 bulan) dan batas 3.000 entri per unduhan demi mencegah *Out-of-Memory* (OOM) pada runtime serverless Vercel.<br>5. **Optimasi Frontend (Lazy Loading, Tree-Shaking, Subset Font Inter)**:<br>   - Mengonversi seluruh definisi view pada `router/index.js` menjadi dynamic code-splitting: `component: () => import(...)`.<br>   - Membatasi impor `@fontsource/inter` di `main.js` hanya pada subset Latin dengan bobot 400, 500, dan 600, mengeliminasi puluhan file font Cyrillic/Greek/Vietnamese yang tidak terpakai.<br>   - Ukuran bundle utama frontend turun drastis dari **420 kB** menjadi hanya **81.6 kB** (gzip: 29.8 kB).<br>6. **Sinkronisasi Zona Waktu WIB (UTC+7 vs Vercel UTC) & Shift Lintas Tengah Malam**:<br>   - Pembuatan modul utility `backend/src/utils/date.js` yang memanfaatkan `Intl.DateTimeFormat` dengan timeZone `Asia/Jakarta`, memastikan tanggal acuan serverless Vercel (UTC) selalu menghasilkan penanggalan WIB yang tepat.<br>   - Penambahan suite pengujian otomatis `backend/test/timezone.test.js` (8 skenario uji): membuktikan bahwa logbook yang dibuat pukul 01:00 WIB (18:00 UTC kemarin) tetap tercatat di `task_date` tanggal baru, transisi 23:59 ke 00:05 WIB presisi, dan durasi shift malam (Shift 3: 23:00 - 07:00 durasi 480 menit, LongShift 19:00 - 07:00 durasi 720 menit) terhitung sempurna.<br>- **Pengujian & Verifikasi**:<br>   - Seluruh 19 unit & integration test backend Node.js (`npm test`) lulus 100%.<br>   - Seluruh 9 unit test frontend Vitest (`npm test`) lulus 100%.<br>   - Build produksi frontend Vite (`npm run build`) selesai dalam 7.6 detik tanpa error. |
+| 4.1 | 21 Oktober 2026 | **Penguatan Keamanan & Reliabilitas: Pengujian Otorisasi RBAC Komprehensif, Otomasi CI Pipeline (GitHub Actions), Pemisahan Environment Dev/Prod, Eliminasi 7 View Yatim, Monitoring Galat Sentry, dan Kebijakan Cadangan TiDB Cloud**:<br>1. **Suite Pengujian Otorisasi RBAC Backend (`backend/test/authorization.test.js`)**:<br>   - Melakukan pengujian keamanan ketat pada area berisiko tinggi:<br>     a. *Isolasi Data Teknisi*: Membuktikan bahwa Teknisi A ditolak secara tegas (HTTP 403 Forbidden) saat mencoba membaca (`GET`), mengedit (`PUT`), maupun menghapus (`DELETE`) logbook milik Teknisi B. Sebaliknya, Teknisi B (pemilik sah), Supervisor, dan Admin sukses mengakses logbook tersebut (HTTP 200 OK).<br>     b. *Proteksi Endpoint Approval*: Membuktikan bahwa Teknisi ditolak secara mutlak (HTTP 403 Forbidden) saat memanggil endpoint persetujuan (`POST /api/v1/logbooks/:id/approval`). Sebaliknya, Supervisor dan Admin memiliki hak otorisasi penuh untuk memproses persetujuan.<br>     c. *Proteksi Master Data*: Membuktikan bahwa Supervisor ditolak (HTTP 403 Forbidden) saat mencoba memanipulasi master data (`POST`, `PUT`, `DELETE` pada `/api/v1/master/plants`, `/shifts`, `/machines`), namun tetap diizinkan membaca (`GET`) master data untuk kebutuhan monitoring.<br>   - Total pengujian backend Node.js kini bertambah menjadi **31 pengujian** dengan kelulusan **100%**.<br>2. **Implementasi Otomasi CI Pipeline (`.github/workflows/ci.yml`)**:<br>   - Memasang GitHub Actions otomatis yang dieksekusi pada setiap `push` dan `pull request`.<br>   - Memvalidasi backend (`npm ci`, `npx prisma generate`, `npm test`) dan frontend (`npm ci`, `npm test` Vitest, dan `npm run build` Vite) sebelum kode diizinkan masuk ke lingkungan produksi.<br>3. **Pemisahan Database Development dan Produksi**:<br>   - Memeriksa konektivitas frontend development (terhubung melalui server backend lokal `localhost:3000`, bukan langsung ke database TiDB Cloud).<br>   - Menetapkan isolasi database development menggunakan TiDB Cloud Serverless Branching (`dev` branch) atau database terpisah (`satoria_logbook_dev`).<br>   - Memastikan dan memverifikasi seluruh berkas `.env` dan variasinya (`.env*`) telah masuk dalam daftar `.gitignore` (root dan frontend).<br>4. **Pembersihan 7 Berkas View Yatim (*Orphan Views*)**:<br>   - Mengonfirmasi bahwa ketujuh file view legacy (`AdminSpvDashboard.vue`, `ApprovalView.vue`, `DataTeknisiView.vue`, `DataValidasiView.vue`, `MasterDataView.vue`, `InputLogView.vue`, `RiwayatLogView.vue`) sudah tercatat dan terlacak aman di riwayat Git commit.<br>   - Menghapus ketujuh file view yatim tersebut dari direktori `frontend/src/views/` sehingga struktur proyek bersih dan bebas redundansi.<br>5. **Pembaruan Dokumen Sumber Kebenaran (`README.md`)**:<br>   - Memperbarui Bagian 7.2 dari status awal "Tahap 1: data dummy" menjadi status aktual "Produksi & Stabil (Fase 1 & Fase 2 Selesai)".<br>   - Memperbarui Bagian 13.2 dari status "Draf" menjadi "Produksi / Aktif" dengan daftar endpoint v1 yang lengkap dan presisi.<br>6. **Monitoring Galat Sentry & Kebijakan Cadangan TiDB Cloud**:<br>   - Memasang paket `@sentry/node` terintegrasi pada Express backend (`src/config/sentry.js`) dan *Central Error Handler* (`src/middlewares/errorHandler.js`) memanfaatkan tier gratis developer (10.000 events/bulan).<br>   - Mendokumentasikan kebijakan cadangan TiDB Cloud Serverless: snapshot harian otomatis, point-in-time recovery (PITR), ketahanan 3-replika Raft Multi-AZ (RPO = 0), dan zero-copy branching. |
+| 4.2 | 21 Oktober 2026 | **Implementasi Freeze / Sticky Header Navbar Penuh (`MainLayout.vue`, `Navbar.vue`, `main.css`)**:<br>- **Penyebab Masalah**: Sebelumnya, deklarasi `overflow-x-hidden` pada elemen pembungkus root `MainLayout.vue` (`min-h-screen`) menyebabkan browser menonaktifkan (*break*) konteks scrolling viewport window, sehingga `position: sticky; top: 0;` pada `<header>` tidak dapat menempel/terfreeze saat pengguna menggulir (*scroll*) halaman ke bawah.<br>- **Solusi & Penyempurnaan UI**:<br>  1. `MainLayout.vue`: Menghapus `overflow-x-hidden` dari wrapper root flex layout.<br>  2. `main.css`: Menambahkan properti CSS modern `overflow-x: clip` pada `@layer base` (`html, body`) untuk mengunci luapan horizontal tanpa membatalkan perilaku `position: sticky`.<br>  3. `Navbar.vue`: Menyempurnakan elemen header dengan kelas `sticky top-0 z-30 bg-surface/95 backdrop-blur-md shadow-xs transition-shadow`, memberikan efek translucent frosted glass yang elegan serta bayangan halus pemisah saat konten tabel/kartu melintas di bawah navbar yang terkunci.<br>- **Pengujian & Verifikasi**: Seluruh 9 pengujian Vitest dan build produksi Vite selesai 100% tanpa error. |
+| 4.3 | 21 Oktober 2026 | **Implementasi Sticky Bottom Navbar untuk Perangkat Mobile (Smartphone) dan Tablet (`BottomNavbar.vue`, `MainLayout.vue`, `Sidebar.vue`)**:<br>- **Latar Belakang & Kebutuhan Ergonomi Lapangan**:<br>  - Teknisi dan Supervisor sering mengakses platform menggunakan tablet dan ponsel pintar di area operasional pabrik. Navigasi jempol (*thumb-driven navigation*) di bagian bawah layar jauh lebih cepat, ergonomis, dan nyaman dibanding harus meregangkan tangan ke tombol drawer atas.<br>- **Pembangunan Komponen Sticky Bottom Navbar (`BottomNavbar.vue`)**:<br>  1. *Desain & Posisi*: Diletakkan secara permanen di bagian bawah layar (`fixed bottom-0 inset-x-0 z-40 lg:hidden`) dengan ketinggian 64 px (`h-16`), material transparan elegan `bg-surface/95 backdrop-blur-md`, garis pemisah `border-t border-line`, bayangan lembut ke atas `shadow-[0_-2px_12px_rgba(0,0,0,0.06)]`, serta dukungan *safe area inset* iOS (`pb-[env(safe-area-inset-bottom)]`).<br>  2. *Navigasi Terkurasi per Peran*:<br>     - **Teknisi**: 4 item ergonomis (`Dashboard`, `Input Log`, `Riwayat`, `Profil`).<br>     - **Supervisor**: 5 item operasional (`Dashboard`, `Approval` dengan badge pending live, `Aktivitas`, `Laporan`, `Profil`).<br>     - **Admin**: 5 item manajerial (`Dashboard`, `Pengguna`, `Master` [Plant/Mesin/Group], `Audit`, `Profil`).<br>  3. *Indikator Status Aktif Visual*: Indikator batang aksen 2px di bagian atas tab aktif, latar belakang pil bulat aksen lembut `bg-primary/10`, ikon membesar dengan stroke 2.2px, dan label teks tebal `text-primary`.<br>- **Penyelarasan Layout Global & Komponen Terapung**:<br>  1. `MainLayout.vue`: Mengintegrasikan `BottomNavbar`, menambahkan padding bawah halaman `pb-24 sm:pb-24 lg:pb-6` pada `<main>` agar tidak ada konten yang tertutup navbar bawah, dan menyesuaikan breakpoint sidebar desktop ke `lg:pl-52` (sehingga tablet mendapatkan lebar layar penuh yang lapang tanpa terhimpit sidebar).<br>  2. `Sidebar.vue` & `Navbar.vue`: Menyesuaikan drawer sidebar menjadi off-canvas pada seluruh layar `< lg` (smartphone & tablet) dan mempertahankan hamburger tombol menu agar pengguna tablet tetap dapat mengakses menu lengkap kapan saja.<br>  3. `FabCreate.vue` & `Toast.vue`: Mengangkat posisi tombol FAB buat logbook dan notifikasi Toast ke `bottom-20` pada mobile dan tablet agar mengapung harmonis tepat di atas Sticky Bottom Navbar.<br>- **Pengujian & Verifikasi**: Seluruh 9 pengujian unit test Vitest lulus 100% dan build produksi Vite selesai dalam 3.2 detik tanpa error. |
+| 4.4 | 21 Oktober 2026 | **Eksklusivitas Navigasi HP & Tablet: Penonaktifan Penuh Side Navbar & Sentralisasi Sticky Bottom Navbar (`Sidebar.vue`, `Navbar.vue`, `MainLayout.vue`)**:<br>- **Latar Belakang & Eliminasi Kebingungan Pengguna**:<br>  - Agar pengguna perangkat HP (Smartphone) dan Tablet tidak dibingungkan dengan adanya dua jalur navigasi sekaligus (sidebar drawer geser dan bottom navbar), sistem kini menonaktifkan side navbar secara penuh pada perangkat seluler dan tablet, menjadikan **Sticky Bottom Navbar** sebagai satu-satunya navigasi utama.<br>- **Implementasi Teknis & Pembersihan Komponen**:<br>  1. `Sidebar.vue`: Dikonfigurasi secara eksklusif hanya untuk layar Desktop (`hidden lg:flex fixed ...`). Seluruh kode backdrop mobile overlay (`isOpen`), tombol tutup (`X`), dan animasi geser mobile ditiadakan dari tampilan HP/tablet.<br>  2. `Navbar.vue`: Menghilangkan tombol toggle hamburger menu (`Menu`), menggantikannya dengan logo pintas Satoria yang bersih dan judul/subjudul halaman (`PageHeader.vue`) yang proporsional.<br>  3. `MainLayout.vue`: Menghilangkan state reaktif `sidebarOpen` dan event listener drawer, menyederhanakan arsitektur pembungkus layout menjadi murni reaktif terhadap breakpoint desktop vs seluler.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 9 pengujian unit test Vitest lulus 100% dan build produksi Vite (`npm run build`) selesai dalam 5.3 detik tanpa error. |
+| 4.5 | 21 Oktober 2026 | **Perubahan Logika Approval: Transisi dari Persetujuan per Setiap Log menjadi Persetujuan per Setiap User (Teknisi) (`ApprovalListView.vue`, `approvalController.js`, `approvalRoutes.js`, `logbookService.js`, `logbook.js`)**:<br>- **Latar Belakang & Efisiensi Operasional Supervisor**:<br>  - Sebelumnya, Supervisor harus memeriksa dan menyetujui logbook satu per satu (*per-log basis*), yang memakan waktu lama saat seorang teknisi mengajukan banyak aktivitas dalam satu shift kerja. Pada logika baru, proses approval dilakukan **per setiap user (Teknisi)** sehingga saat Supervisor menyetujui seorang teknisi, seluruh catatan logbook yang diajukan oleh teknisi tersebut otomatis tersimpan ke database sebagai `APPROVED` dalam satu transaksi terpadu.<br>- **Pembaruan Backend REST API & Integritas Database Transaksional (`/backend`)**:<br>  1. **Endpoint Baru Approval Per Teknisi (`POST /api/v1/approvals/technician/:userId`)**:<br>     - Mengambil seluruh logbook berstatus `PENDING` milik teknisi yang bersangkutan (`user_id = userId`).<br>     - Mengeksekusi transaksi Prisma (`prisma.$transaction`): memperbarui status seluruh logbook pending teknisi menjadi `APPROVED` (atau `REJECTED`), serta membuat catatan riwayat persetujuan di tabel `logbook_approvals` untuk masing-masing logbook secara simultan.<br>     - Mencatat audit trail terpusat pada `user_activities`: `APPROVE_LOGBOOK_PER_TEKNISI` / `REJECT_LOGBOOK_PER_TEKNISI`.<br>     - Menyiarkan notifikasi fan-out sekali jalan (1 query `createMany`): notifikasi hasil approval ke Teknisi terkait, notifikasi rekapitulasi ke Supervisor, dan notifikasi audit ke Admin sistem.<br>  2. **Endpoint Agregasi Pengajuan Per Teknisi (`GET /api/v1/approvals/technicians`)**:<br>     - Mengelompokkan logbook pending berdasarkan teknisi, menyajikan data profil, nama plant, work group, akumulasi durasi pengerjaan, daftar mesin yang dikerjakan, dan array seluruh logbook pending.<br>  3. **Backward Compatibility**: Tetap mempertahankan endpoint individual `POST /logbooks/:id/approval` untuk kompatibilitas dan stabilitas pengujian lama.<br>- **Overhaul Antarmuka Pengguna Frontend (`ApprovalListView.vue`)**:<br>  1. **Tampilan Kartu Per Teknisi (Primary Mode)**:<br>     - Menampilkan kartu terstruktur untuk setiap teknisi yang memiliki pengajuan logbook: Avatar profil, Nama Teknisi, NIK, Plant, dan Grup/Departemen.<br>     - Ringkasan KPI: Total logbook yang diajukan, total akumulasi durasi pengerjaan (jam & menit), serta daftar mesin yang dikerjakan.<br>     - Tombol Aksi Utama: Tombol **"Setujui Semua Log (n)"** berwarna hijau yang langsung menyetujui seluruh logbook teknisi ke database, dan tombol **"Tolak dengan Catatan"** berwarna merah yang memunculkan modal catatan revisi wajib.<br>     - Accordion Rincian: Tombol *Lihat Rincian / Tutup Rincian* yang membuka tabel rincian seluruh logbook milik teknisi tersebut (tanggal, shift, mesin, sub-mesin, durasi, suku cadang, uraian pekerjaan, dan tombol Detail).<br>  2. **Tampilan Alternatif Mode Logbook**: Tetap menyediakan tombol beralih ke tabel *Semua Log* bagi supervisor yang ingin menginspeksi logbook secara mendatar (*flat view*).<br>  3. **Notifikasi Toast**: Memberikan feedback konfirmasi instan saat persetujuan per teknisi berhasil disimpan ke database TiDB.<br>- **Pengujian & Verifikasi**:<br>  - Suite pengujian otorisasi backend Node.js bertambah menjadi **34 pengujian otomatis** (`backend/test/authorization.test.js` mencakup pengujian RBAC endpoint approval per teknisi) dengan kelulusan **100%**.<br>  - Seluruh 9 pengujian unit test Vitest frontend lulus 100% (`npm test`).<br>  - Build produksi frontend Vite (`npm run build`) selesai dalam 2.54 detik tanpa galat. |
+| 4.6 | 21 Oktober 2026 | **Penonaktifan RoleSwitcher Mode Pengembangan & Otomasi Indikator Posisi Pengguna (`Navbar.vue`)**:<br>- **Penyempurnaan Keamanan & Integritas Autentikasi**:<br>  - Mengubah elemen `RoleSwitcher` (yang sebelumnya merupakan dropdown `<select>` untuk simulasi pergantian peran pada Tahap 1) menjadi **Indikator Posisi / Peran Read-Only** yang terkunci secara permanen dan otomatis sinkron dengan akun aktif pengguna di database (`authStore.role` / `authStore.user`).<br>  - Menghilangkan elemen interaktif `<select>` beserta fungsi simulasi `handleRoleChange` baik pada header navbar desktop maupun menu popover profil mobile.<br>  - Menampilkan badge status posisi pengguna yang elegan dengan indikator dot warna tematik (Biru untuk Teknisi, Oranye untuk Supervisor, Hijau untuk Admin) tanpa dapat diubah secara manual oleh pengguna.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 9 pengujian unit test Vitest lulus 100% (`npm test`) dan build produksi Vite (`npm run build`) selesai dalam 4.67 detik tanpa error. |
+| 4.7 | 21 Oktober 2026 | **Aktivasi & Perbaikan Fitur Kalender Mingguan Teknisi (`RiwayatLogbookView.vue`, `calendarLayout.js`, `LogbookEventBlock.vue`, `DayColumn.vue`, `LogbookEventPopover.vue`, `InputLogbookView.vue`)**:<br>- **Latar Belakang & Identifikasi Masalah/Bug**:<br>  Fitur `BAGIAN 1: Kalender Mingguan Teknisi (UI dari Input Logbook)` pada `RiwayatLogbookView.vue` sebelumnya tidak berfungsi secara aktif dan tidak merender balok event pekerjaan karena beberapa galat struktural dan ketidaksesuaian antarmuka props:<br>  1. *Pencocokan Kunci Tanggal Tidak Cocok*: Fungsi `splitLogbookToSegments` menghasilkan segmen berproperti `s.day`, sedangkan loop di view membandingkan `s.dateKey === dayDate` yang selalu bernilai `false`, berakibat array segmen harian selalu kosong.<br>  2. *Ketidaksesuaian Interface Komponen Grid*: Objek `calculatedDays` mengembalikan `{ dateKey, blocks, summary }`, sementara komponen anak (`TimeGrid.vue`, `WeekHeader.vue`, `DaySummaryRow.vue`, `DayColumn.vue`) membaca `dateStr`, `isToday`, `segments`, dan `summaryChips`.<br>  3. *Galat Parameter Ringkasan Harian*: Fungsi `computeDaySummary` menerima parameter `(dayDateStr, dayLogbooks = [])` namun dipanggil dengan argumen tunggal `daySegments`, sehingga chip ringkasan tidak terhitung.<br>  4. *Query Parameter Slot Klik/Seret*: `DayColumn.vue` memancarkan `task_date` dan `start_time`, sedangkan handler `handleCreateFromSlot` membaca `slot.date` dan `slot.time` sehingga navigasi form input membawa parameter `undefined`.<br>  5. *Bounding Rect Popover Hilang*: `LogbookEventBlock.vue` hanya memancarkan segmen tanpa bounding rect, sehingga popover ringkasan tidak memiliki posisi jangkar (*anchor rect*) akurat dan jatuh ke koordinat default pojok layar.<br>- **Solusi & Implementasi Komprehensif**:<br>  1. `calendarLayout.js`: Menambahkan properti ganda `day` dan `dateKey` pada setiap segmen logbook normal maupun lintas tengah malam.<br>  2. `RiwayatLogbookView.vue`: Mengaktifkan pencocokan `(s.day === dayDate || s.dateKey === dayDate)`, merestrukturisasi objek `calculatedDays` lengkap dengan `dateStr`, `dateKey`, `isToday`, `segments`, `blocks`, dan `summaryChips` dari hasil `computeDaySummary(dayDate, dayLogs)`, serta menyempurnakan `myLogs` dengan konversi numerik `Number(l.user_id) === Number(authStore.user?.id)`.<br>  3. `DayColumn.vue` & `LogbookEventBlock.vue`: Menghitung dan meneruskan element bounding rect secara presisi saat kartu logbook diklik, serta melengkapi payload `create-slot` dengan properti `date`, `task_date`, `time`, `start_time`, dan `end_time`.<br>  4. `LogbookEventPopover.vue`: Mengintegrasikan tombol interaktif 'Detail Lengkap' (membuka modal detail riwayat) dan tombol 'Edit' / 'Revisi' (membuka halaman edit untuk status Draft/Rejected).<br>  5. `InputLogbookView.vue`: Memasang watcher reaktif pada `route.query` agar saat slot waktu atau tombol kalender diklik, form input langsung otomatis terisi tanggal tugas (`task_date`) dan jam mulai (`start_time`) serta bulan kalender picker tersinkronisasi.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 9 pengujian unit test Vitest frontend lulus 100% (`npm test`).<br>  - Build produksi frontend Vite (`npm run build`) selesai tanpa galat (`built in 4.23s`).<br>  - Seluruh pengujian otorisasi dan fungsionalitas backend Node.js terverifikasi stabil. |
+| 4.8 | 21 Oktober 2026 | **Integrasi Supabase Storage SDK (Metode 1) untuk Media & Avatar (`storageService.js`, `.env.example`)**:<br>- **Implementasi Supabase Storage SDK (`@supabase/supabase-js`)**:<br>  1. Memasang package `@supabase/supabase-js` pada backend Express.<br>  2. Mengimplementasikan modul adaptor Supabase pada `backend/src/services/storageService.js` (`saveAvatar`, `removeAvatar`, `isSupabaseConfigured`, `getSupabaseClient`).<br>  3. Mendukung direct public upload dengan buffer WebP teroptimasi, otomatis upsert, pembuatan public URL instan, serta pembersihan file lama (*cleanup deletion*).<br>  4. Menyediakan sistem fallback hierarkis cerdas: Supabase Storage -> S3/R2 Object Storage -> Local Disk Storage (development offline).<br>  5. Memperbarui `backend/.env.example` dengan variabel `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan `SUPABASE_STORAGE_BUCKET`.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 34 unit & integration test backend Node.js (`npm test`) lulus 100%. |
 
 ---
 

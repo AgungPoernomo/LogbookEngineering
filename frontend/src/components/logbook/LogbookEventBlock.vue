@@ -11,7 +11,7 @@
     ]"
     :style="styleObj"
     :aria-label="ariaLabel"
-    @click.stop="$emit('click', segment)"
+    @click.stop="handleClick"
   >
     <div class="h-full p-1 sm:p-1.5 flex flex-col justify-start overflow-hidden leading-tight">
       <!-- Segment lanjutan indikator -->
@@ -69,7 +69,23 @@ const props = defineProps({
   }
 })
 
-defineEmits(['click'])
+const emit = defineEmits(['click'])
+
+function handleClick(event) {
+  const rect = event.currentTarget.getBoundingClientRect()
+  emit('click', {
+    segment: props.segment,
+    logbook: props.segment.logbook || lb.value,
+    rect: {
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height
+    }
+  })
+}
 
 const lb = computed(() => props.segment.logbook || {})
 const statusKey = computed(() => (lb.value.status || 'DRAFT').toLowerCase())

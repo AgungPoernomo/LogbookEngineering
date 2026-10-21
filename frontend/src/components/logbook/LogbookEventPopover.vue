@@ -79,17 +79,27 @@
       <span class="leading-relaxed">{{ logbook.approval_notes }}</span>
     </div>
 
-    <!-- Footer: Link ke Riwayat -->
-    <div class="pt-2 border-t border-line flex items-center justify-between">
-      <span class="text-[10px] text-ink-3">#{{ logbook.id }}</span>
-      <RouterLink
-        to="/logbook/riwayat"
-        class="text-primary hover:underline font-medium text-xs flex items-center gap-1"
-        @click="$emit('close')"
-      >
-        <span>Lihat di Riwayat</span>
-        <ArrowUpRight class="w-3.5 h-3.5" />
-      </RouterLink>
+    <!-- Footer: Tombol Aksi Detail & Edit -->
+    <div class="pt-2.5 border-t border-line flex items-center justify-between gap-2">
+      <span class="text-[10px] text-ink-3 font-mono">#{{ logbook.id }}</span>
+      <div class="flex items-center gap-1.5">
+        <button
+          v-if="logbook.status === 'DRAFT' || logbook.status === 'REJECTED'"
+          type="button"
+          class="h-6 px-2 rounded bg-primary text-white text-[11px] font-medium hover:bg-blue-700 transition"
+          @click="$emit('edit', logbook.id); $emit('close')"
+        >
+          {{ logbook.status === 'REJECTED' ? 'Revisi' : 'Edit' }}
+        </button>
+        <button
+          type="button"
+          class="h-6 px-2.5 rounded border border-line bg-surface hover:bg-muted text-ink text-[11px] font-medium transition flex items-center gap-1"
+          @click="$emit('view-detail', logbook); $emit('close')"
+        >
+          <span>Detail Lengkap</span>
+          <ArrowUpRight class="w-3 h-3 text-ink-2" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -112,7 +122,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'view-detail', 'edit'])
 const popoverRef = ref(null)
 
 const isCrossMidnight = computed(() => {

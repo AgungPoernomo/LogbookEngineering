@@ -457,7 +457,7 @@
               class="w-full sm:w-auto h-10 px-6 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold transition shadow-card flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <Send class="w-3.5 h-3.5" />
-              <span>{{ submitting ? 'Mengirim...' : 'Kirim Logbook (Ajukan Approval)' }}</span>
+              <span>{{ submitting ? 'Mengirim...' : 'Kirim Logbook' }}</span>
             </button>
           </div>
         </div>
@@ -495,21 +495,6 @@
             </p>
           </div>
         </div>
-
-        <!-- Tombol Aksi Header: Kirim Semua Draft -->
-        <button
-          type="button"
-          :disabled="draftLogs.length === 0 || submittingAllDrafts"
-          class="h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold transition shadow-card flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 self-start sm:self-auto"
-          @click="handleSubmitAllDrafts"
-        >
-          <CheckCheck v-if="!submittingAllDrafts" class="w-4 h-4" />
-          <svg v-else class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-          </svg>
-          <span>{{ submittingAllDrafts ? 'Mengajukan Semua...' : 'Kirim Semua Draft untuk Approval' }}</span>
-        </button>
       </div>
 
       <!-- Body: Empty State jika tidak ada draft -->
@@ -614,7 +599,7 @@
         <!-- Footer Bawah Card Draft: Kirim Semua Draft -->
         <div class="p-4 bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-line">
           <div class="text-xs text-ink-2">
-            Ada <span class="font-bold text-ink">{{ draftLogs.length }} draft</span> siap untuk dikirimkan ke Supervisor.
+            Ada <span class="font-bold text-ink">{{ draftLogs.length }} draft</span> siap untuk dikirimkan.
           </div>
 
           <button
@@ -628,7 +613,7 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
             </svg>
-            <span>{{ submittingAllDrafts ? 'Mengajukan Semua...' : `Kirim Semua Draft (${draftLogs.length}) untuk Approval` }}</span>
+            <span>{{ submittingAllDrafts ? 'Mengajukan Semua...' : `Kirim Semua Draft (${draftLogs.length})` }}</span>
           </button>
         </div>
       </div>
@@ -637,7 +622,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useMasterStore } from '../../stores/master'
@@ -754,6 +739,24 @@ const MONTH_NAMES_ID = [
 ]
 
 const currentMonthName = computed(() => MONTH_NAMES_ID[viewMonth.value])
+
+watch(
+  () => route.query,
+  (newQuery) => {
+    if (newQuery?.date) {
+      form.task_date = newQuery.date
+      try {
+        const d = parseLocalDate(newQuery.date)
+        viewYear.value = d.getFullYear()
+        viewMonth.value = d.getMonth()
+      } catch {}
+    }
+    if (newQuery?.time) {
+      form.start_time = newQuery.time
+    }
+  },
+  { immediate: true }
+)
 
 const formattedSelectedDate = computed(() => {
   if (!form.task_date) return '-'

@@ -65,6 +65,8 @@
         :logbook="selectedLogbookForPopover"
         :anchor-rect="popoverAnchorRect"
         @close="selectedLogbookForPopover = null"
+        @view-detail="handlePopoverViewDetail"
+        @edit="handleNavigateEdit"
       />
 
       <!-- Drawer Filter untuk layar < 1280px -->
@@ -77,9 +79,6 @@
         @update:selected-date="handleDateSelect"
         @select-date="handleDateSelect"
       />
-
-      <!-- FAB Mobile -->
-      <FabCreate @create="handleNavigateInput" />
     </section>
 
     <!-- ======================================================== -->
@@ -402,8 +401,9 @@ const allFiltersDisabled = computed(() => {
 
 const filteredCalendarLogs = computed(() => {
   return rawCalendarLogs.value.filter(log => {
-    if (filters.status[log.status] === false) return false
-    if (filters.shifts[log.shift_id] === false) return false
+    if (log.status && filters.status[log.status] === false) return false
+    const sId = log.shift_id
+    if (sId !== undefined && sId !== null && filters.shifts[sId] === false) return false
     return true
   })
 })
@@ -416,18 +416,24 @@ const calculatedDays = computed(() => {
     logs.forEach(log => {
       const segs = splitLogbookToSegments(log)
       segs.forEach(s => {
-        if (s.dateKey === dayDate) {
+        if (s.day === dayDate || s.dateKey === dayDate) {
           daySegments.push(s)
         }
       })
     })
 
     const layoutedBlocks = layoutDaySegments(daySegments)
-    const summary = computeDaySummary(daySegments)
+    // Filter logbook yang dimulai pada tanggal ini untuk ringkasan chip harian
+    const dayLogs = logs.filter(l => l.task_date === dayDate)
+    const summary = computeDaySummary(dayDate, dayLogs)
 
     return {
+      dateStr: dayDate,
       dateKey: dayDate,
+      isToday: dayDate === todayStr,
+      segments: layoutedBlocks,
       blocks: layoutedBlocks,
+      summaryChips: summary.chips || [],
       summary
     }
   })
@@ -435,12 +441,12 @@ const calculatedDays = computed(() => {
 
 const isCalendarEmpty = computed(() => {
   if (loadingCalendar.value) return false
-  return calculatedDays.value.every(d => d.blocks.length === 0)
+  return calculatedDays.value.every(d => (d.segments || []).length === 0)
 })
 
 // Data Tabel Riwayat
 const myLogs = computed(() => {
-  return logbookStore.logbooks.filter(l => l.user_id === authStore.user?.id)
+  return logbookStore.logbooks.filter(l => Number(l.user_id) === Number(authStore.user?.id))
 })
 
 const statusTabs = [
@@ -478,6 +484,7 @@ const filteredLogs = computed(() => {
 
 // Actions & Methods Kalender
 async function loadCalendarData() {
+  if (!startDateStr.value || !endDateStr.value) return
   loadingCalendar.value = true
   try {
     const list = await logbookService.list({
@@ -485,7 +492,10 @@ async function loadCalendarData() {
       dateTo: endDateStr.value,
       userId: authStore.user?.id
     })
-    rawCalendarLogs.value = list
+    rawCalendarLogs.value = Array.isArray(list) ? list : []
+  } catch (err) {
+    console.error('Gagal memuat data kalender mingguan:', err)
+    rawCalendarLogs.value = []
   } finally {
     loadingCalendar.value = false
   }
@@ -507,9 +517,16 @@ function handleNextRange() {
   selectedDate.value = addDays(selectedDate.value, visibleDayCount.value)
 }
 
-function handleBlockClick({ logbook, rect }) {
+function handleBlockClick(payload) {
+  if (!payload) return
+  const logbook = payload.logbook || payload.segment?.logbook || payload
   selectedLogbookForPopover.value = logbook
-  popoverAnchorRect.value = rect
+  popoverAnchorRect.value = payload.rect || null
+}
+
+function handlePopoverViewDetail(lb) {
+  viewLog.value = lb
+  selectedLogbookForPopover.value = null
 }
 
 function handleNavigateInput() {
@@ -517,11 +534,13 @@ function handleNavigateInput() {
 }
 
 function handleCreateFromSlot(slot) {
+  const date = slot.task_date || slot.date
+  const time = slot.start_time || slot.time
   router.push({
     path: '/logbook/input',
     query: {
-      date: slot.date,
-      time: slot.time
+      date,
+      time
     }
   })
 }

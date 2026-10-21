@@ -1,4 +1,5 @@
 import { errorResponse } from '../utils/response.js'
+import { captureException } from '../config/sentry.js'
 
 export function errorHandler(err, req, res, next) {
   console.error('[SERVER ERROR]:', err)
@@ -22,6 +23,22 @@ export function errorHandler(err, req, res, next) {
 
   const statusCode = err.statusCode || 500
   const message = err.message || 'Terjadi kesalahan internal pada server.'
+
+  // Laporkan galat tak terduga (500) ke Sentry
+  if (statusCode >= 500) {
+    captureException(err, {
+      user: req.user ? { id: req.user.id, email: req.user.email, role: req.user.role } : null,
+      tags: {
+        method: req.method,
+        path: req.originalUrl || req.path
+      },
+      extra: {
+        body: req.body,
+        query: req.query,
+        params: req.params
+      }
+    })
+  }
 
   return errorResponse(res, {
     message,

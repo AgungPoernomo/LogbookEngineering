@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { createClient } from '@supabase/supabase-js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -11,6 +12,32 @@ const LOCAL_UPLOADS_DIR = path.resolve(__dirname, '../../public/uploads/avatars'
 // Inisialisasi folder upload lokal jika belum ada
 if (!fs.existsSync(LOCAL_UPLOADS_DIR)) {
   fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true })
+}
+
+/**
+ * Mengecek apakah konfigurasi Supabase Storage tersedia.
+ */
+function isSupabaseConfigured() {
+  return Boolean(
+    process.env.SUPABASE_URL &&
+    (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY) &&
+    process.env.SUPABASE_STORAGE_BUCKET
+  )
+}
+
+/**
+ * Membuat instance client Supabase menggunakan Service Role Key (akses penuh storage)
+ */
+function getSupabaseClient() {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
+  if (!url || !key) return null
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false
+    }
+  })
 }
 
 /**
@@ -64,6 +91,31 @@ function getS3Client() {
  * @returns {Promise<string>} URL publik foto yang tersimpan
  */
 export async function saveAvatar({ buffer, fileName, contentType = 'image/webp' }) {
+  // 1. Supabase Storage (Prioritas Utama jika dikonfigurasi via Metode 1)
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabaseClient()
+    const bucket = process.env.SUPABASE_STORAGE_BUCKET
+    const filePath = `avatars/${fileName}`
+
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, buffer, {
+        contentType,
+        upsert: true
+      })
+
+    if (error) {
+      throw new Error(`Gagal mengunggah avatar ke Supabase Storage: ${error.message}`)
+    }
+
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath)
+
+    return data.publicUrl
+  }
+
+  // 2. Cloudflare R2 / S3 Object Storage (Alternatif)
   if (isCloudStorageConfigured()) {
     const s3 = getS3Client()
     const bucketName = process.env.R2_BUCKET_NAME || process.env.S3_BUCKET_NAME
@@ -90,7 +142,7 @@ export async function saveAvatar({ buffer, fileName, contentType = 'image/webp' 
     return `https://${bucketName}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`
   }
 
-  // Fallback: Local Storage (Cocok untuk development lokal dan preview offline)
+  // 3. Fallback: Local Storage (Cocok untuk development lokal dan preview offline)
   const filePath = path.join(LOCAL_UPLOADS_DIR, fileName)
   await fs.promises.writeFile(filePath, buffer)
 
@@ -106,6 +158,19 @@ export async function removeAvatar(photoUrl) {
   if (!photoUrl) return
 
   try {
+    // A. Supabase Storage File Removal
+    if (isSupabaseConfigured() && photoUrl.includes('supabase.co')) {
+      const supabase = getSupabaseClient()
+      const bucket = process.env.SUPABASE_STORAGE_BUCKET
+      let filePath = `avatars/${path.basename(photoUrl)}`
+      if (photoUrl.includes(`/${bucket}/`)) {
+        filePath = photoUrl.split(`/${bucket}/`)[1].split('?')[0]
+      }
+      await supabase.storage.from(bucket).remove([filePath])
+      return
+    }
+
+    // B. Local Storage File Removal
     if (photoUrl.startsWith('/uploads/avatars/')) {
       const fileName = path.basename(photoUrl)
       const filePath = path.join(LOCAL_UPLOADS_DIR, fileName)

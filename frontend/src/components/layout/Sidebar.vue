@@ -1,62 +1,43 @@
 <template>
-  <div>
-    <!-- Mobile Backdrop -->
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-40 bg-ink/40 backdrop-blur-xs md:hidden transition-opacity"
-      @click="$emit('close')"
-    />
-
-    <!-- Sidebar Aside -->
-    <aside
-      :class="[
-        'fixed top-0 bottom-0 left-0 z-40 flex flex-col bg-surface border-r border-line transition-all duration-200 select-none shadow-lg md:shadow-none',
-        collapsed ? 'w-[72px]' : 'w-64 max-w-[80vw] md:w-52',
-        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      ]"
-      aria-label="Menu utama"
-    >
-      <!-- Header: Logo & Collapse Button -->
-      <div class="relative flex h-[70px] items-center justify-between px-4 border-b border-line">
-        <!-- Logo Brand -->
-        <RouterLink to="/dashboard" class="flex items-center gap-2.5 overflow-hidden focus:outline-none">
-          <!-- Logo SVG Placeholder per 11.5.1 / 11.12 U-2 -->
-          <div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white shrink-0">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <span
-            v-if="!collapsed"
-            class="text-[20px] font-semibold text-ink tracking-tight whitespace-nowrap"
-          >
-            Satoria
-          </span>
-        </RouterLink>
-
-        <!-- Collapse Toggle Button (Desktop only) -->
-        <button
-          type="button"
-          class="hidden md:flex absolute -right-3 top-[23px] w-6 h-6 items-center justify-center rounded-full bg-surface border border-line text-primary shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary z-50 transition"
-          :aria-label="collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'"
-          @click="toggleCollapse"
+  <!-- Sidebar Aside (Hanya aktif pada Desktop lg: >= 1024px. Dinonaktifkan pada HP & Tablet) -->
+  <aside
+    :class="[
+      'hidden lg:flex fixed top-0 bottom-0 left-0 z-40 flex-col bg-surface border-r border-line transition-all duration-200 select-none shadow-none',
+      collapsed ? 'w-[72px]' : 'w-52'
+    ]"
+    aria-label="Menu utama"
+  >
+    <!-- Header: Logo & Collapse Button -->
+    <div class="relative flex h-[70px] items-center justify-between px-4 border-b border-line">
+      <!-- Logo Brand -->
+      <RouterLink to="/dashboard" class="flex items-center gap-2.5 overflow-hidden focus:outline-none">
+        <!-- Logo SVG Placeholder per 11.5.1 / 11.12 U-2 -->
+        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white shrink-0">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <span
+          v-if="!collapsed"
+          class="text-[20px] font-semibold text-ink tracking-tight whitespace-nowrap"
         >
-          <ChevronRight v-if="collapsed" class="w-3.5 h-3.5 text-primary" />
-          <ChevronLeft v-else class="w-3.5 h-3.5 text-primary" />
-        </button>
+          Satoria
+        </span>
+      </RouterLink>
 
-        <!-- Mobile Close Button -->
-        <button
-          type="button"
-          class="md:hidden text-ink-3 hover:text-ink p-1 rounded-md"
-          aria-label="Tutup sidebar"
-          @click="$emit('close')"
-        >
-          <X class="w-5 h-5" />
-        </button>
-      </div>
+      <!-- Collapse Toggle Button (Desktop only) -->
+      <button
+        type="button"
+        class="hidden lg:flex absolute -right-3 top-[23px] w-6 h-6 items-center justify-center rounded-full bg-surface border border-line text-primary shadow-xs hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary z-50 transition"
+        :aria-label="collapsed ? 'Perluas sidebar' : 'Ciutkan sidebar'"
+        @click="toggleCollapse"
+      >
+        <ChevronRight v-if="collapsed" class="w-3.5 h-3.5 text-primary" />
+        <ChevronLeft v-else class="w-3.5 h-3.5 text-primary" />
+      </button>
+    </div>
 
-      <!-- Navigation Content -->
+    <!-- Navigation Content -->
       <div class="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         <!-- Section: Menu -->
         <nav aria-label="Navigasi aplikasi">
@@ -180,7 +161,6 @@
         </div>
       </div>
     </aside>
-  </div>
 </template>
 
 <script setup>
@@ -204,18 +184,10 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
-  LogOut,
-  X
+  LogOut
 } from 'lucide-vue-next'
 
-const props = defineProps({
-  isOpen: {
-    type: Boolean,
-    default: false
-  }
-})
-
-const emit = defineEmits(['close', 'collapse-change'])
+const emit = defineEmits(['collapse-change'])
 
 const route = useRoute()
 const router = useRouter()
@@ -269,7 +241,6 @@ function isItemActive(item) {
 
 function handleNavClick(navigate) {
   navigate()
-  emit('close')
 }
 
 async function handleLogout() {

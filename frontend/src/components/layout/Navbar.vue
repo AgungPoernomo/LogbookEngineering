@@ -1,15 +1,19 @@
 <template>
-  <header class="sticky top-0 z-30 flex h-[70px] w-full min-w-0 items-center justify-between border-b border-line bg-surface px-3.5 sm:px-5 lg:px-6">
-    <!-- Left: Hamburger (mobile) & PageHeader -->
+  <header class="sticky top-0 z-30 flex h-[70px] w-full min-w-0 items-center justify-between border-b border-line bg-surface/95 backdrop-blur-md px-3.5 sm:px-5 lg:px-6 shadow-xs transition-shadow">
+    <!-- Left: Brand Icon (Mobile/Tablet) & PageHeader -->
     <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-      <button
-        type="button"
-        class="md:hidden p-2 text-ink-2 hover:text-ink hover:bg-muted rounded-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0"
-        aria-label="Buka menu navigasi"
-        @click="$emit('toggle-sidebar')"
+      <!-- Brand Logo Shortcut (HP & Tablet, side navbar dinonaktifkan) -->
+      <RouterLink
+        to="/dashboard"
+        class="flex items-center gap-2 lg:hidden shrink-0 focus:outline-none"
+        aria-label="Beranda Satoria"
       >
-        <Menu class="w-5 h-5" />
-      </button>
+        <div class="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white shrink-0">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+      </RouterLink>
 
       <PageHeader
         :title="currentRouteTitle"
@@ -20,22 +24,19 @@
 
     <!-- Right: RoleSwitcher, NotificationBell, Divider, UserMenu -->
     <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
-      <!-- RoleSwitcher (Mode Pengembangan Tahap 1, per 11.5.2 & Bagian 12) -->
+      <!-- Indikator Posisi / Peran Pengguna (Statis & Otomatis Sesuai Posisi User) -->
       <div class="relative hidden sm:block">
-        <label for="role-switcher-select" class="sr-only">Beralih Peran Pengembangan</label>
-        <div class="flex items-center bg-muted border border-line rounded-md px-2.5 h-[34px] gap-1.5">
-          <span class="text-[11px] font-medium text-ink-3 uppercase tracking-wider hidden lg:inline">Peran:</span>
-          <select
-            id="role-switcher-select"
-            :value="authStore.role"
-            class="bg-transparent text-[12px] font-medium text-ink focus:outline-none cursor-pointer pr-1"
-            aria-label="Pilih peran pengguna untuk simulasi"
-            @change="handleRoleChange($event.target.value)"
-          >
-            <option :value="ROLES.TEKNISI">Teknisi</option>
-            <option :value="ROLES.SUPERVISOR">Supervisor</option>
-            <option :value="ROLES.ADMIN">Admin</option>
-          </select>
+        <div class="flex items-center bg-muted/80 border border-line rounded-md px-2.5 h-[34px] gap-1.5 select-none" title="Posisi / Peran Pengguna Aktif">
+          <span class="text-[11px] font-medium text-ink-3 uppercase tracking-wider hidden lg:inline">Posisi:</span>
+          <span class="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink">
+            <span
+              :class="[
+                'w-1.5 h-1.5 rounded-full',
+                authStore.isTeknisi ? 'bg-primary' : (authStore.isSupervisor ? 'bg-orange' : 'bg-success')
+              ]"
+            />
+            {{ roleLabel }}
+          </span>
         </div>
       </div>
 
@@ -145,18 +146,18 @@
             <div class="text-[11px] text-ink-2">{{ authStore.user?.email }}</div>
           </div>
 
-          <!-- Mobile Role Switcher within popover per 11.9 -->
+          <!-- Mobile Indikator Posisi / Peran Pengguna (Statis & Otomatis) -->
           <div class="px-3 py-2 border-b border-line sm:hidden">
-            <div class="text-[10px] font-medium text-ink-3 mb-1 uppercase">Ganti Peran:</div>
-            <select
-              :value="authStore.role"
-              class="w-full bg-muted border border-line rounded px-2 py-1 text-xs"
-              @change="handleRoleChange($event.target.value)"
-            >
-              <option :value="ROLES.TEKNISI">Teknisi</option>
-              <option :value="ROLES.SUPERVISOR">Supervisor</option>
-              <option :value="ROLES.ADMIN">Admin</option>
-            </select>
+            <div class="text-[10px] font-medium text-ink-3 mb-1 uppercase tracking-wider">Posisi / Peran:</div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-ink">
+              <span
+                :class="[
+                  'w-1.5 h-1.5 rounded-full',
+                  authStore.isTeknisi ? 'bg-primary' : (authStore.isSupervisor ? 'bg-orange' : 'bg-success')
+                ]"
+              />
+              {{ roleLabel }}
+            </div>
           </div>
 
           <RouterLink
@@ -187,18 +188,14 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useNotificationStore } from '../../stores/notification'
-import { ROLES } from '../../constants/roles'
 import PageHeader from './PageHeader.vue'
 import Avatar from '../common/Avatar.vue'
 import {
   Bell,
-  Menu,
   ChevronDown,
   UserCircle,
   LogOut
 } from 'lucide-vue-next'
-
-defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
 const router = useRouter()
@@ -316,13 +313,12 @@ function formatTime(dateStr) {
   }
 }
 
-async function handleRoleChange(targetRole) {
-  if (authStore.role === targetRole) return
-  await authStore.quickLoginAs(targetRole)
-  showUserMenu.value = false
-  await notifStore.fetchNotifications()
-  router.push('/dashboard')
-}
+const roleLabel = computed(() => {
+  if (authStore.isTeknisi) return 'Teknisi'
+  if (authStore.isSupervisor) return 'Supervisor'
+  if (authStore.isAdmin) return 'Admin'
+  return authStore.role || authStore.user?.role || 'Pengguna'
+})
 
 async function handleNotificationClick(item) {
   if (!item.is_read && !item.read_at) {

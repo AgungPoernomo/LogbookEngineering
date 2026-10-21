@@ -65,6 +65,29 @@ export const useLogbookStore = defineStore('logbook', () => {
     }
   }
 
+  // Approval per Teknisi (Logika Baru)
+  async function approveByTechnician(userId, notes) {
+    loading.value = true
+    try {
+      const res = await logbookService.approveByTechnician(userId, notes)
+      await fetchLogbooks()
+      return res
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function rejectByTechnician(userId, notes) {
+    loading.value = true
+    try {
+      const res = await logbookService.rejectByTechnician(userId, notes)
+      await fetchLogbooks()
+      return res
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     logbooks,
     loading,
@@ -73,6 +96,8 @@ export const useLogbookStore = defineStore('logbook', () => {
     createLogbook,
     updateLogbook,
     approveLogbook,
-    rejectLogbook
+    rejectLogbook,
+    approveByTechnician,
+    rejectByTechnician
   }
 })

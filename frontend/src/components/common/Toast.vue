@@ -10,7 +10,7 @@
     <div
       v-if="show"
       :class="[
-        'fixed bottom-5 right-5 z-50 flex items-start gap-3 p-4 bg-surface rounded-lg shadow-tooltip border border-line max-w-sm',
+        'fixed bottom-20 sm:bottom-20 lg:bottom-5 right-4 sm:right-5 z-50 flex items-start gap-3 p-4 bg-surface rounded-lg shadow-tooltip border border-line max-w-sm',
         customClass
       ]"
       role="alert"

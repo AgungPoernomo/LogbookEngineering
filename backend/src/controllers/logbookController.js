@@ -518,7 +518,7 @@ export async function deleteLogbook(req, res, next) {
 
     if (req.user.role === 'Teknisi' && Number(logbook.user_id) !== req.user.id) {
       return errorResponse(res, {
-        message: 'Akses ditolak.',
+        message: 'Akses ditolak. Anda bukan pemilik logbook ini.',
         statusCode: 403
       })
     }

@@ -1,11 +1,21 @@
 import { Router } from 'express'
-import { processApproval, getApprovalHistory } from '../controllers/approvalController.js'
+import {
+  processApproval,
+  getApprovalHistory,
+  processTechnicianApproval,
+  getPendingApprovalsByTechnician
+} from '../controllers/approvalController.js'
 import { authenticate } from '../middlewares/auth.js'
 import { requireRoles } from '../middlewares/rbac.js'
 
 const router = Router()
 
-// Process approval action (Supervisor / Admin only)
+// Logika Approval Per User (Teknisi)
+router.get('/approvals/technicians', authenticate, requireRoles('Supervisor', 'Admin'), getPendingApprovalsByTechnician)
+router.post('/approvals/technician/:userId', authenticate, requireRoles('Supervisor', 'Admin'), processTechnicianApproval)
+router.post('/approvals/users/:userId', authenticate, requireRoles('Supervisor', 'Admin'), processTechnicianApproval)
+
+// Approval individual (Backward compatibility)
 router.post('/logbooks/:id/approval', authenticate, requireRoles('Supervisor', 'Admin'), processApproval)
 router.get('/logbooks/:id/approvals', authenticate, getApprovalHistory)
 
