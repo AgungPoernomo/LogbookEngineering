@@ -272,10 +272,14 @@ async function savePlant() {
   } else {
     await masterStore.addItem('plants', modalForm.value)
   }
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
   isModalOpen.value = false
 }
 
 async function toggleActiveStatus(plant) {
   await masterStore.toggleActive('plants', plant.id)
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
 }
 </script>

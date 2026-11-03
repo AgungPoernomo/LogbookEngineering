@@ -1,6 +1,8 @@
 import { errorResponse } from '../utils/response.js'
 import { captureException } from '../config/sentry.js'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 export function errorHandler(err, req, res, next) {
   console.error('[SERVER ERROR]:', err)
 
@@ -21,8 +23,21 @@ export function errorHandler(err, req, res, next) {
     })
   }
 
-  const statusCode = err.statusCode || 500
-  const message = err.message || 'Terjadi kesalahan internal pada server.'
+  let statusCode = err.statusCode || 500
+  let message = err.message || 'Terjadi kesalahan internal pada server.'
+
+  // Prisma error spesifik → mask
+  if (err.name?.startsWith('Prisma') || err.code?.startsWith('P') || err.message?.includes('prisma') || err.message?.includes('Prisma')) {
+    statusCode = 500
+    message = isProduction
+      ? 'Terjadi kendala pada sistem. Silakan coba beberapa saat lagi.'
+      : err.message
+  } else if (statusCode >= 500) {
+    // JANGAN pernah bocorkan detail internal ke client di production
+    message = isProduction
+      ? 'Terjadi kendala pada sistem. Silakan coba beberapa saat lagi.'
+      : err.message
+  }
 
   // Laporkan galat tak terduga (500) ke Sentry
   if (statusCode >= 500) {
@@ -42,7 +57,7 @@ export function errorHandler(err, req, res, next) {
 
   return errorResponse(res, {
     message,
-    errors: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    errors: !isProduction ? err.stack : undefined,
     statusCode
   })
 }

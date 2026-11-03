@@ -3,7 +3,7 @@ import { LOG_STATUS } from '../constants/logStatus'
 import { calculateDurationMinutes } from '../utils/duration'
 
 export const logbookService = {
-  async getLogbooks(filters = {}) {
+  async getLogbooks(filters = {}, options = {}) {
     const params = {
       limit: filters.limit || 500,
       page: filters.page || 1
@@ -37,7 +37,7 @@ export const logbookService = {
       params.search = filters.search
     }
 
-    const res = await api.get('/logbooks', params)
+    const res = await api.get('/logbooks', params, options)
     return Array.isArray(res) ? res : (res.data || [])
   },
 

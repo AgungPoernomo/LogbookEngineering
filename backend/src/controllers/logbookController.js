@@ -22,19 +22,33 @@ export async function getLogbooks(req, res, next) {
 
     const where = {}
 
-    // RBAC filter: Teknisi hanya melihat data dirinya sendiri
+        // RBAC filter:
+    // - Teknisi: hanya melihat data dirinya sendiri (otomatis terisolasi per plant akun)
+    // - Supervisor: otomatis terisolasi ke plant miliknya jika req.user.plant_id ada
+    // - Admin: bebas filter plant / user
     if (req.user.role === 'Teknisi') {
       where.user_id = BigInt(req.user.id)
-    } else if (user_id) {
-      where.user_id = BigInt(user_id)
+      if (plant_id) {
+        where.plant_id = BigInt(plant_id)
+      } else if (req.user.plant_id) {
+        where.plant_id = BigInt(req.user.plant_id)
+      }
+    } else if (req.user.role === 'Supervisor' && req.user.plant_id) {
+      where.plant_id = BigInt(req.user.plant_id)
+      if (user_id) {
+        where.user_id = BigInt(user_id)
+      }
+    } else {
+      if (user_id) {
+        where.user_id = BigInt(user_id)
+      }
+      if (plant_id && plant_id !== 'ALL') {
+        where.plant_id = BigInt(plant_id)
+      }
     }
 
     if (status && status !== 'ALL') {
       where.status = status
-    }
-
-    if (plant_id) {
-      where.plant_id = BigInt(plant_id)
     }
 
     if (machine_id) {

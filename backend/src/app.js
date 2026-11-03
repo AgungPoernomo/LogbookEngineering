@@ -12,6 +12,7 @@ import reportRoutes from './routes/reportRoutes.js'
 import auditRoutes from './routes/auditRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
 import supervisorRoutes from './routes/supervisorRoutes.js'
+import overviewRoutes from './routes/overviewRoutes.js'
 import { errorHandler } from './middlewares/errorHandler.js'
 import { successResponse, errorResponse } from './utils/response.js'
 
@@ -86,6 +87,7 @@ app.use(`${API_PREFIX}/reports`, reportRoutes)
 app.use(`${API_PREFIX}/admin`, auditRoutes)
 app.use(`${API_PREFIX}/notifications`, notificationRoutes)
 app.use(`${API_PREFIX}/supervisor`, supervisorRoutes)
+app.use(API_PREFIX, overviewRoutes)
 
 // 404 Route Handler
 app.use((req, res) => {

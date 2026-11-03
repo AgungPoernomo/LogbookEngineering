@@ -22,6 +22,12 @@ function getAuthHeader() {
 
 async function request(endpoint, options = {}) {
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`
+
+  // Timeout default 30 detik (cukup untuk request data normal & export)
+  const controller = new AbortController()
+  const timeoutMs = options.timeout || 30000
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
   const headers = {
     'Content-Type': 'application/json',
     ...getAuthHeader(),
@@ -35,39 +41,65 @@ async function request(endpoint, options = {}) {
 
   const config = {
     ...options,
+    signal: options.signal || controller.signal,
     headers
   }
 
-  const response = await fetch(url, config)
-
-  // Tangani respons file/blob jika diminta
-  if (options.responseType === 'blob') {
-    if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`)
-    }
-    return await response.blob()
-  }
-
-  let json = {}
   try {
-    json = await response.json()
-  } catch (e) {
-    json = {}
-  }
+    const response = await fetch(url, config)
 
-  if (!response.ok) {
-    const errMsg = json.message || `Permintaan gagal dengan status ${response.status}`
-    const error = new Error(errMsg)
-    error.status = response.status
-    error.data = json
-    throw error
-  }
+    // Tangani respons file/blob jika diminta
+    if (options.responseType === 'blob') {
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`)
+      }
+      return await response.blob()
+    }
 
-  return json.data !== undefined ? json.data : json
+    let json = {}
+    try {
+      json = await response.json()
+    } catch (e) {
+      json = {}
+    }
+
+    if (!response.ok) {
+      // Auto-Logout 401: Token expired / invalid → force logout global (kecuali endpoint login itu sendiri)
+      if (response.status === 401) {
+        const isLoginEndpoint = endpoint.includes('/auth/login')
+        if (!isLoginEndpoint) {
+          localStorage.removeItem('satoria_auth_user')
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search)
+            window.location.href = `/login?redirect=${returnUrl}`
+          }
+        }
+      }
+
+      const errMsg = json.message || `Permintaan gagal dengan status ${response.status}`
+      const error = new Error(errMsg)
+      error.status = response.status
+      error.data = json
+      error.response = { status: response.status, data: json }
+      throw error
+    }
+
+    return json.data !== undefined ? json.data : json
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const timeoutError = new Error('Permintaan melebihi batas waktu. Periksa koneksi Anda.')
+      timeoutError.status = 408
+      timeoutError.response = { status: 408, data: { message: 'Permintaan melebihi batas waktu. Periksa koneksi Anda.' } }
+      throw timeoutError
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 export const api = {
-  get(endpoint, params = {}) {
+  get(endpoint, params = {}, options = {}) {
     const query = new URLSearchParams()
     Object.entries(params).forEach(([key, val]) => {
       if (val !== undefined && val !== null && val !== '') {
@@ -75,35 +107,38 @@ export const api = {
       }
     })
     const qs = query.toString() ? `?${query.toString()}` : ''
-    return request(`${endpoint}${qs}`, { method: 'GET' })
+    return request(`${endpoint}${qs}`, { method: 'GET', ...options })
   },
 
-  post(endpoint, body = {}) {
+  post(endpoint, body = {}, options = {}) {
     return request(endpoint, {
       method: 'POST',
-      body: body instanceof FormData ? body : JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body),
+      ...options
     })
   },
 
-  put(endpoint, body = {}) {
+  put(endpoint, body = {}, options = {}) {
     return request(endpoint, {
       method: 'PUT',
-      body: body instanceof FormData ? body : JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body),
+      ...options
     })
   },
 
-  patch(endpoint, body = {}) {
+  patch(endpoint, body = {}, options = {}) {
     return request(endpoint, {
       method: 'PATCH',
-      body: body instanceof FormData ? body : JSON.stringify(body)
+      body: body instanceof FormData ? body : JSON.stringify(body),
+      ...options
     })
   },
 
-  delete(endpoint) {
-    return request(endpoint, { method: 'DELETE' })
+  delete(endpoint, options = {}) {
+    return request(endpoint, { method: 'DELETE', ...options })
   },
 
-  getBlob(endpoint, params = {}) {
+  getBlob(endpoint, params = {}, options = {}) {
     const query = new URLSearchParams()
     Object.entries(params).forEach(([key, val]) => {
       if (val !== undefined && val !== null && val !== '') {
@@ -111,7 +146,7 @@ export const api = {
       }
     })
     const qs = query.toString() ? `?${query.toString()}` : ''
-    return request(`${endpoint}${qs}`, { method: 'GET', responseType: 'blob' })
+    return request(`${endpoint}${qs}`, { method: 'GET', responseType: 'blob', ...options })
   }
 }
 

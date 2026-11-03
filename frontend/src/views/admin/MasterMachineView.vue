@@ -564,6 +564,8 @@ async function saveMachine() {
   } else {
     await masterStore.addItem('machines', machineForm.value)
   }
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
   isMachineModalOpen.value = false
 }
 
@@ -573,14 +575,20 @@ async function saveSubMachine() {
   } else {
     await masterStore.addItem('sub_machines', subMachineForm.value)
   }
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
   isSubMachineModalOpen.value = false
 }
 
 async function toggleActiveMachine(machine) {
   await masterStore.toggleActive('machines', machine.id)
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
 }
 
 async function toggleActiveSubMachine(sub) {
   await masterStore.toggleActive('sub_machines', sub.id)
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
 }
 </script>

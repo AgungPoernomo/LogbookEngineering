@@ -467,6 +467,8 @@ async function saveShift() {
   } else {
     await masterStore.addItem('shifts', shiftForm.value)
   }
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
   isShiftModalOpen.value = false
 }
 
@@ -476,14 +478,20 @@ async function saveGroup() {
   } else {
     await masterStore.addItem('work_groups', groupForm.value)
   }
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
   isGroupModalOpen.value = false
 }
 
 async function toggleActiveShift(shift) {
   await masterStore.toggleActive('shifts', shift.id)
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
 }
 
 async function toggleActiveGroup(group) {
   await masterStore.toggleActive('work_groups', group.id)
+  masterStore.invalidate()
+  await masterStore.fetchAll(true)
 }
 </script>

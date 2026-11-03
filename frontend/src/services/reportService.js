@@ -3,7 +3,7 @@ import { formatDuration } from '../utils/duration'
 
 export const reportService = {
   async generateReportData(filters = {}) {
-    const list = await logbookService.getLogbooks(filters)
+    const list = await logbookService.getLogbooks(filters, { timeout: 120000 })
     
     const totalLogbooks = list.length
     const totalMinutes = list.reduce((acc, l) => acc + (l.duration_minutes || 0), 0)

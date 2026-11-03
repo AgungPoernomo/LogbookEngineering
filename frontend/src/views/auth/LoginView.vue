@@ -126,7 +126,16 @@ async function handleLogin() {
     const redirect = route.query.redirect || '/dashboard'
     router.push(redirect)
   } catch (err) {
-    errorMessage.value = err.message || 'Login gagal, periksa NIK/Email dan kata sandi.'
+    const status = err.response?.status || err.status
+    const serverMessage = err.response?.data?.message || err.data?.message
+
+    // Hanya tampilkan pesan server jika 4xx (client error yang aman)
+    if (status && status >= 400 && status < 500) {
+      errorMessage.value = serverMessage || 'Periksa NIK/Email dan kata sandi Anda.'
+    } else {
+      // 5xx atau network error → pesan generik
+      errorMessage.value = 'Terjadi kendala pada sistem. Silakan coba beberapa saat lagi.'
+    }
   } finally {
     loading.value = false
   }

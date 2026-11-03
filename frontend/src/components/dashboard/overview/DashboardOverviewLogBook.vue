@@ -11,6 +11,31 @@
       @change="fetchOverviewData"
     />
 
+    <!-- Error State -->
+    <div
+      v-if="error"
+      class="p-4 rounded-lg bg-status-rejected-bg border border-danger/30 text-status-rejected-fg text-xs flex items-center justify-between"
+      role="alert"
+    >
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 shrink-0 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <circle cx="12" cy="12" r="10" stroke-width="2" />
+          <line x1="12" y1="8" x2="12" y2="12" stroke-width="2" stroke-linecap="round" />
+          <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <span>{{ error }}</span>
+      </div>
+      <button
+        type="button"
+        class="px-3 py-1 bg-surface border border-line rounded font-semibold text-danger hover:bg-danger hover:text-white transition cursor-pointer"
+        :disabled="loading"
+        @click="fetchOverviewData"
+      >
+        <span v-if="loading">Memuat...</span>
+        <span v-else>Coba Lagi</span>
+      </button>
+    </div>
+
     <!-- Loading Skeleton State -->
     <div v-if="loading && !hasLoadedOnce" class="space-y-4">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -22,23 +47,8 @@
       </div>
     </div>
 
-    <!-- Error State -->
-    <div
-      v-else-if="error"
-      class="p-4 rounded-lg bg-status-rejected-bg border border-danger/30 text-status-rejected-fg text-xs flex items-center justify-between"
-      role="alert"
-    >
-      <span>{{ error }}</span>
-      <button
-        type="button"
-        class="underline font-semibold hover:opacity-80 transition"
-        @click="fetchOverviewData"
-      >
-        Coba Lagi
-      </button>
-    </div>
-
-    <template v-else>
+    <!-- Dashboard Content -->
+    <template v-else-if="hasLoadedOnce">
       <!-- Section C: Grid 4 Plant (2 kolom x 2 baris pada desktop, 1 kolom pada mobile) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PlantCard
