@@ -128,7 +128,7 @@ export async function getDashboardOverview(req, res, next) {
       prisma.logbook.count({ where: { ...whereClause, task_date: yesterdayStr } }),
       prisma.logbook.groupBy({ by: ['user_id'], where: { ...whereClause, task_date: todayStr } }),
       prisma.logbook.groupBy({ by: ['user_id'], where: { ...whereClause, task_date: yesterdayStr } }),
-      prisma.plant.findMany({ where: { is_active: true }, orderBy: { id: 'asc' } }),
+      prisma.plant.findMany({ orderBy: { id: 'asc' } }),
       prisma.user.findMany({
         where: { is_active: true },
         select: { id: true, full_name: true, plant_id: true, photo_url: true }
