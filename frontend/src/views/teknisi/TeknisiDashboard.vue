@@ -170,13 +170,14 @@
       <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start">
         <StatisticsChartCard
           title="Tren Aktivitas Line"
+          :icon="Activity"
           :chart-data="monthlyTrend"
           :year="currentYear"
         />
 
         <!-- Rekan Teknisi di Line Saya -->
-        <div class="bg-surface rounded-lg shadow-card p-4 border border-line space-y-3">
-          <div class="flex items-center justify-between pb-2.5 border-b border-line">
+        <div class="bg-surface rounded-lg shadow-card p-4 border border-line flex flex-col h-full">
+          <div class="flex items-center justify-between pb-2.5 border-b border-line mb-3">
             <div class="flex items-center gap-1.5">
               <Users class="w-4 h-4 text-primary" />
               <h3 class="text-xs font-bold text-ink uppercase tracking-wide">
@@ -188,7 +189,7 @@
             </span>
           </div>
 
-          <div class="space-y-2">
+          <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
             <div
               v-for="tech in lineTechnicians"
               :key="tech.id"
@@ -371,7 +372,8 @@ import HandoverBoard from '../../components/dashboard/HandoverBoard.vue'
 import {
   Cpu,
   Wrench,
-  Users
+  Users,
+  Activity
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -403,7 +405,23 @@ onMounted(() => {
 
 const linePlantData = computed(() => lineOverview.value?.plantCard || null)
 const lineMachines = computed(() => lineOverview.value?.lineMachines || [])
-const lineTechnicians = computed(() => lineOverview.value?.plantUsers || [])
+const lineTechnicians = computed(() => {
+  if (!lineOverview.value) return []
+  
+  // Ambil data dari backend (sesuai perbaikan AI Agent sebelumnya)
+  const users = lineOverview.value.plantUsers || 
+                lineOverview.value.users || 
+                lineOverview.value.technicians || 
+                lineOverview.value.lineTechnicians || 
+                []
+                
+  // Urutkan: "Anda" di paling atas, sisanya urut A-Z berdasarkan nama
+  return [...users].sort((a, b) => {
+    if (a.id === authStore.user?.id) return -1
+    if (b.id === authStore.user?.id) return 1
+    return (a.full_name || '').localeCompare(b.full_name || '')
+  })
+})
 const allLineLogs = computed(() => lineOverview.value?.allLineLogs || [])
 
 // Log khusus user ini

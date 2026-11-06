@@ -1,6 +1,7 @@
 import api from './api'
 import { logbookService } from './logbookService'
 import { masterService } from './masterService'
+import { userService } from './userService'
 import { ROLES } from '../constants/roles'
 import { toLocalDateString, addDays, parseLocalDate } from '../utils/dateKeys'
 
@@ -88,7 +89,26 @@ export const overviewLogbookService = {
       logbookService.getLogbooks({ plant_id: plantId }),
       masterService.getAllMaster()
     ])
-    const allUsers = currentUser ? [currentUser] : []
+
+    // FIX BUG "Teknisi di Line Ini" (0 User):
+    // Sebelumnya daftar user di Plant tidak pernah diambil dari backend
+    // (hanya diisi user yang sedang login), sehingga card "Teknisi di Line Ini"
+    // selalu kosong / 0 User. Sekarang daftar user Plant diambil dari GET /users
+    // (endpoint read-only yang kini juga diizinkan untuk role Teknisi,
+    // dan otomatis di-scope ke plant & akun aktif oleh backend).
+    let allUsers = currentUser ? [currentUser] : []
+    try {
+      const plantUsersFromApi = await userService.getUsers({
+        plant_id: plantId,
+        is_active: 'true',
+        limit: 'all'
+      })
+      if (Array.isArray(plantUsersFromApi) && plantUsersFromApi.length > 0) {
+        allUsers = plantUsersFromApi
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil daftar teknisi Plant, fallback ke user aktif yang sedang login:', err)
+    }
 
     const todayStr = toLocalDateString(new Date())
     const yesterdayStr = addDays(todayStr, -1)
@@ -120,7 +140,15 @@ export const overviewLogbookService = {
     const yesterdayActiveUsersCount = activeUserIdsYesterday.size
     const activeUsersDelta = calculateDelta(activeUsersCount, yesterdayActiveUsersCount)
 
-    const plantUsers = allUsers.filter(u => u.plant_id === plant.id && u.is_active)
+    // Filter tipe-aman (plant.id bisa number/string) & enrich field initials untuk card
+    const plantUsers = allUsers
+      .filter(u => Number(u.plant_id) === Number(plant.id) && (u.is_active === undefined || u.is_active !== false))
+      .map(u => ({
+        ...u,
+        id: Number(u.id),
+        full_name: u.full_name || u.name || 'Teknisi',
+        initials: u.initials || getInitials(u.full_name || u.name)
+      }))
     const totalUsersCount = Math.max(plantUsers.length, activeUsersCount)
     const activePercentage = totalUsersCount > 0
       ? Math.round((activeUsersCount / totalUsersCount) * 100)

@@ -51,6 +51,14 @@ export async function getUsers(req, res, next) {
     const orderField = SORTABLE[sort_by] || 'created_at'
     const orderDir = String(sort_dir).toLowerCase() === 'asc' ? 'asc' : 'desc'
 
+    // Keamanan: role Teknisi hanya boleh membaca daftar akun AKTIF di plant-nya sendiri,
+    // abaikan filter plant_id/is_active yang dikirim dari client.
+    const requesterRole = (req.user?.role || req.user?.role_name || '').toLowerCase()
+    if (requesterRole === 'teknisi') {
+      where.plant_id = req.user?.plant_id ? BigInt(req.user.plant_id) : BigInt(0)
+      where.is_active = true
+    }
+
     // BUG-011: server-side pagination
     const pageNum = Math.max(1, Number(page) || 1)
     const limitNum = String(limit).toLowerCase() === 'all'
