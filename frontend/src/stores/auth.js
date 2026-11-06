@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService } from '../services/authService'
 import { ROLES } from '../constants/roles'
+import { useMasterStore } from './master'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -43,6 +44,12 @@ export const useAuthStore = defineStore('auth', () => {
     await authService.logout()
     user.value = null
     token.value = null
+    // F1.2: bersihkan cache master (localStorage) saat logout
+    try {
+      useMasterStore().clearCache()
+    } catch (e) {
+      // pinia belum aktif → abaikan
+    }
   }
 
     async function quickLoginAs(targetRole) {

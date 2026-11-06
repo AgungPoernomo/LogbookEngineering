@@ -17,6 +17,15 @@
       </button>
     </div>
 
+    <!-- F1.2: Indikator data offline (cache lokal) -->
+    <div
+      v-if="masterStore.isOffline"
+      class="p-2.5 rounded-md bg-status-pending-bg border border-warning/20 text-status-pending-fg text-xs flex items-center gap-2"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-status-pending-dot animate-pulse" />
+      <span>{{ masterStore.cacheStatusText }}</span>
+    </div>
+
     <!-- Machine & Sub-Machine Tabs -->
     <div class="flex items-center gap-1 border-b border-line overflow-x-auto pb-0.5">
       <button
@@ -62,7 +71,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            :placeholder="currentTab === 'machines' ? 'Cari kode / nama mesin...' : 'Cari nama sub-mesin...'"
+            :placeholder="currentTab === 'machines' ? 'Cari nama mesin...' : 'Cari nama sub-mesin...'"
             class="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-line bg-surface text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary"
           />
           <span class="absolute left-2.5 top-2 text-ink-3 text-xs">🔍</span>
@@ -70,12 +79,12 @@
 
         <!-- Filter Plant -->
         <div class="flex items-center gap-1.5">
-          <label class="text-xs text-ink-2 font-medium">Plant:</label>
+          <label class="text-xs text-ink-2 font-medium">Line:</label>
           <select
             v-model="plantFilter"
             class="h-8 px-2 text-xs rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary cursor-pointer max-w-[180px]"
           >
-            <option value="all">Semua Plant</option>
+            <option value="all">Semua Line</option>
             <option v-for="p in masterStore.plants" :key="p.id" :value="p.id">
               {{ p.name }}
             </option>
@@ -117,9 +126,8 @@
         <table class="w-full text-left text-[13px] border-collapse min-w-[700px]">
           <thead class="bg-muted/60 text-xs font-semibold text-ink-2 border-b border-line">
             <tr>
-              <th class="px-4 py-3">Kode Mesin</th>
               <th class="px-4 py-3">Nama Mesin</th>
-              <th class="px-4 py-3">Lokasi Plant</th>
+              <th class="px-4 py-3">Lokasi Line</th>
               <th class="px-4 py-3">Sub-Mesin Terdaftar</th>
               <th class="px-4 py-3">Status</th>
               <th class="px-4 py-3 text-right">Aksi</th>
@@ -131,9 +139,6 @@
               :key="machine.id"
               class="hover:bg-muted/40 transition-colors"
             >
-              <td class="px-4 py-3 font-mono text-xs font-semibold text-primary">
-                {{ machine.code || '-' }}
-              </td>
               <td class="px-4 py-3 font-semibold text-ink">
                 {{ machine.name }}
               </td>
@@ -186,7 +191,7 @@
               </td>
             </tr>
             <tr v-if="filteredMachines.length === 0">
-              <td colspan="6" class="px-4 py-8 text-center text-xs text-ink-3">
+              <td colspan="5" class="px-4 py-8 text-center text-xs text-ink-3">
                 Tidak ada data mesin yang sesuai filter.
               </td>
             </tr>
@@ -203,7 +208,7 @@
             <tr>
               <th class="px-4 py-3">Nama Sub-Mesin / Komponen</th>
               <th class="px-4 py-3">Mesin Induk</th>
-              <th class="px-4 py-3">Lokasi Plant</th>
+              <th class="px-4 py-3">Lokasi Line</th>
               <th class="px-4 py-3">Status</th>
               <th class="px-4 py-3 text-right">Aksi</th>
             </tr>
@@ -225,7 +230,7 @@
                   {{ getMachineName(sub.machine_id) }}
                 </div>
                 <div class="font-mono text-[11px] text-ink-2">
-                  {{ getMachineCode(sub.machine_id) }}
+                  {{ getMachineName(sub.machine_id) }}
                 </div>
               </td>
               <td class="px-4 py-3 text-xs text-ink-2">
@@ -285,19 +290,6 @@
       <form @submit.prevent="saveMachine" class="space-y-3.5 text-xs">
         <div>
           <label class="block font-medium text-ink mb-1">
-            Kode Mesin <span class="text-danger">*</span>
-          </label>
-          <input
-            v-model="machineForm.code"
-            type="text"
-            required
-            placeholder="Contoh: EQ-ACV-02"
-            class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium font-mono text-ink focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label class="block font-medium text-ink mb-1">
             Nama Mesin <span class="text-danger">*</span>
           </label>
           <input
@@ -311,7 +303,7 @@
 
         <div>
           <label class="block font-medium text-ink mb-1">
-            Lokasi Plant Satoria <span class="text-danger">*</span>
+            Lokasi Line Satoria <span class="text-danger">*</span>
           </label>
           <select
             v-model="machineForm.plant_id"
@@ -334,9 +326,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Mesin' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Mesin') }}
           </button>
         </div>
       </form>
@@ -359,7 +352,7 @@
             class="w-full h-9 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:border-primary focus:outline-none cursor-pointer"
           >
             <option v-for="m in masterStore.machines" :key="m.id" :value="m.id">
-              {{ m.code }} - {{ m.name }} ({{ getPlantName(m.plant_id) }})
+              {{ m.name }} ({{ getPlantName(m.plant_id) }})
             </option>
           </select>
         </div>
@@ -387,9 +380,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Sub-Mesin' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Sub-Mesin') }}
           </button>
         </div>
       </form>
@@ -400,9 +394,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useMasterStore } from '../../stores/master'
+import { alert } from '../../utils/alert'
 import AppModal from '../../components/common/AppModal.vue'
 
 const masterStore = useMasterStore()
+
+// BUG-005 (MST-02/03): cegah multi-submit (double click)
+const isSubmitting = ref(false)
 
 const currentTab = ref('machines')
 const searchQuery = ref('')
@@ -414,7 +412,7 @@ const isMachineModalOpen = ref(false)
 const isSubMachineModalOpen = ref(false)
 const editingId = ref(null)
 
-const machineForm = ref({ name: '', code: '', plant_id: 1 })
+const machineForm = ref({ name: '', plant_id: 1 })
 const subMachineForm = ref({ name: '', machine_id: 1 })
 
 onMounted(async () => {
@@ -437,11 +435,6 @@ function getPlantName(plantId) {
 function getMachineName(machineId) {
   const m = masterStore.machines.find(item => item.id === Number(machineId))
   return m ? m.name : '-'
-}
-
-function getMachineCode(machineId) {
-  const m = masterStore.machines.find(item => item.id === Number(machineId))
-  return m ? m.code : '-'
 }
 
 function getSubMachinePlantName(machineId) {
@@ -468,8 +461,7 @@ const filteredMachines = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter(m =>
-      (m.name && m.name.toLowerCase().includes(q)) ||
-      (m.code && m.code.toLowerCase().includes(q))
+      m.name && m.name.toLowerCase().includes(q)
     )
   }
 
@@ -526,7 +518,6 @@ function openAddModal() {
   if (currentTab.value === 'machines') {
     machineForm.value = {
       name: '',
-      code: `EQ-NEW-0${(masterStore.machines.length || 0) + 1}`,
       plant_id: masterStore.plants[0]?.id || 1
     }
     isMachineModalOpen.value = true
@@ -543,7 +534,6 @@ function openEditMachineModal(machine) {
   editingId.value = machine.id
   machineForm.value = {
     name: machine.name,
-    code: machine.code || '',
     plant_id: machine.plant_id || masterStore.plants[0]?.id || 1
   }
   isMachineModalOpen.value = true
@@ -559,25 +549,44 @@ function openEditSubMachineModal(sub) {
 }
 
 async function saveMachine() {
-  if (editingId.value) {
-    await masterStore.updateItem('machines', editingId.value, machineForm.value)
-  } else {
-    await masterStore.addItem('machines', machineForm.value)
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('machines', editingId.value, machineForm.value)
+    } else {
+      await masterStore.addItem('machines', machineForm.value)
+    }
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+    isMachineModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data mesin berhasil diperbarui.' : 'Mesin baru berhasil ditambahkan.')
+  } catch (err) {
+    // BUG-005: pesan duplikat (409) dari server
+    await alert.error('Gagal Menyimpan Mesin', err.message || 'Terjadi kesalahan saat menyimpan data mesin.')
+  } finally {
+    isSubmitting.value = false
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isMachineModalOpen.value = false
 }
 
 async function saveSubMachine() {
-  if (editingId.value) {
-    await masterStore.updateItem('sub_machines', editingId.value, subMachineForm.value)
-  } else {
-    await masterStore.addItem('sub_machines', subMachineForm.value)
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('sub_machines', editingId.value, subMachineForm.value)
+    } else {
+      await masterStore.addItem('sub_machines', subMachineForm.value)
+    }
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+    isSubMachineModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data sub-mesin berhasil diperbarui.' : 'Sub-mesin baru berhasil ditambahkan.')
+  } catch (err) {
+    await alert.error('Gagal Menyimpan Sub-Mesin', err.message || 'Terjadi kesalahan saat menyimpan data sub-mesin.')
+  } finally {
+    isSubmitting.value = false
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isSubMachineModalOpen.value = false
 }
 
 async function toggleActiveMachine(machine) {

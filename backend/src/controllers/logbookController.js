@@ -3,6 +3,7 @@ import { calculateDurationMinutes } from '../utils/duration.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
 import { sendNotification, sendBulkNotifications } from '../services/mailerService.js'
+import { validateLogbookTime, validateActivityDescription } from '../utils/timeValidation.js'
 
 export async function getLogbooks(req, res, next) {
   try {
@@ -183,6 +184,21 @@ export async function createLogbook(req, res, next) {
         message: 'Tanggal tugas, jam mulai, jam selesai, mesin, dan uraian pekerjaan wajib diisi.',
         statusCode: 400
       })
+    }
+
+    // BUG-012: uraian aktivitas maksimal 1000 karakter
+    const descriptionCheck = validateActivityDescription(activity_description)
+    if (!descriptionCheck.valid) {
+      return errorResponse(res, { message: descriptionCheck.message, statusCode: 400 })
+    }
+
+    // BUG-003 & BUG-004: validasi urutan waktu & durasi 0 menit
+    const relatedShift = await prisma.shift.findUnique({
+      where: { id: BigInt(shift_id || 1) }
+    })
+    const timeCheck = validateLogbookTime(start_time, end_time, relatedShift)
+    if (!timeCheck.valid) {
+      return errorResponse(res, { message: timeCheck.message, statusCode: 400 })
     }
 
     const duration_minutes = calculateDurationMinutes(start_time, end_time)
@@ -398,6 +414,22 @@ export async function updateLogbook(req, res, next) {
       end_time,
       status
     } = req.body
+
+    // BUG-003, BUG-004 & BUG-012: validasi urutan waktu, durasi 0, dan panjang uraian
+    const effectiveStart = start_time || logbook.start_time
+    const effectiveEnd = end_time || logbook.end_time
+    const effectiveShiftId = shift_id || logbook.shift_id
+    const relatedShift = await prisma.shift.findUnique({ where: { id: BigInt(effectiveShiftId) } })
+    const timeCheck = validateLogbookTime(effectiveStart, effectiveEnd, relatedShift)
+    if (!timeCheck.valid) {
+      return errorResponse(res, { message: timeCheck.message, statusCode: 400 })
+    }
+    if (activity_description !== undefined) {
+      const descCheck = validateActivityDescription(activity_description)
+      if (!descCheck.valid) {
+        return errorResponse(res, { message: descCheck.message, statusCode: 400 })
+      }
+    }
 
     const updateData = {}
     if (task_date) updateData.task_date = task_date

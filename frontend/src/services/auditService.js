@@ -4,7 +4,16 @@ export const auditService = {
   async getActivities(params = {}) {
     try {
       const res = await api.get('/admin/audit-logs', params)
-      return Array.isArray(res) ? res : (res.data || [])
+      const list = Array.isArray(res) ? res : (res.data || [])
+      // F1.1 (BUG-013): teruskan meta paginasi
+      if (res && res._meta) {
+        try {
+          Object.defineProperty(list, '_meta', { value: res._meta, enumerable: false, configurable: true })
+        } catch (e) {
+          // noop
+        }
+      }
+      return list
     } catch (err) {
       console.warn('Gagal memuat catatan audit:', err)
       return []

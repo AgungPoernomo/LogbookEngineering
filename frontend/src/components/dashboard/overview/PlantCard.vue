@@ -68,81 +68,9 @@
         </div>
       </div>
 
-      <!-- Baris Gabungan: Kiri (Leaderboard Teknisi) & Kanan (Chart 7 Hari Terakhir) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-        <!-- 5. Leaderboard (Plant n) - Siapa user teknisi yang paling sering mengisi log book -->
-        <div class="p-3 bg-muted/40 border border-line rounded-md flex flex-col justify-between">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-1.5">
-              <Trophy class="w-3.5 h-3.5 text-warning shrink-0" />
-              <span class="text-xs font-bold text-ink uppercase tracking-wide truncate">
-                LEADERBOARD
-              </span>
-            </div>
-            <span class="text-[10px] text-ink-3 shrink-0">
-              User paling aktif
-            </span>
-          </div>
-
-          <!-- Daftar Teknisi Teraktif -->
-          <div class="space-y-1.5 flex-1 flex flex-col justify-center">
-            <div
-              v-if="!plant.leaderboard || plant.leaderboard.length === 0"
-              class="p-3 text-center text-xs text-ink-3"
-            >
-              Belum ada data teknisi.
-            </div>
-
-            <div
-              v-for="(user, idx) in (plant.leaderboard || []).slice(0, 2)"
-              :key="user.userId || idx"
-              class="p-2 rounded bg-surface border border-line/60 flex items-center justify-between gap-2 min-w-0"
-            >
-              <div class="flex items-center gap-2 min-w-0">
-                <!-- Rank Badge -->
-                <div
-                  class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0"
-                  :class="[
-                    idx === 0 ? 'bg-amber-100 text-amber-800 border border-amber-300' :
-                    idx === 1 ? 'bg-slate-200 text-slate-700 border border-slate-300' :
-                    idx === 2 ? 'bg-orange-100 text-orange-800 border border-orange-300' :
-                    'bg-muted text-ink-3 border border-line'
-                  ]"
-                >
-                  {{ idx + 1 }}
-                </div>
-
-                <!-- Avatar / Foto -->
-                <img
-                  v-if="user.photo_url"
-                  :src="user.photo_url"
-                  :alt="user.name"
-                  class="w-6 h-6 rounded-full object-cover shrink-0"
-                />
-                <div
-                  v-else
-                  class="w-6 h-6 rounded-full text-white font-semibold text-[10px] flex items-center justify-center shrink-0"
-                  :style="{ backgroundColor: plant.color.hex }"
-                >
-                  {{ user.initials }}
-                </div>
-
-                <!-- Info Teknisi -->
-                <div class="min-w-0 leading-tight">
-                  <div class="text-[11px] font-semibold text-ink truncate">{{ user.name }}</div>
-                  <div class="text-[9px] text-ink-3 truncate">Teknisi Satoria</div>
-                </div>
-              </div>
-
-              <!-- Total Log & Kontribusi -->
-              <div class="text-right shrink-0">
-                <span class="font-bold text-ink text-xs font-mono">{{ user.count }}</span>
-                <span class="text-[10px] text-ink-3 ml-0.5">log</span>
-                <div class="text-[9px] font-semibold text-primary font-mono">{{ user.percentage }}%</div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Chart 7 Hari Terakhir (Leaderboard teknisi dihapus sesuai P1) -->
+      <div class="grid grid-cols-1 gap-3 items-stretch">
+        <!-- Placeholder slot (akan diisi pada Fase 3/4) -->
 
         <!-- 3. Chart Aktivitas 7 Hari Terakhir (SVG Bar Chart Responsif) di sebelah KANAN -->
         <div class="p-3 bg-muted/40 border border-line rounded-md flex flex-col justify-between">
@@ -232,7 +160,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Factory, ChevronRight, Trophy } from 'lucide-vue-next'
+import { Factory, ChevronRight } from 'lucide-vue-next'
 
 const props = defineProps({
   plant: {

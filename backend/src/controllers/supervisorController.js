@@ -23,7 +23,12 @@ export async function getTeamOverview(req, res, next) {
       machines
     ] = await Promise.all([
       prisma.user.findMany({
-        where: { role: { name: 'Teknisi' }, is_active: true },
+        where: {
+          role: { name: 'Teknisi' },
+          is_active: true,
+          // BUG-002 (APR-08): Supervisor hanya melihat teknisi pada Line/Plant miliknya
+          ...(supervisorPlantId ? { plant_id: BigInt(supervisorPlantId) } : {})
+        },
         include: { role: true, plant: true, group: true }
       }),
       prisma.logbook.groupBy({

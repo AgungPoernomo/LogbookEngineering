@@ -55,9 +55,9 @@ async function main() {
   // 4. Shifts
   console.log('-> Seeding Shifts...')
   const shifts = [
-    { name: 'Shift 1 (Pagi)', start_time: '07:00', end_time: '15:00' },
-    { name: 'Shift 2 (Sore)', start_time: '15:00', end_time: '23:00' },
-    { name: 'Shift 3 (Malam)', start_time: '23:00', end_time: '07:00' }
+    { name: 'Shift 1 (Pagi)', start_time: '06:00', end_time: '14:00' },
+    { name: 'Shift 2 (Sore)', start_time: '14:00', end_time: '22:00' },
+    { name: 'Shift 3 (Malam)', start_time: '22:00', end_time: '06:00' }
   ]
   const shiftMap = {}
   for (const s of shifts) {

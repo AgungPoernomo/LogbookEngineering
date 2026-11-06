@@ -136,9 +136,6 @@
             >
               <option value="ALL">Semua Tingkat Aktivitas</option>
               <option value="ACTIVE_TODAY">Aktif Hari Ini (Telah Isi Log)</option>
-              <option value="INACTIVE_TODAY">Belum Ada Log Hari Ini</option>
-              <option value="HIGH_ACTIVITY">Sangat Rajin (Frekuensi Tinggi)</option>
-              <option value="NEEDS_ATTENTION">Perlu Perhatian (Jarang Isi)</option>
             </select>
             <ChevronDown class="w-3.5 h-3.5 text-ink-3 absolute right-2 top-2.5 pointer-events-none" />
           </div>
@@ -149,8 +146,6 @@
               v-model="sortBy"
               class="w-full h-8 pl-2.5 pr-7 rounded-md border border-line text-xs font-medium text-ink bg-muted focus:outline-none focus:border-primary cursor-pointer appearance-none"
             >
-              <option value="most_active">Log Terbanyak</option>
-              <option value="least_active">Log Paling Sedikit</option>
               <option value="name">Nama Teknisi (A-Z)</option>
             </select>
             <ChevronDown class="w-3.5 h-3.5 text-ink-3 absolute right-2 top-2.5 pointer-events-none" />
@@ -251,9 +246,8 @@
                 {{ getInitials(tech.full_name) }}
               </div>
               <span
-                class="w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 ring-2 ring-surface shrink-0"
-                :class="tech.isActiveToday ? 'bg-success' : 'bg-ink-3'"
-                :title="tech.isActiveToday ? 'Aktif mengisi logbook hari ini' : 'Belum mengisi logbook hari ini'"
+                class="w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 ring-2 ring-surface shrink-0 bg-ink-3"
+                title="Status aktivitas harian"
               />
             </div>
 
@@ -278,14 +272,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Lencana Frekuensi Keaktifan -->
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 border"
-            :class="tech.frequencyBadgeClass"
-          >
-            {{ tech.frequencyScore }}
-          </span>
         </div>
 
         <!-- Metrik Angka Frekuensi Pengisian (3 Kolom Mini) -->
@@ -547,7 +533,7 @@
               <div class="text-sm font-bold text-ink flex items-center gap-1.5">
                 <span>{{ selectedTech.full_name }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded font-semibold bg-primary-soft text-primary">
-                  {{ selectedTech.frequencyScore }}
+                  Teknisi
                 </span>
               </div>
               <div class="text-ink-2 text-xs font-mono mt-0.5">
@@ -630,9 +616,9 @@
               <span class="text-[9px] uppercase font-semibold text-status-pending-fg block leading-tight">Menunggu Approval</span>
               <span class="text-sm font-bold text-warning font-mono mt-0.5 block">{{ modalMonthSummary.pendingDays }} Hari</span>
             </div>
-            <div class="p-2 rounded-md bg-status-rejected-bg/60 border border-danger/20">
-              <span class="text-[9px] uppercase font-semibold text-status-rejected-fg block leading-tight">Hari Tanpa Log</span>
-              <span class="text-sm font-bold text-danger font-mono mt-0.5 block">{{ modalMonthSummary.noLogDays }} Hari</span>
+            <div class="p-2 rounded-md bg-muted/60 border border-line">
+              <span class="text-[9px] uppercase font-semibold text-ink-3 block leading-tight">Hari Tanpa Aktivitas</span>
+              <span class="text-sm font-bold text-ink-2 font-mono mt-0.5 block">{{ modalMonthSummary.noLogDays }} Hari</span>
             </div>
             <div class="p-2 rounded-md bg-muted/60 border border-line">
               <span class="text-[9px] uppercase font-semibold text-ink-3 block leading-tight">Total Log Bulan Ini</span>
@@ -716,11 +702,6 @@
             <div class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-status-pending-fg shrink-0" />
               <span class="text-ink font-medium">Butuh Approval (Pending)</span>
-            </div>
-            <!-- Merah: Hari Tanpa Log -->
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-status-rejected-fg shrink-0" />
-              <span class="text-ink font-medium">Hari Tanpa Log</span>
             </div>
             <!-- Indikator Hari Ini -->
             <div class="flex items-center gap-1.5 text-ink-3">
@@ -877,7 +858,7 @@ const selectedTech = ref(null)
 // Toolbar filters
 const scopeFilter = ref('my_team') // 'my_team' | 'all'
 const activityStatusFilter = ref('ALL') // 'ALL' | 'ACTIVE_TODAY' | 'INACTIVE_TODAY' | 'HIGH_ACTIVITY' | 'NEEDS_ATTENTION'
-const sortBy = ref('most_active') // 'most_active' | 'least_active' | 'name'
+const sortBy = ref('name') // 'name' (urutan default; ranking keaktifan dihapus sesuai P1)
 const searchQuery = ref('')
 const viewMode = ref('grid') // 'grid' | 'table'
 
@@ -991,7 +972,7 @@ const filteredTechnicians = computed(() => {
 function resetFilters() {
   scopeFilter.value = 'my_team'
   activityStatusFilter.value = 'ALL'
-  sortBy.value = 'most_active'
+  sortBy.value = 'name'
   searchQuery.value = ''
 }
 

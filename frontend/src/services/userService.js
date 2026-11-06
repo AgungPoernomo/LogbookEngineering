@@ -4,10 +4,19 @@ export const userService = {
   async getUsers(params = {}) {
     const res = await api.get('/users', params)
     const list = Array.isArray(res) ? res : (res.data || [])
-    return list.map(u => ({
+    const mapped = list.map(u => ({
       ...u,
       role: u.role || u.role_name || 'Teknisi'
     }))
+    // F1.1 (BUG-011): teruskan meta paginasi agar tabel admin dapat menghitung total halaman
+    if (res && res._meta) {
+      try {
+        Object.defineProperty(mapped, '_meta', { value: res._meta, enumerable: false, configurable: true })
+      } catch (e) {
+        // noop
+      }
+    }
+    return mapped
   },
 
   async createUser(payload) {

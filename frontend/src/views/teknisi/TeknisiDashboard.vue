@@ -249,9 +249,6 @@
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
-                <span class="text-[10px] font-mono font-semibold text-primary block">
-                  {{ machine.code }}
-                </span>
                 <h3 class="text-xs font-bold text-ink truncate group-hover:text-primary transition" :title="machine.name">
                   {{ machine.name }}
                 </h3>
@@ -314,7 +311,7 @@
             <div class="text-ink-2 text-[11px]">{{ selectedLog.user_nik || '-' }}</div>
           </div>
           <div class="p-2.5 bg-muted rounded-md">
-            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI LINE / PLANT</span>
+            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI LINE</span>
             <span class="font-semibold text-ink">{{ selectedLog.plant_name }}</span>
           </div>
         </div>

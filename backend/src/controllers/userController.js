@@ -3,16 +3,30 @@ import prisma from '../config/prisma.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
 import { sendNotification } from '../services/mailerService.js'
+import { isValidEmail } from '../utils/validation.js'
 
 export async function getUsers(req, res, next) {
   try {
-    const { role_id, plant_id, group_id, is_active, search } = req.query
+    const {
+      role_id,
+      plant_id,
+      group_id,
+      is_active,
+      search,
+      role,
+      page = 1,
+      limit = 25,
+      sort_by = 'created_at',
+      sort_dir = 'desc'
+    } = req.query
     const where = {}
 
     if (role_id) where.role_id = BigInt(role_id)
     if (plant_id) where.plant_id = BigInt(plant_id)
     if (group_id) where.group_id = BigInt(group_id)
-    if (is_active !== undefined) where.is_active = is_active === 'true'
+    if (is_active !== undefined && is_active !== '') where.is_active = is_active === 'true' || is_active === true
+    // BUG-010: filter berdasarkan nama peran (RBAC)
+    if (role && role !== 'ALL') where.role = { name: role }
 
     if (search) {
       where.OR = [
@@ -22,15 +36,42 @@ export async function getUsers(req, res, next) {
       ]
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: { id: 'asc' },
-      include: {
-        role: true,
-        plant: true,
-        group: true
-      }
-    })
+    // BUG-011: server-side sorting pada kolom tabel akun
+    const SORTABLE = {
+      id: 'id',
+      nik: 'nik',
+      full_name: 'full_name',
+      email: 'email',
+      role: 'role_id',
+      plant: 'plant_id',
+      group: 'group_id',
+      is_active: 'is_active',
+      created_at: 'created_at'
+    }
+    const orderField = SORTABLE[sort_by] || 'created_at'
+    const orderDir = String(sort_dir).toLowerCase() === 'asc' ? 'asc' : 'desc'
+
+    // BUG-011: server-side pagination
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = String(limit).toLowerCase() === 'all'
+      ? 1000
+      : Math.min(1000, Math.max(1, Number(limit) || 25))
+    const skip = (pageNum - 1) * limitNum
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { [orderField]: orderDir },
+        include: {
+          role: true,
+          plant: true,
+          group: true
+        }
+      })
+    ])
 
     const formatted = users.map(u => ({
       id: Number(u.id),
@@ -50,7 +91,13 @@ export async function getUsers(req, res, next) {
 
     return successResponse(res, {
       message: 'Daftar pengguna berhasil diambil.',
-      data: formatted
+      data: formatted,
+      meta: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        total_pages: Math.ceil(total / limitNum)
+      }
     })
   } catch (err) {
     next(err)
@@ -73,6 +120,14 @@ export async function createUser(req, res, next) {
     if (!nik || !email || !full_name || !role_id) {
       return errorResponse(res, {
         message: 'NIK, Email, Nama Lengkap, dan Peran (Role) wajib diisi.',
+        statusCode: 400
+      })
+    }
+
+    // BUG-009 (ACC-04): validasi format email ketat (local@domain.tld)
+    if (!isValidEmail(email)) {
+      return errorResponse(res, {
+        message: 'Format email tidak valid. Contoh: nama@domain.co.id',
         statusCode: 400
       })
     }
@@ -156,7 +211,16 @@ export async function updateUser(req, res, next) {
 
     const updateData = {}
     if (nik) updateData.nik = nik.trim()
-    if (email) updateData.email = email.trim().toLowerCase()
+    if (email) {
+      // BUG-009 (ACC-04): validasi format email ketat saat pembaruan akun
+      if (!isValidEmail(email)) {
+        return errorResponse(res, {
+          message: 'Format email tidak valid. Contoh: nama@domain.co.id',
+          statusCode: 400
+        })
+      }
+      updateData.email = email.trim().toLowerCase()
+    }
     if (full_name) updateData.full_name = full_name.trim()
     if (role_id) updateData.role_id = BigInt(role_id)
     if (plant_id !== undefined) updateData.plant_id = plant_id ? BigInt(plant_id) : null

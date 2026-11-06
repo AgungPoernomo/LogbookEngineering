@@ -487,6 +487,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useLogbookStore } from '../../stores/logbook'
 import { LOG_STATUS } from '../../constants/logStatus'
 import { formatDuration } from '../../utils/duration'
+import { alert } from '../../utils/alert'
 import AppBadge from '../../components/common/AppBadge.vue'
 import AppModal from '../../components/common/AppModal.vue'
 import Avatar from '../../components/common/Avatar.vue'
@@ -645,6 +646,13 @@ function toggleTechDetails(userId) {
 // Persetujuan Per Teknisi (Menyetujui semua log pending milik teknisi tersebut)
 async function approveTechnician(tech) {
   if (!tech.user_id) return
+  // F1.3: konfirmasi persetujuan via SweetAlert2
+  const ok = await alert.confirm(
+    'Setujui Seluruh Logbook Teknisi?',
+    `Seluruh ${tech.pendingCount} logbook PENDING milik ${tech.user_name} akan disetujui sekaligus.`,
+    'Ya, setujui'
+  )
+  if (!ok) return
   actionLoading.value = true
   try {
     const res = await logbookStore.approveByTechnician(tech.user_id, 'Disetujui per teknisi sesuai SOP pemeliharaan.')

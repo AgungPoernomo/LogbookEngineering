@@ -7,6 +7,10 @@ export async function getMasterData(req, res, next) {
     const { type } = req.params
     const { plant_id, machine_id } = req.query
 
+    // F1.2: HTTP cache sesuai D7 untuk data master non-sensitif (mendukung SWR klien).
+    // Gunakan 'private' (bukan 'public') karena respons terautentikasi.
+    res.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=86400')
+
     switch (type.toLowerCase()) {
       case 'plants': {
         const plants = await prisma.plant.findMany({
@@ -160,12 +164,25 @@ export async function createMasterData(req, res, next) {
 
       case 'machines':
         if (!body.name) return errorResponse(res, { message: 'Nama mesin wajib diisi', statusCode: 400 })
-        created = await prisma.machine.create({
-          data: {
-            name: body.name,
-            plant_id: body.plant_id ? BigInt(body.plant_id) : null
+        // BUG-005 (MST-02): cegah duplikat nama mesin pada Line/Plant yang sama
+        {
+          const machinePlantId = body.plant_id ? BigInt(body.plant_id) : null
+          const existingMachine = await prisma.machine.findFirst({
+            where: { name: body.name.trim(), plant_id: machinePlantId }
+          })
+          if (existingMachine) {
+            return errorResponse(res, {
+              message: `Mesin "${body.name.trim()}" sudah terdaftar pada Line/Plant yang sama. Gunakan nama yang berbeda.`,
+              statusCode: 409
+            })
           }
-        })
+          created = await prisma.machine.create({
+            data: {
+              name: body.name.trim(),
+              plant_id: machinePlantId
+            }
+          })
+        }
         break
 
       case 'sub-machines':
@@ -173,12 +190,24 @@ export async function createMasterData(req, res, next) {
         if (!body.name || !body.machine_id) {
           return errorResponse(res, { message: 'Nama sub-mesin dan machine_id wajib diisi', statusCode: 400 })
         }
-        created = await prisma.subMachine.create({
-          data: {
-            name: body.name,
-            machine_id: BigInt(body.machine_id)
+        // BUG-005 (MST-03): cegah duplikat nama sub-mesin pada mesin induk yang sama
+        {
+          const existingSubMachine = await prisma.subMachine.findFirst({
+            where: { name: body.name.trim(), machine_id: BigInt(body.machine_id) }
+          })
+          if (existingSubMachine) {
+            return errorResponse(res, {
+              message: `Sub-mesin "${body.name.trim()}" sudah terdaftar pada mesin induk yang sama. Gunakan nama yang berbeda.`,
+              statusCode: 409
+            })
           }
-        })
+          created = await prisma.subMachine.create({
+            data: {
+              name: body.name.trim(),
+              machine_id: BigInt(body.machine_id)
+            }
+          })
+        }
         break
 
       case 'groups':

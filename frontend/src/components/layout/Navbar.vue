@@ -57,10 +57,10 @@
           </span>
         </button>
 
-        <!-- Notification Panel Overlay -->
+        <!-- Notification Panel Overlay (F1.3: tidak terpotong di layar mobile 360px) -->
         <div
           v-if="showNotifications"
-          class="absolute right-0 mt-2 w-80 sm:w-96 rounded-lg bg-surface shadow-tooltip border border-line p-4 z-50 animate-fadeIn"
+          class="fixed sm:absolute inset-x-2 sm:inset-x-auto top-[68px] sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-96 max-w-[calc(100vw-1rem)] rounded-lg bg-surface shadow-tooltip border border-line p-4 z-50 animate-fadeIn"
         >
           <div class="flex items-center justify-between pb-3 border-b border-line mb-3">
             <h3 class="text-xs font-semibold text-ink uppercase tracking-wider">Notifikasi</h3>

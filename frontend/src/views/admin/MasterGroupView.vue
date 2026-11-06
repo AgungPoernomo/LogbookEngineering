@@ -17,6 +17,15 @@
       </button>
     </div>
 
+    <!-- F1.2: Indikator data offline (cache lokal) -->
+    <div
+      v-if="masterStore.isOffline"
+      class="p-2.5 rounded-md bg-status-pending-bg border border-warning/20 text-status-pending-fg text-xs flex items-center gap-2"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-status-pending-dot animate-pulse" />
+      <span>{{ masterStore.cacheStatusText }}</span>
+    </div>
+
     <!-- Shift & Group Tabs -->
     <div class="flex items-center gap-1 border-b border-line overflow-x-auto pb-0.5">
       <button
@@ -261,6 +270,7 @@
               required
               class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink font-mono focus:border-primary focus:outline-none"
             />
+            <p class="text-[10px] text-ink-3 mt-1">Format 24 jam (00:00–23:59)</p>
           </div>
           <div>
             <label class="block font-medium text-ink mb-1">
@@ -285,9 +295,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Shift' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Shift') }}
           </button>
         </div>
       </form>
@@ -335,9 +346,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Grup' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Grup') }}
           </button>
         </div>
       </form>
@@ -348,6 +360,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useMasterStore } from '../../stores/master'
+import { alert } from '../../utils/alert'
 import AppModal from '../../components/common/AppModal.vue'
 
 const masterStore = useMasterStore()
@@ -359,6 +372,7 @@ const statusFilter = ref('all')
 const isShiftModalOpen = ref(false)
 const isGroupModalOpen = ref(false)
 const editingId = ref(null)
+const isSubmitting = ref(false)
 
 const shiftForm = ref({ name: '', start_time: '07:00', end_time: '15:00' })
 const groupForm = ref({ name: '', description: '' })
@@ -462,25 +476,43 @@ function openEditGroupModal(group) {
 }
 
 async function saveShift() {
-  if (editingId.value) {
-    await masterStore.updateItem('shifts', editingId.value, shiftForm.value)
-  } else {
-    await masterStore.addItem('shifts', shiftForm.value)
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('shifts', editingId.value, shiftForm.value)
+    } else {
+      await masterStore.addItem('shifts', shiftForm.value)
+    }
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+    isShiftModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data shift berhasil diperbarui.' : 'Shift baru berhasil ditambahkan.')
+  } catch (err) {
+    await alert.error('Gagal Menyimpan Shift', err.message || 'Terjadi kesalahan saat menyimpan data shift.')
+  } finally {
+    isSubmitting.value = false
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isShiftModalOpen.value = false
 }
 
 async function saveGroup() {
-  if (editingId.value) {
-    await masterStore.updateItem('work_groups', editingId.value, groupForm.value)
-  } else {
-    await masterStore.addItem('work_groups', groupForm.value)
+  if (isSubmitting.value) return
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('work_groups', editingId.value, groupForm.value)
+    } else {
+      await masterStore.addItem('work_groups', groupForm.value)
+    }
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+    isGroupModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data grup kerja berhasil diperbarui.' : 'Grup kerja baru berhasil ditambahkan.')
+  } catch (err) {
+    await alert.error('Gagal Menyimpan Grup', err.message || 'Terjadi kesalahan saat menyimpan data grup kerja.')
+  } finally {
+    isSubmitting.value = false
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isGroupModalOpen.value = false
 }
 
 async function toggleActiveShift(shift) {

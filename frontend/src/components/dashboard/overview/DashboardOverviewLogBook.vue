@@ -100,7 +100,7 @@
 
         <div class="grid grid-cols-2 gap-2 text-ink">
           <div class="p-2.5 bg-muted rounded-md">
-            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI PLANT</span>
+            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI LINE</span>
             <span class="font-semibold text-ink">{{ selectedLogDetail.plant_name }}</span>
           </div>
           <div class="p-2.5 bg-muted rounded-md">

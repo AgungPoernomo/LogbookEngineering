@@ -295,7 +295,7 @@
             >
               <option :value="null" disabled>-- Pilih Mesin --</option>
               <option v-for="m in filteredMachines" :key="m.id" :value="m.id">
-                {{ m.name }} ({{ m.code }})
+                {{ m.name }}
               </option>
             </select>
             <p class="text-[10px] text-ink-3 mt-1">Daftar mesin aktif pada {{ lockedPlantName }}.</p>
@@ -359,12 +359,15 @@
             v-model="form.activity_description"
             rows="4"
             required
+            maxlength="1000"
             placeholder="Jelaskan secara rinci tindakan pekerjaan yang dilakukan, temuan masalah atau kendala teknis di lapangan, tindakan perbaikan, serta kondisi operasional mesin setelah penanganan..."
             class="w-full p-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition leading-relaxed"
           />
           <div class="flex items-center justify-between text-[10px] text-ink-3 mt-1">
-            <span>Pastikan uraian ditulis secara spesifik untuk memudahkan validasi Supervisor.</span>
-            <span>{{ form.activity_description.length }} karakter</span>
+            <span>Pastikan uraian ditulis secara spesifik untuk memudahkan validasi Supervisor. Maksimal 1000 karakter.</span>
+            <span :class="form.activity_description.length > 1000 ? 'text-danger font-semibold' : ''">
+              {{ form.activity_description.length }}/1000 karakter
+            </span>
           </div>
         </div>
       </div>
@@ -630,6 +633,8 @@ import { logbookService } from '../../services/logbookService'
 import { LOG_STATUS } from '../../constants/logStatus'
 import { calculateDurationMinutes, formatDuration } from '../../utils/duration'
 import { toLocalDateString, parseLocalDate } from '../../utils/dateKeys'
+import { validateLogbookTimeRange } from '../../utils/timeValidation'
+import { alert } from '../../utils/alert'
 
 import {
   Server,
@@ -934,6 +939,20 @@ async function handleSubmit(isSubmitForApproval) {
     return
   }
 
+  // BUG-012: uraian maksimal 1000 karakter
+  if (form.activity_description.length > 1000) {
+    formError.value = 'Uraian aktivitas maksimal 1000 karakter.'
+    return
+  }
+
+  // BUG-003 & BUG-004: validasi urutan waktu & durasi 0 menit
+  const selectedShift = masterStore.shifts.find(s => s.id === form.shift_id)
+  const timeError = validateLogbookTimeRange(form.start_time, form.end_time, selectedShift)
+  if (timeError) {
+    formError.value = timeError
+    return
+  }
+
   submitting.value = true
   try {
     const selectedPlant = masterStore.plants.find(p => p.id === lockedPlantId.value)
@@ -971,7 +990,12 @@ async function handleSubmit(isSubmitForApproval) {
       ? 'Pengajuan logbook harian berhasil dikirim untuk pemeriksaan Supervisor.'
       : 'Logbook tersimpan sebagai draft dan dapat Anda lanjutkan nanti.'
 
-    showToast('success', successTitle, successMsg)
+    // F1.3: gunakan SweetAlert2 untuk sukses kirim logbook
+    if (isSubmitForApproval) {
+      await alert.success(successTitle, successMsg)
+    } else {
+      showToast('success', successTitle, successMsg)
+    }
 
     if (isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
@@ -1045,37 +1069,33 @@ async function handleSubmitSingleDraft(draft) {
 }
 
 async function handleDeleteDraft(draft) {
-  if (!confirm(`Hapus draft logbook untuk mesin ${draft.machine_name} (${draft.task_date})?`)) return
+  // F1.3: konfirmasi via SweetAlert2
+  const ok = await alert.confirm(
+    'Hapus Draft Logbook?',
+    `Draft untuk mesin ${draft.machine_name} (${draft.task_date}) akan dihapus permanen.`,
+    'Ya, hapus'
+  )
+  if (!ok) return
   try {
     await logbookService.deleteLogbook(draft.id, authStore.user)
     showToast('success', 'Draft Dihapus', 'Data draft logbook berhasil dihapus.')
     await fetchDraftLogs()
   } catch (err) {
-    showToast('danger', 'Gagal Menghapus Draft', err.message || 'Gagal menghapus draft logbook.')
+    await alert.error('Gagal Menghapus Draft', err.message || 'Gagal menghapus draft logbook.')
   }
 }
 
 function handleLoadDraftToForm(draft) {
-  form.task_date = draft.task_date
-  form.shift_id = draft.shift_id
+  // BUG-007 (LOG-09): isi hanya mesin, sub-mesin, sparepart, dan uraian.
+  // Tanggal & jam TIDAK ditimpa agar tidak mengubah konteks input yang sedang aktif.
   form.machine_id = draft.machine_id
   form.sub_machine_id = draft.sub_machine_id || null
   form.sparepart = draft.sparepart === '-' ? '' : (draft.sparepart || '')
   form.activity_description = draft.activity_description || ''
-  form.start_time = draft.start_time || '08:00'
-  form.end_time = draft.end_time || '10:00'
 
-  // Sinkronisasi tahun dan bulan kalender jika diperlukan
-  try {
-    const d = parseLocalDate(draft.task_date)
-    viewYear.value = d.getFullYear()
-    viewMonth.value = d.getMonth()
-  } catch {
-    // fallback
-  }
-
+  // Fokuskan ke formulir utama di atas
   window.scrollTo({ top: 0, behavior: 'smooth' })
-  showToast('info', 'Draft Dimuat ke Formulir', `Draft ${draft.machine_name} (${draft.task_date}) telah dimuat ke form utama di atas.`)
+  showToast('info', 'Draft Dimuat ke Formulir', `Draft ${draft.machine_name} telah dimuat ke form utama. Tanggal & jam tidak diubah.`)
 }
 
 onMounted(async () => {

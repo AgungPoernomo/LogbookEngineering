@@ -39,6 +39,17 @@ export async function processApproval(req, res, next) {
       })
     }
 
+    // BUG-001 (APR-01): Supervisor hanya boleh menyetujui logbook pada Line/Plant miliknya
+    if (req.user.role === 'Supervisor' && req.user.plant_id) {
+      const logPlantId = logbook.plant_id ? Number(logbook.plant_id) : null
+      if (logPlantId !== Number(req.user.plant_id)) {
+        return errorResponse(res, {
+          message: 'Akses ditolak. Logbook ini berada di Line/Plant lain, di luar cakupan supervisi Anda.',
+          statusCode: 403
+        })
+      }
+    }
+
     if (logbook.status !== 'PENDING') {
       return errorResponse(res, {
         message: `Logbook berstatus [${logbook.status}] tidak dapat diproses approval. Hanya logbook 'PENDING' yang dapat ditinjau.`,
@@ -209,11 +220,27 @@ export async function processTechnicianApproval(req, res, next) {
       })
     }
 
+    // BUG-001 (APR-01): Supervisor hanya boleh memproses teknisi pada Line/Plant miliknya
+    if (req.user.role === 'Supervisor' && req.user.plant_id) {
+      const techPlantId = technician.plant_id ? Number(technician.plant_id) : null
+      if (techPlantId !== Number(req.user.plant_id)) {
+        return errorResponse(res, {
+          message: 'Akses ditolak. Teknisi ini berada di Line/Plant lain, di luar cakupan supervisi Anda.',
+          statusCode: 403
+        })
+      }
+    }
+
+    const pendingWhere = {
+      user_id: BigInt(userId),
+      status: 'PENDING'
+    }
+    if (req.user.role === 'Supervisor' && req.user.plant_id) {
+      pendingWhere.plant_id = BigInt(req.user.plant_id)
+    }
+
     const pendingLogbooks = await prisma.logbook.findMany({
-      where: {
-        user_id: BigInt(userId),
-        status: 'PENDING'
-      },
+      where: pendingWhere,
       include: {
         machine: true,
         plant: true
@@ -319,8 +346,15 @@ export async function processTechnicianApproval(req, res, next) {
  */
 export async function getPendingApprovalsByTechnician(req, res, next) {
   try {
+    // BUG-001 (APR-01): Supervisor hanya melihat antrean approval pada Line/Plant miliknya.
+    // Admin melihat seluruh Line. Supervisor tanpa plant_id (fallback) melihat seluruh antrean.
+    const pendingWhere = { status: 'PENDING' }
+    if (req.user.role === 'Supervisor' && req.user.plant_id) {
+      pendingWhere.plant_id = BigInt(req.user.plant_id)
+    }
+
     const pendingLogbooks = await prisma.logbook.findMany({
-      where: { status: 'PENDING' },
+      where: pendingWhere,
       include: {
         user: {
           select: {

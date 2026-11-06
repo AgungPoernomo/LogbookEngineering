@@ -3,11 +3,39 @@ import { successResponse } from '../utils/response.js'
 
 export async function getAuditLogs(req, res, next) {
   try {
-    const { user_id, activity, page = 1, limit = 25 } = req.query
+    const {
+      user_id,
+      activity,
+      search,
+      start_date,
+      end_date,
+      page = 1,
+      limit = 25,
+      sort_by = 'created_at',
+      sort_dir = 'desc'
+    } = req.query
     const where = {}
 
     if (user_id) where.user_id = BigInt(user_id)
-    if (activity) where.activity = { contains: activity }
+    // BUG-013 (AUD-02): filter jenis aktivitas
+    if (activity && activity !== 'ALL') where.activity = { contains: activity }
+    if (search) {
+      where.OR = [
+        { activity: { contains: search } },
+        { detail: { contains: search } }
+      ]
+    }
+    // BUG-013 (AUD-02): filter rentang tanggal
+    if (start_date || end_date) {
+      where.created_at = {}
+      if (start_date) where.created_at.gte = new Date(`${start_date}T00:00:00.000`)
+      if (end_date) where.created_at.lte = new Date(`${end_date}T23:59:59.999`)
+    }
+
+    // BUG-013 (AUD-02): pengurutan
+    const SORTABLE = { id: 'id', created_at: 'created_at', activity: 'activity', user: 'user_id' }
+    const orderField = SORTABLE[sort_by] || 'created_at'
+    const orderDir = String(sort_dir).toLowerCase() === 'asc' ? 'asc' : 'desc'
 
     const pageNum = Math.max(1, Number(page))
     const limitNum = Math.min(100, Math.max(1, Number(limit)))
@@ -19,7 +47,7 @@ export async function getAuditLogs(req, res, next) {
         where,
         skip,
         take: limitNum,
-        orderBy: { created_at: 'desc' },
+        orderBy: { [orderField]: orderDir },
         include: {
           user: {
             select: {

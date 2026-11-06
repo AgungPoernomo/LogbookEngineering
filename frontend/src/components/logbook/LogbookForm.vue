@@ -101,7 +101,7 @@
         >
           <option :value="null" disabled>Pilih Mesin</option>
           <option v-for="m in filteredMachines" :key="m.id" :value="m.id">
-            {{ m.name }} ({{ m.code }})
+            {{ m.name }}
           </option>
         </select>
         <p v-if="errors.machine_id" id="err-machine-id" class="text-[11px] text-danger mt-1">
