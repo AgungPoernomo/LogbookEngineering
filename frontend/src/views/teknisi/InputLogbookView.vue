@@ -25,21 +25,6 @@
       </RouterLink>
     </div>
 
-    <!-- Banner Validasi Error jika ada -->
-    <div
-      v-if="formError"
-      class="p-3.5 rounded-lg bg-status-rejected-bg border border-danger/30 text-status-rejected-fg text-xs flex items-center justify-between"
-      role="alert"
-    >
-      <div class="flex items-center gap-2">
-        <AlertCircle class="w-4 h-4 shrink-0 text-danger" />
-        <span class="font-medium">{{ formError }}</span>
-      </div>
-      <button type="button" class="text-danger hover:opacity-75 font-semibold text-xs" @click="formError = ''">
-        ✕
-      </button>
-    </div>
-
     <form @submit.prevent="handleSubmit(true)" class="space-y-5">
       <!-- ======================================================== -->
       <!-- 1. BAGIAN PALING ATAS: TANGGAL MASUK (OTOMATIS SISTEM)   -->
@@ -645,7 +630,6 @@ import {
   Timer,
   Lock,
   Send,
-  AlertCircle,
   ChevronLeft,
   ChevronRight,
   FolderArchive,
@@ -662,7 +646,6 @@ const authStore = useAuthStore()
 const masterStore = useMasterStore()
 
 const submitting = ref(false)
-const formError = ref('')
 
 const toast = reactive({
   show: false,
@@ -912,36 +895,33 @@ function handleResetForm() {
   form.activity_description = ''
   form.start_time = '08:00'
   form.end_time = '10:00'
-  formError.value = ''
 }
 
 // Submit Form
 async function handleSubmit(isSubmitForApproval) {
-  formError.value = ''
-
   if (!form.task_date) {
-    formError.value = 'Silakan pilih tanggal tugas pada kalender.'
+    await alert.error('Data Belum Lengkap', 'Silakan pilih tanggal tugas pada kalender.')
     return
   }
 
   if (!form.machine_id) {
-    formError.value = 'Silakan pilih peralatan mesin yang ditangani.'
+    await alert.error('Data Belum Lengkap', 'Silakan pilih peralatan mesin yang ditangani.')
     return
   }
 
   if (!form.activity_description || !form.activity_description.trim()) {
-    formError.value = 'Uraian aktivitas pekerjaan wajib diisi secara lengkap.'
+    await alert.error('Data Belum Lengkap', 'Uraian aktivitas pekerjaan wajib diisi secara lengkap.')
     return
   }
 
   if (!form.start_time || !form.end_time) {
-    formError.value = 'Waktu mulai dan waktu selesai wajib diisi.'
+    await alert.error('Data Belum Lengkap', 'Waktu mulai dan waktu selesai wajib diisi.')
     return
   }
 
   // BUG-012: uraian maksimal 1000 karakter
   if (form.activity_description.length > 1000) {
-    formError.value = 'Uraian aktivitas maksimal 1000 karakter.'
+    await alert.error('Uraian Terlalu Panjang', 'Uraian aktivitas maksimal 1000 karakter.')
     return
   }
 
@@ -949,9 +929,19 @@ async function handleSubmit(isSubmitForApproval) {
   const selectedShift = masterStore.shifts.find(s => s.id === form.shift_id)
   const timeError = validateLogbookTimeRange(form.start_time, form.end_time, selectedShift)
   if (timeError) {
-    formError.value = timeError
+    await alert.error('Waktu Tidak Valid', timeError)
     return
   }
+
+  // F1.3: konfirmasi sebelum menyimpan/mengajukan logbook
+  const isConfirmed = await alert.confirm(
+    isSubmitForApproval ? 'Ajukan Logbook untuk Persetujuan?' : 'Simpan sebagai Draft?',
+    isSubmitForApproval
+      ? 'Logbook harian akan dikirim ke Supervisor untuk diperiksa.'
+      : 'Logbook akan disimpan sebagai draft dan dapat Anda lanjutkan nanti.',
+    isSubmitForApproval ? 'Ya, ajukan' : 'Ya, simpan'
+  )
+  if (!isConfirmed) return
 
   submitting.value = true
   try {
@@ -1006,7 +996,7 @@ async function handleSubmit(isSubmitForApproval) {
     // Refresh daftar draft tersimpan
     await fetchDraftLogs()
   } catch (err) {
-    formError.value = err.message || 'Terjadi kesalahan saat menyimpan logbook. Silakan coba lagi.'
+    await alert.error('Gagal Menyimpan Logbook', err.message || 'Terjadi kesalahan saat menyimpan logbook. Silakan coba lagi.')
   } finally {
     submitting.value = false
   }
@@ -1045,6 +1035,13 @@ async function fetchDraftLogs() {
 
 async function handleSubmitAllDrafts() {
   if (draftLogs.value.length === 0) return
+  // F1.3: konfirmasi sebelum mengajukan seluruh draft
+  const isConfirmed = await alert.confirm(
+    'Ajukan Semua Draft Logbook?',
+    `${draftLogs.value.length} draft logbook akan dikirim bersamaan untuk diperiksa Supervisor.`,
+    'Ya, ajukan semua'
+  )
+  if (!isConfirmed) return
   submittingAllDrafts.value = true
   try {
     const count = draftLogs.value.length
@@ -1059,6 +1056,13 @@ async function handleSubmitAllDrafts() {
 }
 
 async function handleSubmitSingleDraft(draft) {
+  // F1.3: konfirmasi sebelum mengajukan draft
+  const isConfirmed = await alert.confirm(
+    'Ajukan Draft Logbook?',
+    `Draft untuk mesin ${draft.machine_name} akan dikirim untuk diperiksa Supervisor.`,
+    'Ya, ajukan'
+  )
+  if (!isConfirmed) return
   try {
     await logbookService.updateLogbook(draft.id, { ...draft, is_submit: true, status: LOG_STATUS.PENDING }, authStore.user)
     showToast('success', 'Draft Berhasil Diajukan!', `Logbook #${draft.id} (${draft.machine_name}) telah diajukan ke Supervisor.`)

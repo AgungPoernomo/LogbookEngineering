@@ -13,16 +13,6 @@
       <div class="leading-relaxed pl-5.5">{{ supervisorNotes }}</div>
     </div>
 
-    <!-- Error message banner if validation fails -->
-    <div
-      v-if="errorMessage"
-      class="p-3 rounded-md bg-status-rejected-bg border border-danger/30 text-status-rejected-fg text-xs flex items-center gap-2"
-      role="alert"
-    >
-      <AlertCircle class="w-4 h-4 shrink-0 text-danger" />
-      <span>{{ errorMessage }}</span>
-    </div>
-
     <!-- 1. Tanggal Pekerjaan -->
     <div>
       <label for="form-task-date" class="block text-xs font-medium text-ink mb-1">
@@ -35,13 +25,9 @@
         required
         aria-required="true"
         :aria-invalid="!!errors.task_date"
-        :aria-describedby="errors.task_date ? 'err-task-date' : undefined"
         class="w-full h-9 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
         @input="emitChange"
       />
-      <p v-if="errors.task_date" id="err-task-date" class="text-[11px] text-danger mt-1">
-        {{ errors.task_date }}
-      </p>
     </div>
 
     <!-- 2. Lokasi Fasilitas (Plant) & 3. Shift Kerja -->
@@ -95,7 +81,6 @@
           required
           aria-required="true"
           :aria-invalid="!!errors.machine_id"
-          :aria-describedby="errors.machine_id ? 'err-machine-id' : undefined"
           class="w-full h-9 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer"
           @change="handleMachineChange"
         >
@@ -104,9 +89,6 @@
             {{ m.name }}
           </option>
         </select>
-        <p v-if="errors.machine_id" id="err-machine-id" class="text-[11px] text-danger mt-1">
-          {{ errors.machine_id }}
-        </p>
       </div>
 
       <div>
@@ -156,7 +138,6 @@
           required
           aria-required="true"
           :aria-invalid="!!errors.end_time"
-          :aria-describedby="errors.end_time ? 'err-end-time' : undefined"
           class="w-full h-9 px-3 rounded-md border border-line bg-surface text-xs font-mono font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           @input="emitChange"
         />
@@ -176,10 +157,6 @@
         </div>
       </div>
     </div>
-    <p v-if="errors.end_time" id="err-end-time" class="text-[11px] text-danger -mt-2">
-      {{ errors.end_time }}
-    </p>
-
     <!-- 9. Suku Cadang -->
     <div>
       <label for="form-sparepart" class="block text-xs font-medium text-ink mb-1">
@@ -207,14 +184,10 @@
         required
         aria-required="true"
         :aria-invalid="!!errors.activity_description"
-        :aria-describedby="errors.activity_description ? 'err-activity' : undefined"
         placeholder="Jelaskan temuan kondisi mesin, tindakan perbaikan atau pemeliharaan yang dilakukan, parameter hasil uji, dsb..."
         class="w-full p-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition leading-relaxed placeholder:text-ink-3 placeholder:font-normal"
         @input="emitChange"
       />
-      <p v-if="errors.activity_description" id="err-activity" class="text-[11px] text-danger mt-1">
-        {{ errors.activity_description }}
-      </p>
     </div>
 
     <!-- Footer Action Buttons (Slot or default) -->
@@ -259,6 +232,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useMasterStore } from '../../stores/master'
 import { calculateDurationMinutes, formatDuration } from '../../utils/duration'
 import { toLocalDateString } from '../../utils/dateKeys'
+import { alert } from '../../utils/alert'
 
 const props = defineProps({
   initialData: {
@@ -284,7 +258,6 @@ const emit = defineEmits(['submit-draft', 'submit-approval', 'cancel', 'change']
 const authStore = useAuthStore()
 const masterStore = useMasterStore()
 
-const errorMessage = ref('')
 const errors = ref({})
 const isDirty = ref(false)
 
@@ -369,7 +342,6 @@ function emitChange() {
 
 function validate(isSubmitForApproval) {
   errors.value = {}
-  errorMessage.value = ''
 
   if (!form.value.task_date) {
     errors.value.task_date = 'Tanggal pekerjaan wajib diisi'
@@ -394,7 +366,8 @@ function validate(isSubmitForApproval) {
   }
 
   if (Object.keys(errors.value).length > 0) {
-    errorMessage.value = Object.values(errors.value)[0]
+    // F1.3: tampilkan error validasi via SweetAlert2 (bukan banner/teks merah inline)
+    alert.error('Validasi Gagal', Object.values(errors.value)[0])
     return false
   }
 

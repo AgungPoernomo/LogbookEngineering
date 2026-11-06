@@ -406,11 +406,32 @@ function openEditModal(user) {
 }
 
 async function saveUser() {
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(userForm.value.full_name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama lengkap wajib diisi.')
+    return
+  }
+
+  if (!String(userForm.value.nik || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'NIK wajib diisi.')
+    return
+  }
+
   // BUG-009: validasi email di sisi klien sebelum kirim
   if (!EMAIL_REGEX.test(String(userForm.value.email || '').trim())) {
     await alert.error('Email Tidak Valid', 'Gunakan format email yang benar, contoh: nama@domain.co.id')
     return
   }
+
+  // F1.3: konfirmasi sebelum menyimpan pengguna
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Pengguna?' : 'Buat Akun Pengguna Baru?',
+    editingId.value
+      ? `Perubahan data ${userForm.value.full_name} akan disimpan.`
+      : `Akun baru untuk ${userForm.value.full_name} akan dibuat.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, buat'
+  )
+  if (!isConfirmed) return
 
   try {
     const roleIdMap = { Admin: 1, Supervisor: 2, Teknisi: 3 }

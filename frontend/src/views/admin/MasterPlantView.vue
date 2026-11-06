@@ -280,6 +280,28 @@ function openEditModal(plant) {
 
 async function savePlant() {
   if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(modalForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama line pabrik wajib diisi.')
+    return
+  }
+
+  if (!String(modalForm.value.code || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Kode line pabrik wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan line
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Line?' : 'Tambah Line Baru?',
+    editingId.value
+      ? `Perubahan data line "${modalForm.value.name}" akan disimpan.`
+      : `Line baru "${modalForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
   isSubmitting.value = true
   try {
     if (editingId.value) {
@@ -299,8 +321,18 @@ async function savePlant() {
 }
 
 async function toggleActiveStatus(plant) {
-  await masterStore.toggleActive('plants', plant.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif line
+  const isConfirmed = await alert.confirm(
+    plant.isActive === false ? 'Aktifkan Line?' : 'Nonaktifkan Line?',
+    `Line "${plant.name}" akan ${plant.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('plants', plant.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif line.')
+  }
 }
 </script>

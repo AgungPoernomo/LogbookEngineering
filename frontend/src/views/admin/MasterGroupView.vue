@@ -477,6 +477,28 @@ function openEditGroupModal(group) {
 
 async function saveShift() {
   if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(shiftForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama shift wajib diisi.')
+    return
+  }
+
+  if (!shiftForm.value.start_time || !shiftForm.value.end_time) {
+    await alert.error('Data Belum Lengkap', 'Jam mulai dan jam selesai shift wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan shift
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Shift?' : 'Tambah Shift Baru?',
+    editingId.value
+      ? `Perubahan data shift "${shiftForm.value.name}" akan disimpan.`
+      : `Shift baru "${shiftForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
   isSubmitting.value = true
   try {
     if (editingId.value) {
@@ -497,6 +519,23 @@ async function saveShift() {
 
 async function saveGroup() {
   if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(groupForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama grup kerja wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan grup kerja
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Grup Kerja?' : 'Tambah Grup Kerja Baru?',
+    editingId.value
+      ? `Perubahan data grup kerja "${groupForm.value.name}" akan disimpan.`
+      : `Grup kerja baru "${groupForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
   isSubmitting.value = true
   try {
     if (editingId.value) {
@@ -516,14 +555,34 @@ async function saveGroup() {
 }
 
 async function toggleActiveShift(shift) {
-  await masterStore.toggleActive('shifts', shift.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif shift
+  const isConfirmed = await alert.confirm(
+    shift.isActive === false ? 'Aktifkan Shift?' : 'Nonaktifkan Shift?',
+    `Shift "${shift.name}" akan ${shift.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('shifts', shift.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif shift.')
+  }
 }
 
 async function toggleActiveGroup(group) {
-  await masterStore.toggleActive('work_groups', group.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif grup kerja
+  const isConfirmed = await alert.confirm(
+    group.isActive === false ? 'Aktifkan Grup Kerja?' : 'Nonaktifkan Grup Kerja?',
+    `Grup kerja "${group.name}" akan ${group.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('work_groups', group.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif grup kerja.')
+  }
 }
 </script>

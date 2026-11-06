@@ -27,12 +27,6 @@
       Memuat data logbook...
     </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="p-4 rounded-lg bg-status-rejected-bg border border-danger/30 text-status-rejected-fg text-xs flex items-center justify-between">
-      <span>{{ error }}</span>
-      <button type="button" class="underline font-semibold" @click="fetchData">Coba Lagi</button>
-    </div>
-
     <!-- Form Card -->
     <div v-else-if="logbook" class="bg-surface rounded-lg shadow-card p-5 border border-line">
       <LogbookForm
@@ -63,6 +57,7 @@ import { logbookService } from '../../services/logbookService'
 import { useAuthStore } from '../../stores/auth'
 import LogbookForm from '../../components/logbook/LogbookForm.vue'
 import Toast from '../../components/common/Toast.vue'
+import { alert } from '../../utils/alert'
 
 const route = useRoute()
 const router = useRouter()
@@ -70,7 +65,6 @@ const authStore = useAuthStore()
 
 const logbook = ref(null)
 const loading = ref(true)
-const error = ref('')
 const submitting = ref(false)
 
 const toast = reactive({
@@ -90,12 +84,12 @@ function showToast(variant, message) {
 
 async function fetchData() {
   loading.value = true
-  error.value = ''
   try {
     const data = await logbookService.getLogbookById(route.params.id)
     logbook.value = data
   } catch (err) {
-    error.value = err.message || 'Gagal memuat logbook.'
+    // F1.3: tampilkan error pemuatan via SweetAlert2 (bukan banner inline)
+    await alert.error('Gagal Memuat Logbook', err.message || 'Gagal memuat logbook.')
   } finally {
     loading.value = false
   }
@@ -106,6 +100,13 @@ onMounted(() => {
 })
 
 async function handleSaveDraft(payload) {
+  // F1.3: konfirmasi sebelum menyimpan draft
+  const isConfirmed = await alert.confirm(
+    'Simpan Perubahan Draft?',
+    'Perubahan pada draft logbook ini akan disimpan.',
+    'Ya, simpan'
+  )
+  if (!isConfirmed) return
   submitting.value = true
   try {
     const updated = await logbookService.updateLogbook(route.params.id, { ...payload, is_submit: false }, authStore.user)
@@ -119,6 +120,13 @@ async function handleSaveDraft(payload) {
 }
 
 async function handleSaveApproval(payload) {
+  // F1.3: konfirmasi sebelum mengirim untuk persetujuan
+  const isConfirmed = await alert.confirm(
+    'Ajukan Logbook untuk Persetujuan?',
+    'Logbook akan dikirim ke Supervisor untuk diperiksa.',
+    'Ya, ajukan'
+  )
+  if (!isConfirmed) return
   submitting.value = true
   try {
     const updated = await logbookService.updateLogbook(route.params.id, { ...payload, is_submit: true }, authStore.user)

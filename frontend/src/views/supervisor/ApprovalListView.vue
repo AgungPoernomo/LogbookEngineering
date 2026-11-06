@@ -673,7 +673,22 @@ function openRejectModal(tech) {
 }
 
 async function submitRejection() {
-  if (!rejectTarget.value || !rejectionReason.value.trim()) return
+  if (!rejectTarget.value) return
+
+  // Validasi catatan penolakan (F1.3: SweetAlert, bukan banner inline)
+  if (!rejectionReason.value.trim()) {
+    await alert.error('Catatan Wajib Diisi', 'Catatan revisi untuk teknisi wajib diisi sebelum menolak pengajuan.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menolak pengajuan
+  const isConfirmed = await alert.confirm(
+    'Tolak Pengajuan Logbook Teknisi?',
+    `Seluruh logbook PENDING milik ${rejectTarget.value.user_name} akan dikembalikan ke status DITOLAK.`,
+    'Ya, tolak'
+  )
+  if (!isConfirmed) return
+
   actionLoading.value = true
   try {
     await logbookStore.rejectByTechnician(rejectTarget.value.user_id, rejectionReason.value)

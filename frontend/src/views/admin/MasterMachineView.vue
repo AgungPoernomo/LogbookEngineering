@@ -550,6 +550,23 @@ function openEditSubMachineModal(sub) {
 
 async function saveMachine() {
   if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(machineForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama mesin wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan mesin
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Mesin?' : 'Tambah Mesin Baru?',
+    editingId.value
+      ? `Perubahan data mesin "${machineForm.value.name}" akan disimpan.`
+      : `Mesin baru "${machineForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
   isSubmitting.value = true
   try {
     if (editingId.value) {
@@ -571,6 +588,23 @@ async function saveMachine() {
 
 async function saveSubMachine() {
   if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(subMachineForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama sub-mesin wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan sub-mesin
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Sub-Mesin?' : 'Tambah Sub-Mesin Baru?',
+    editingId.value
+      ? `Perubahan data sub-mesin "${subMachineForm.value.name}" akan disimpan.`
+      : `Sub-mesin baru "${subMachineForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
   isSubmitting.value = true
   try {
     if (editingId.value) {
@@ -590,14 +624,34 @@ async function saveSubMachine() {
 }
 
 async function toggleActiveMachine(machine) {
-  await masterStore.toggleActive('machines', machine.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif mesin
+  const isConfirmed = await alert.confirm(
+    machine.isActive === false ? 'Aktifkan Mesin?' : 'Nonaktifkan Mesin?',
+    `Mesin "${machine.name}" akan ${machine.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('machines', machine.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif mesin.')
+  }
 }
 
 async function toggleActiveSubMachine(sub) {
-  await masterStore.toggleActive('sub_machines', sub.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif sub-mesin
+  const isConfirmed = await alert.confirm(
+    sub.isActive === false ? 'Aktifkan Sub-Mesin?' : 'Nonaktifkan Sub-Mesin?',
+    `Sub-mesin "${sub.name}" akan ${sub.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('sub_machines', sub.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif sub-mesin.')
+  }
 }
 </script>
