@@ -33,8 +33,8 @@
       Memuat informasi Line kerja Anda...
     </div>
 
-      
-    
+    <!-- PAPAN SERAH-TERIMA SHIFT (Fase 3.3 — pengganti slot Leaderboard) -->
+    <HandoverBoard @open-log-detail="handleOpenLogDetail" />
     
     <!-- RIWAYAT & AKTIVITAS LOGBOOK DI LINE (Goal 1 & 2: Riwayat Log Line & Teknisi Lain) -->
       <div class="bg-surface rounded-lg shadow-card p-4 sm:p-5 border border-line space-y-3">
@@ -366,6 +366,7 @@ import PlantCard from '../../components/dashboard/overview/PlantCard.vue'
 import StatisticsChartCard from '../../components/dashboard/StatisticsChartCard.vue'
 import AppBadge from '../../components/common/AppBadge.vue'
 import AppModal from '../../components/common/AppModal.vue'
+import HandoverBoard from '../../components/dashboard/HandoverBoard.vue'
 
 import {
   Cpu,
