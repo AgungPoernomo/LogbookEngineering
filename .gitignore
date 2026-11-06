@@ -36,3 +36,7 @@ Thumbs.db
 .vscode/
 .idea/
 
+*.sql
+AGENT_SPEC_Upgrade_Engineer_Logbook_Satoria_v6.md
+.clineignore
+

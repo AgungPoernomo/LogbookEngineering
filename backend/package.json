@@ -14,6 +14,9 @@
     "test": "node --test \"test/**/*.test.js\"",
     "postinstall": "prisma generate"
   },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "keywords": [
     "satoria",
     "logbook",

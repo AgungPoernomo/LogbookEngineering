@@ -27,6 +27,66 @@
 
     <form @submit.prevent="handleSubmit(true)" class="space-y-5">
       <!-- ======================================================== -->
+      <!-- 0. KATEGORI AKTIVITAS (F3.1: FORM INPUT ADAPTIF 5 TOMBOL) -->
+      <!-- ======================================================== -->
+      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+        <div class="flex items-center gap-2 pb-3 border-b border-line">
+          <span class="text-base leading-none">🗂️</span>
+          <div>
+            <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+              Jenis Pekerjaan Hari Ini
+            </h2>
+            <p class="text-[11px] text-ink-3">Pilih satu kategori paling sesuai dengan pekerjaan Anda di lapangan.</p>
+          </div>
+        </div>
+
+        <!-- 5 Tombol Besar Kategori -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <button
+            v-for="opt in ACTIVITY_CATEGORY_OPTIONS"
+            :key="opt.value"
+            type="button"
+            :class="[
+              'flex items-start gap-3 p-3.5 rounded-lg border-2 text-left transition w-full',
+              selectedCategory === opt.value
+                ? 'border-primary bg-primary-soft ring-1 ring-primary/30 shadow-card'
+                : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40'
+            ]"
+            @click="selectCategory(opt.value)"
+          >
+            <span class="text-2xl leading-none shrink-0">{{ opt.icon }}</span>
+            <span class="min-w-0">
+              <span class="block text-xs sm:text-sm font-bold text-ink">{{ opt.label }}</span>
+              <span class="block text-[10px] text-ink-3 leading-snug mt-0.5">{{ opt.sublabel }}</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- Chip Cepat (Quick Action Tag) sesuai kategori terpilih -->
+        <div v-if="categoryConfig.chips.length" class="pt-1">
+          <div class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider mb-1.5">
+            Chip Cepat — wajib pilih satu
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="chip in categoryConfig.chips"
+              :key="chip"
+              type="button"
+              :class="[
+                'inline-flex items-center h-8 px-3 rounded-full border text-xs font-medium transition',
+                quickActionTag === chip
+                  ? 'bg-primary text-white border-primary shadow-sm'
+                  : 'bg-surface text-ink-2 border-line hover:border-primary hover:text-primary'
+              ]"
+              @click="quickActionTag = chip"
+            >
+              {{ chip }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
       <!-- 1. BAGIAN PALING ATAS: TANGGAL MASUK (OTOMATIS SISTEM)   -->
       <!-- ======================================================== -->
       <div class="bg-surface rounded-lg p-4 border border-line shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -255,30 +315,50 @@
       </div>
 
       <!-- ======================================================== -->
-      <!-- 4. INPUTAN AREA PEKERJAAN (MESIN, SUB-MESIN, SPESIFIKASI)-->
+      <!-- 4. INPUTAN AREA PEKERJAAN (ADAPTIF SESUAI KATEGORI F3.1) -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+      <div v-if="!isNonMachineCategory" class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <Cpu class="w-4 h-4 text-primary shrink-0" />
           <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
             3. Area Pekerjaan & Komponen Mesin
           </h2>
+          <span class="ml-auto text-[10px] font-semibold text-primary bg-primary-soft px-2 py-0.5 rounded-full whitespace-nowrap">
+            {{ categoryConfig.icon }} {{ categoryConfig.label }}
+          </span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- KERETA_TRAY_REPAIR: jumlah unit diperbaiki (mesin otomatis = KERETA) -->
+        <div v-if="isKeretaCategory">
+          <label for="form-unit-qty" class="block text-xs font-semibold text-ink mb-1.5">
+            Jumlah Unit Kereta / Tray Diperbaiki <span class="text-danger">*</span>
+          </label>
+          <input
+            id="form-unit-qty"
+            v-model.number="form.unit_repaired_qty"
+            type="number"
+            min="1"
+            step="1"
+            required
+            class="w-full sm:w-56 h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
+          />
+          <p class="text-[10px] text-ink-3 mt-1">Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.</p>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Inputan Mesin (Dropdown) -->
           <div>
             <label for="form-machine" class="block text-xs font-semibold text-ink mb-1.5">
-              Peralatan Mesin <span class="text-danger">*</span>
+              Peralatan Mesin <span v-if="isMachineRequired" class="text-danger">*</span>
             </label>
             <select
               id="form-machine"
               v-model="form.machine_id"
-              required
+              :required="isMachineRequired"
               class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer"
               @change="handleMachineChange"
             >
-              <option :value="null" disabled>-- Pilih Mesin --</option>
+              <option :value="null" disabled>{{ isMachineRequired ? '-- Pilih Mesin --' : '-- Tanpa Mesin Spesifik --' }}</option>
               <option v-for="m in filteredMachines" :key="m.id" :value="m.id">
                 {{ m.name }}
               </option>
@@ -289,7 +369,7 @@
           <!-- Inputan Sub-Mesin (Dropdown) -->
           <div>
             <label for="form-submachine" class="block text-xs font-semibold text-ink mb-1.5">
-              Bagian Mesin (Sub-Mesin)
+              Bagian Mesin (Sub-Mesin) <span v-if="isMachineRequired" class="text-danger">*</span>
             </label>
             <select
               id="form-submachine"
@@ -321,6 +401,53 @@
             class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           />
           <p class="text-[10px] text-ink-3 mt-1">Tuliskan spesifikasi part, ukuran, nomor seri, atau material jika ada penggantian.</p>
+        </div>
+
+        <!-- MACHINE_TROUBLE: kondisi akhir mesin + toggle downtime -->
+        <div v-if="isMachineTroubleCategory" class="pt-3 border-t border-line space-y-3">
+          <div>
+            <div class="text-xs font-semibold text-ink mb-2">
+              Bagaimana kondisi mesin sekarang? <span class="text-danger">*</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                v-for="st in MACHINE_END_STATUS_OPTIONS"
+                :key="st.value"
+                type="button"
+                :class="[
+                  'flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition w-full',
+                  form.machine_end_status === st.value
+                    ? 'border-primary bg-primary-soft'
+                    : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40'
+                ]"
+                @click="form.machine_end_status = st.value"
+              >
+                <span class="text-base leading-none shrink-0">{{ st.icon }}</span>
+                <span class="text-xs font-semibold text-ink">{{ st.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/40 p-3 rounded-lg border border-line">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input
+                v-model="form.is_downtime"
+                type="checkbox"
+                class="w-4 h-4 rounded border-line text-primary focus:ring-primary cursor-pointer"
+              />
+              <span class="text-xs font-semibold text-ink">Mesin berhenti produksi?</span>
+            </label>
+            <div v-if="form.is_downtime" class="flex items-center gap-2">
+              <input
+                v-model.number="form.downtime_minutes"
+                type="number"
+                min="0"
+                step="1"
+                class="w-28 h-9 px-2.5 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
+              />
+              <span class="text-xs text-ink-2">menit downtime</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -713,8 +840,105 @@ const form = reactive({
   sparepart: '',
   activity_description: '',
   start_time: route.query.time || '08:00',
-  end_time: '10:00'
+  end_time: '10:00',
+  // F3.1: field adaptif sesuai kategori aktivitas
+  machine_end_status: 'NORMAL_RESOLVED',
+  is_downtime: false,
+  downtime_minutes: 0,
+  unit_repaired_qty: null
 })
+
+// ========================================================
+// F3.1: KATEGORI AKTIVITAS (5 TOMBOL BESAR) & CHIP CEPAT
+// ========================================================
+const ACTIVITY_CATEGORY_OPTIONS = [
+  {
+    value: 'MACHINE_TROUBLE',
+    icon: '🔧',
+    label: 'Perbaikan & Setting Mesin',
+    sublabel: 'Mesin trouble, macet, bocor, ganti part, atau setting',
+    chips: ['Ganti Part Rusak', 'Setting / Adjust', 'Mesin Macet / Error', 'Bocor Angin / Air / Oli']
+  },
+  {
+    value: 'PREVENTIVE_PM',
+    icon: '🛡️',
+    label: 'Rawat Rutin & Kebersihan',
+    sublabel: 'Lubrikasi, greasing, cleaning mesin, atau cek rutin',
+    chips: ['Lubrikasi / Greasing', 'Cleaning Mesin / Area', 'Backwash / Kuras', 'Cek Rutin']
+  },
+  {
+    value: 'KERETA_TRAY_REPAIR',
+    icon: '🛒',
+    label: 'Repair Kereta & Tray',
+    sublabel: 'Khusus kereta, roda, bearing, dan tray autoclave',
+    chips: ['Ganti Bearing Roda/Tray', 'Las Rangka / Stoper', 'Luruskan / Bending Tray', 'Rakitan Baru']
+  },
+  {
+    value: 'FABRICATION_PROJECT',
+    icon: '⚡',
+    label: 'Bengkel, Las & Project',
+    sublabel: 'Potong plat, bubut, bikin part, atau garap project line',
+    chips: ['Potong / Gerinda / Bor', 'Pengelasan (Las)', 'Bubut / Milling', 'Garap Project Line']
+  },
+  {
+    value: 'SUPPORT_NON_MACHINE',
+    icon: '📋',
+    label: 'Tugas Non-Mesin',
+    sublabel: 'Standby line, gambar CAD, TOR/DOR, cek stok, training',
+    chips: ['Standby Jaga Line', 'Drawing / Sket CAD', 'TOR / DOR / Admin Part', 'Cek Gudang / Stok', 'Meeting / Training / HR']
+  }
+]
+
+const MACHINE_END_STATUS_OPTIONS = [
+  { value: 'NORMAL_RESOLVED', icon: '🟢', label: 'Sudah Normal / Aman' },
+  { value: 'MONITORING_NEEDED', icon: '🟡', label: 'Jalan, tapi minta shift berikutnya pantau' },
+  { value: 'TEMPORARY_FIX', icon: '🔴', label: 'Baru diakali sementara' },
+  { value: 'WAITING_SPAREPART', icon: '🔴', label: 'Tunggu sparepart' }
+]
+
+// Default kategori otomatis dari sub_team user (spec F3.1).
+const SUB_TEAM_DEFAULT_CATEGORY = {
+  DRAFTER: 'SUPPORT_NON_MACHINE',
+  PART_SOURCE: 'SUPPORT_NON_MACHINE',
+  KERETA_TEAM: 'KERETA_TRAY_REPAIR',
+  WORKSHOP_FAB: 'FABRICATION_PROJECT',
+  LINE_TECH: 'MACHINE_TROUBLE'
+}
+
+const defaultCategory = SUB_TEAM_DEFAULT_CATEGORY[authStore.user?.sub_team] || 'MACHINE_TROUBLE'
+
+const selectedCategory = ref(defaultCategory)
+const quickActionTag = ref('')
+
+const categoryConfig = computed(
+  () => ACTIVITY_CATEGORY_OPTIONS.find(opt => opt.value === selectedCategory.value) || ACTIVITY_CATEGORY_OPTIONS[0]
+)
+
+const isNonMachineCategory = computed(() => selectedCategory.value === 'SUPPORT_NON_MACHINE')
+const isKeretaCategory = computed(() => selectedCategory.value === 'KERETA_TRAY_REPAIR')
+const isMachineTroubleCategory = computed(() => selectedCategory.value === 'MACHINE_TROUBLE')
+const isMachineRequired = computed(
+  () => selectedCategory.value === 'MACHINE_TROUBLE' || selectedCategory.value === 'PREVENTIVE_PM'
+)
+
+function selectCategory(category) {
+  selectedCategory.value = category
+  quickActionTag.value = ''
+
+  if (category === 'SUPPORT_NON_MACHINE') {
+    form.machine_id = null
+    form.sub_machine_id = null
+    form.sparepart = ''
+  }
+  if (category !== 'MACHINE_TROUBLE') {
+    form.is_downtime = false
+    form.downtime_minutes = 0
+    form.machine_end_status = 'NORMAL_RESOLVED'
+  }
+  if (category !== 'KERETA_TRAY_REPAIR') {
+    form.unit_repaired_qty = null
+  }
+}
 
 // State Kalender Picker Tanggal Tugas
 const viewYear = ref(new Date().getFullYear())
@@ -895,6 +1119,13 @@ function handleResetForm() {
   form.activity_description = ''
   form.start_time = '08:00'
   form.end_time = '10:00'
+  // F3.1: reset kategori adaptif ke default sub_team & bersihkan chip
+  selectedCategory.value = defaultCategory
+  quickActionTag.value = ''
+  form.machine_end_status = 'NORMAL_RESOLVED'
+  form.is_downtime = false
+  form.downtime_minutes = 0
+  form.unit_repaired_qty = null
 }
 
 // Submit Form
@@ -904,9 +1135,30 @@ async function handleSubmit(isSubmitForApproval) {
     return
   }
 
-  if (!form.machine_id) {
+  // F3.1: mesin & sub-mesin wajib hanya untuk kategori yang membutuhkannya (Bagian 4.3).
+  if (isMachineRequired.value && !form.machine_id) {
     await alert.error('Data Belum Lengkap', 'Silakan pilih peralatan mesin yang ditangani.')
     return
+  }
+
+  if (isMachineRequired.value && !form.sub_machine_id) {
+    await alert.error('Data Belum Lengkap', 'Silakan pilih bagian mesin (sub-mesin) yang ditangani.')
+    return
+  }
+
+  // F3.1: chip aksi cepat (quick_action_tag) wajib dipilih untuk semua kategori.
+  if (!quickActionTag.value) {
+    await alert.error('Chip Aksi Belum Dipilih', 'Silakan pilih salah satu chip aksi cepat sesuai pekerjaan Anda.')
+    return
+  }
+
+  // F3.1: kategori Repair Kereta & Tray wajib mengisi jumlah unit minimal 1.
+  if (isKeretaCategory.value) {
+    const qty = Number(form.unit_repaired_qty)
+    if (!Number.isFinite(qty) || qty < 1) {
+      await alert.error('Jumlah Unit Belum Diisi', 'Kategori Repair Kereta & Tray wajib mengisi jumlah unit minimal 1.')
+      return
+    }
   }
 
   if (!form.activity_description || !form.activity_description.trim()) {
@@ -958,15 +1210,25 @@ async function handleSubmit(isSubmitForApproval) {
       group_name: lockedGroupName.value,
       shift_id: form.shift_id,
       shift_name: selectedShift?.name || `Shift ${form.shift_id}`,
-      machine_id: form.machine_id,
-      machine_name: selectedMachine?.name || 'Mesin Pabrik',
-      sub_machine_id: form.sub_machine_id || null,
-      sub_machine_name: selectedSubMachine?.name || '-',
-      sparepart: form.sparepart?.trim() || null,
+      machine_id: isNonMachineCategory.value ? null : form.machine_id,
+      machine_name: isNonMachineCategory.value ? 'Non-Mesin' : (selectedMachine?.name || 'Mesin Pabrik'),
+      sub_machine_id: isNonMachineCategory.value ? null : (form.sub_machine_id || null),
+      sub_machine_name: isNonMachineCategory.value ? '-' : (selectedSubMachine?.name || '-'),
+      sparepart: isNonMachineCategory.value ? null : (form.sparepart?.trim() || null),
       activity_description: form.activity_description.trim(),
       start_time: form.start_time,
       end_time: form.end_time,
       duration_minutes: calculatedMinutes.value,
+      // ---- F3.1 / v6 Reliability fields (Bagian 4.1) ----
+      activity_category: selectedCategory.value,
+      quick_action_tag: quickActionTag.value,
+      machine_end_status: form.machine_end_status,
+      is_downtime: isMachineTroubleCategory.value ? !!form.is_downtime : false,
+      downtime_minutes:
+        isMachineTroubleCategory.value && form.is_downtime ? (Number(form.downtime_minutes) || 0) : 0,
+      unit_repaired_qty: isKeretaCategory.value
+        ? (Number(form.unit_repaired_qty) || null)
+        : null,
       is_submit: isSubmitForApproval,
       status: isSubmitForApproval ? LOG_STATUS.PENDING : LOG_STATUS.DRAFT
     }
@@ -991,6 +1253,12 @@ async function handleSubmit(isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
       form.activity_description = ''
       form.sparepart = ''
+      // F3.1: bersihkan chip & field adaptif untuk input berikutnya
+      quickActionTag.value = ''
+      form.machine_end_status = 'NORMAL_RESOLVED'
+      form.is_downtime = false
+      form.downtime_minutes = 0
+      form.unit_repaired_qty = null
     }
 
     // Refresh daftar draft tersimpan

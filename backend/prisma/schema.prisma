@@ -28,6 +28,51 @@ enum NotificationChannel {
   INAPP
 }
 
+// ============================================================
+// v6 Reliability Upgrade - Enums baru (Bagian 4.1)
+// ============================================================
+enum ActivityCategory {
+  MACHINE_TROUBLE // 🔧 Perbaikan & Setting Mesin (wajib mesin)
+  PREVENTIVE_PM // 🛡️ Rawat Rutin & Kebersihan (wajib mesin)
+  KERETA_TRAY_REPAIR // 🛒 Repair Kereta & Tray (mesin otomatis = KERETA; + qty unit)
+  FABRICATION_PROJECT // ⚡ Bengkel, Las & Project (mesin opsional)
+  SUPPORT_NON_MACHINE // 📋 Tugas Non-Mesin (tanpa mesin & tanpa sparepart)
+}
+
+enum MachineEndStatus {
+  NORMAL_RESOLVED
+  MONITORING_NEEDED
+  TEMPORARY_FIX
+  WAITING_SPAREPART
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  BREAKDOWN
+  AUTONOMOUS_TPM
+  INSPECTION
+}
+
+enum AssetCriticality {
+  A_CRITICAL
+  B_ESSENTIAL
+  C_GENERAL
+}
+
+enum SubTeam {
+  LINE_TECH
+  KERETA_TEAM
+  WORKSHOP_FAB
+  DRAFTER
+  PART_SOURCE
+}
+
+enum SparepartItemType {
+  MACHINE_PART
+  CONSUMABLE_WORKSHOP
+}
+
 // 1. Master Roles (Admin, Supervisor, Teknisi)
 model Role {
   id          BigInt   @id @default(autoincrement())
@@ -71,12 +116,15 @@ model Shift {
 
 // 5. Master Machines (Mesin Utama - Dilengkapi plant_id FK)
 model Machine {
-  id          BigInt       @id @default(autoincrement())
-  name        String       @db.VarChar(100)
-  plant_id    BigInt?
-  plant       Plant?       @relation(fields: [plant_id], references: [id], onDelete: SetNull)
-  subMachines SubMachine[]
-  logbooks    Logbook[]
+  id                BigInt           @id @default(autoincrement())
+  name              String           @db.VarChar(100)
+  plant_id          BigInt?
+  plant             Plant?           @relation(fields: [plant_id], references: [id], onDelete: SetNull)
+  // ---- v6 Reliability Upgrade (Bagian 4.1) ----
+  criticality       AssetCriticality @default(B_ESSENTIAL)
+  is_unmapped_other Boolean          @default(false) // menandai baris lama bernama OTHER/OTHER F/OTHER C
+  subMachines       SubMachine[]
+  logbooks          Logbook[]
 
   @@map("machines")
 }
@@ -106,6 +154,8 @@ model User {
   plant_id      BigInt?
   plant         Plant?            @relation(fields: [plant_id], references: [id], onDelete: SetNull)
   photo_url     String?           @db.VarChar(500)
+  // ---- v6 Reliability Upgrade (Bagian 4.1) ----
+  sub_team      SubTeam?
   must_change_password Boolean       @default(false)
   is_active     Boolean           @default(true)
   created_at    DateTime          @default(now())
@@ -126,16 +176,30 @@ model Logbook {
   plant                Plant             @relation(fields: [plant_id], references: [id])
   shift_id             BigInt
   shift                Shift             @relation(fields: [shift_id], references: [id])
-  machine_id           BigInt
-  machine              Machine           @relation(fields: [machine_id], references: [id])
+  machine_id           BigInt? // v6: nullable (D12 - aset belum terdaftar)
+  machine              Machine?          @relation(fields: [machine_id], references: [id], onDelete: SetNull)
   sub_machine_id       BigInt?
   subMachine           SubMachine?       @relation(fields: [sub_machine_id], references: [id], onDelete: SetNull)
   task_date            String            @db.VarChar(10) // YYYY-MM-DD
-  sparepart            String?           @db.VarChar(255)
+  sparepart            String?           @db.VarChar(255) // legacy / part belum terdaftar
   activity_description String            @db.Text
   start_time           String            @db.VarChar(10) // HH:mm
   end_time             String            @db.VarChar(10) // HH:mm
   duration_minutes     Int               @default(0)
+  // ---- v6 Reliability Upgrade (Bagian 4.1) ----
+  activity_category    ActivityCategory  @default(MACHINE_TROUBLE) // data lama = MACHINE_TROUBLE
+  quick_action_tag     String?           @db.VarChar(100) // wajib di app-level untuk log baru
+  machine_end_status   MachineEndStatus  @default(NORMAL_RESOLVED)
+  maintenance_type     MaintenanceType? // diturunkan backend, lihat 4.2
+  failure_code_id      BigInt? // FK -> failure_codes (opsional)
+  failureCode          FailureCode?      @relation(fields: [failure_code_id], references: [id], onDelete: SetNull)
+  root_cause_notes     String?           @db.Text
+  is_downtime          Boolean           @default(false)
+  downtime_minutes     Int               @default(0)
+  unit_repaired_qty    Int? // kereta/tray/fabrikasi
+  has_sparepart        Boolean           @default(false)
+  unmapped_asset_note  String?           @db.VarChar(150) // opsi "belum terdaftar" (D12)
+  sparepartUsages      LogbookSparepart[]
   status               LogStatus         @default(PENDING)
   created_at           DateTime          @default(now())
   approvals            LogbookApproval[]
@@ -147,6 +211,10 @@ model Logbook {
   @@index([task_date])
   @@index([user_id, task_date])
   @@index([status, plant_id, task_date])
+  @@index([plant_id, machine_end_status, task_date])
+  @@index([activity_category, plant_id, task_date])
+  @@index([machine_id, task_date])
+  @@index([maintenance_type, plant_id, task_date])
   @@map("logbooks")
 }
 
@@ -201,4 +269,51 @@ model UserActivity {
   @@index([user_id])
   @@index([created_at])
   @@map("user_activities")
+}
+
+// ============================================================
+// v6 Reliability Upgrade - Model baru (Bagian 4.1)
+// ============================================================
+
+// 12. Failure Codes (Taksonomi ringkas ISO 14224, seed 12 kode - Bagian 4.4)
+model FailureCode {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique @db.VarChar(30)
+  category    String    @db.VarChar(50) // MECHANICAL|ELECTRICAL|INSTRUMENTATION|UTILITY|PROCESS
+  name        String    @db.VarChar(150)
+  description String?   @db.Text
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  logbooks    Logbook[]
+
+  @@map("failure_codes")
+}
+
+// 13. Spareparts (Master Sparepart & Consumable Workshop)
+model Sparepart {
+  id            BigInt             @id @default(autoincrement())
+  part_code     String?            @unique @db.VarChar(50)
+  part_name     String             @db.VarChar(150) // "Deep Groove Ball Bearing 6204-2RS"
+  specification String?            @db.VarChar(200)
+  item_type     SparepartItemType  @default(MACHINE_PART)
+  unit          String             @default("pcs") @db.VarChar(20)
+  is_active     Boolean            @default(true)
+  created_at    DateTime           @default(now())
+  usages        LogbookSparepart[]
+
+  @@map("spareparts")
+}
+
+// 14. Logbook Spareparts (Satu logbook bisa memakai banyak part)
+model LogbookSparepart {
+  id           BigInt    @id @default(autoincrement())
+  logbook_id   BigInt
+  sparepart_id BigInt
+  qty_used     Decimal   @db.Decimal(10, 2)
+  logbook      Logbook   @relation(fields: [logbook_id], references: [id], onDelete: Cascade)
+  sparepart    Sparepart @relation(fields: [sparepart_id], references: [id])
+
+  @@index([logbook_id])
+  @@index([sparepart_id])
+  @@map("logbook_spareparts")
 }

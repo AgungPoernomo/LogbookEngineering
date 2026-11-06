@@ -239,7 +239,58 @@ async function main() {
     userMap[u.email] = record.id
   }
 
-  // 7. Logbooks
+  // 7. Failure Codes (Taksonomi ISO 14224 - 12 kode, Bagian 4.4)
+  console.log('-> Seeding Failure Codes...')
+  const failureCodes = [
+    { code: 'MECH-01', category: 'MECHANICAL', name: 'Bearing aus/overheat/macet' },
+    { code: 'MECH-02', category: 'MECHANICAL', name: 'Kebocoran seal/gasket/pneumatik/hidrolik' },
+    { code: 'MECH-03', category: 'MECHANICAL', name: 'Belt/chain/gear kendor atau putus' },
+    { code: 'MECH-04', category: 'MECHANICAL', name: 'Misalignment/getaran' },
+    { code: 'ELEC-01', category: 'ELECTRICAL', name: 'Motor overload/trip' },
+    { code: 'ELEC-02', category: 'ELECTRICAL', name: 'Inverter/VFD/servo fault' },
+    { code: 'ELEC-03', category: 'ELECTRICAL', name: 'Heater putus/tidak stabil' },
+    { code: 'INST-01', category: 'INSTRUMENTATION', name: 'Sensor/photoelectric/proximity error' },
+    { code: 'INST-02', category: 'INSTRUMENTATION', name: 'PLC/HMI/komunikasi modul' },
+    { code: 'UTIL-01', category: 'UTILITY', name: 'Tekanan angin/vacuum drop' },
+    { code: 'UTIL-02', category: 'UTILITY', name: 'Suplai air/chiller/steam kurang' },
+    { code: 'PROC-01', category: 'PROCESS', name: 'Penyesuaian parameter/set-up/jammed' }
+  ]
+  for (const fc of failureCodes) {
+    await prisma.failureCode.upsert({
+      where: { code: fc.code },
+      update: { category: fc.category, name: fc.name },
+      create: { ...fc, description: fc.name }
+    })
+  }
+
+  // 8. Spareparts (fast-moving & consumable workshop, Bagian 4.4)
+  console.log('-> Seeding Spareparts...')
+  const spareparts = [
+    { part_code: 'BRG-6201', part_name: 'Deep Groove Ball Bearing 6201', specification: '6201-2RS / 6201-ZZ', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'BRG-6202', part_name: 'Deep Groove Ball Bearing 6202', specification: '6202-2RS / 6202-ZZ', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'BRG-6204', part_name: 'Deep Groove Ball Bearing 6204', specification: '6204-2RS / 6204-ZZ', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'BSH-IGUS', part_name: 'Bushing IGUS', specification: 'Polymer plain bearing', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'SEAL-PST-85', part_name: 'Seal Piston 85x100x9', specification: '85 x 100 x 9 mm', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'FIT-PNE', part_name: 'Fitting Pneumatik', specification: 'Push-in fitting assorted', item_type: 'MACHINE_PART', unit: 'pcs' },
+    { part_code: 'CON-GRD-4', part_name: 'Mata gerinda 4"', specification: '4 inch grinding disc', item_type: 'CONSUMABLE_WORKSHOP', unit: 'pcs' },
+    { part_code: 'CON-LAS-308', part_name: 'Kawat las/filler SS 308', specification: 'ER308 filler rod', item_type: 'CONSUMABLE_WORKSHOP', unit: 'kg' },
+    { part_code: 'CON-STP', part_name: 'Sealtape', specification: 'PTFE thread seal tape', item_type: 'CONSUMABLE_WORKSHOP', unit: 'roll' },
+    { part_code: 'CON-BOR', part_name: 'Mata bor', specification: 'HSS drill bit assorted', item_type: 'CONSUMABLE_WORKSHOP', unit: 'pcs' }
+  ]
+  for (const sp of spareparts) {
+    await prisma.sparepart.upsert({
+      where: { part_code: sp.part_code },
+      update: {
+        part_name: sp.part_name,
+        specification: sp.specification,
+        item_type: sp.item_type,
+        unit: sp.unit
+      },
+      create: sp
+    })
+  }
+
+  // 9. Logbooks
   console.log('-> Tabel Logbooks dibiarkan bersih (0 data) agar siap untuk input data baru.')
 
   console.log('✅ Seeding database Satoria Logbook selesai dengan sukses!')
