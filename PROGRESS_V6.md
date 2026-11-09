@@ -62,8 +62,18 @@
 
 ---
 
-## 🚀 FASE 4 — Supervisor (BELUM)
+## 🚀 FASE 4 — Supervisor (BERJALAN)
 *(Validasi Teknis, Pareto, MTTR/MTBF, Skill Matrix)*
+
+### ✅ F4.1b Antrean Handover Supervisor - [SELESAI]
+- **Pendekatan Frontend:** Komponen baru `SupervisorHandoverQueue.vue` (tabel ringkas: Nama Mesin, Status, Teknisi Terakhir, Tanggal, Umur, Aksi) — dipilih karena `HandoverBoard.vue` berorientasi kartu untuk teknisi, sedangkan Supervisor perlu tabel padat dengan *umur terbuka dalam hari* (F4.2) dan aksi ganda (Detail + Riwayat Mesin).
+- **Data source:** Tetap `GET /api/v1/handover` (tanpa endpoint/schema baru, tanpa N+1).
+- **Penempatan:** `SupervisorDashboard.vue` — tepat di bawah `DashboardOverviewLogBook` (KPI) dan **di atas** `StatisticsChartCard` (high visibility). Prop `plantId` tidak dikirim (null).
+- **Backend (perbaikan RBAC):** Sebelumnya Supervisor bisa override `?plant_id=` dan `?plant_id=ALL` (bocor lintas Line). Logika dipindah ke util murni `backend/src/utils/handoverScope.js` → `resolveHandoverPlantScope()`. Kini: Teknisi & Supervisor **dikunci** ke `plant_id` JWT; hanya Admin yang boleh override/`ALL`. Supervisor tanpa `plant_id` → data kosong (bukan error).
+- **Token desain:** 0 hex color; memakai `bg-surface`, `border-line`, `text-ink`, `text-primary`, `bg-warning/10`, `bg-danger/10`, `bg-success/10`, `bg-muted`.
+- **P1:** Tidak ada leaderboard/ranking/poin. Empty state positif: "Tidak ada mesin yang menggantung 🎉".
+- **Test:** `backend/test/handoverSupervisor.test.js` (14 test). Total backend **85/85 lulus**, frontend 16/16 lulus.
+- **TODO (lanjutan):** Aksi "Detail" saat ini mengarah ke `/mesin/:id` (Buku Pintar). Ganti dengan modal detail logbook + Approve/Reject saat F4.1 dibuka.
 
 ## 🚀 FASE 5 — Admin (BELUM)
 *(Radar Aset, Master Sparepart, Generator QR)*

@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js'
 import { successResponse } from '../utils/response.js'
+import { resolveHandoverPlantScope } from '../utils/handoverScope.js'
 
 // Status akhir mesin yang dianggap "menggantung" untuk serah-terima shift
 const HANDOVER_STATUSES = ['WAITING_SPAREPART', 'TEMPORARY_FIX']
@@ -17,24 +18,22 @@ const CRITICALITY_ORDER = { A_CRITICAL: 0, B_ESSENTIAL: 1, C_GENERAL: 2 }
  *
  * Query params:
  *  - status_filter=WAITING_SPAREPART,TEMPORARY_FIX  (opsional, comma separated)
- *  - plant_id=<id>                                  (opsional; Admin/Supervisor bisa override)
+ *  - plant_id=<id|ALL>                              (HANYA Admin; Supervisor dikunci ke Line-nya)
  *  - days=<1..90>                                   (default 30)
  *  - limit=<1..100>                                 (default 50)
+ *
+ * RBAC (F3.3 & BUG-001): Teknisi & Supervisor selalu ter-scope ke `plant_id` di JWT
+ * (tidak bisa di-override lewat query string). Admin bebas filter / lintas Line.
  */
 export async function getHandoverBoard(req, res, next) {
   try {
-    const canCrossPlant = req.user.role === 'Admin' || req.user.role === 'Supervisor'
+    // F4.1b: Supervisor TIDAK boleh lintas Line. Scope dikunci ke plant_id JWT miliknya
+    // (spesifikasi F3.3: "RBAC: teknisi/SPV Line sendiri; admin semua").
+    // Hanya Admin yang boleh meng-override plant_id lewat query, termasuk 'ALL'.
+    const { plantId, isAdmin } = resolveHandoverPlantScope(req.user, req.query)
 
-    // ---- Resolusi plant ----
-    let plantId = req.user.plant_id || null
-    if (canCrossPlant && req.query.plant_id && req.query.plant_id !== 'ALL') {
-      plantId = req.query.plant_id
-    }
-    if (req.user.role === 'Admin' && (!plantId || req.query.plant_id === 'ALL')) {
-      plantId = null // Admin tanpa plant_id → lihat semua plant
-    }
-    // Teknisi wajib punya plant; kalau tidak ada, kembalikan kosong (bukan error)
-    if (req.user.role === 'Teknisi' && !plantId) {
+    // Teknisi & Supervisor wajib punya plant; kalau tidak ada, kembalikan kosong (bukan error)
+    if (!isAdmin && !plantId) {
       return successResponse(res, {
         message: 'Akun Anda belum ditugaskan ke plant mana pun.',
         data: [],
