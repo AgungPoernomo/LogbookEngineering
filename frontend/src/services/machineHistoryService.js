@@ -43,6 +43,16 @@ function normalizeNumber(value, fallback) {
 }
 
 /**
+ * Normalisasi angka metrik keandalan: hanya number finite yang dipakai,
+ * selain itu null (agar UI menampilkan placeholder "-" / "N/A").
+ */
+function normalizeMetric(value) {
+  if (value === null || value === undefined || value === '') return null
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+/**
  * Bangun query string yang hanya menyertakan nilai valid.
  */
 function buildQuery(params = {}) {
@@ -69,12 +79,13 @@ function buildQuery(params = {}) {
  * Struktur respons: { data: { machine, current_status, stats, timeline,
  *                            top_failure_codes, top_spareparts }, meta: {...} }
  */
-function normalizePayload(json = {}) {
+export function normalizePayload(json = {}) {
   const data = json.data || {}
 
   const machine = data.machine || {}
   const currentStatus = data.current_status || {}
   const stats = data.stats || {}
+  const reliability = data.reliability || {}
   const meta = json.meta || {}
 
   return {
@@ -97,6 +108,13 @@ function normalizePayload(json = {}) {
       total_repair_minutes: stats.total_repair_minutes ?? 0,
       breakdown_count: stats.breakdown_count ?? 0,
       preventive_count: stats.preventive_count ?? 0
+    },
+    // F4.3 KPI keandalan — null berarti belum dapat dihitung (mis. mesin baru 1x rusak)
+    reliability: {
+      mttr_minutes: normalizeMetric(reliability.mttr_minutes),
+      mtbf_minutes: normalizeMetric(reliability.mtbf_minutes),
+      mtbf_hours: normalizeMetric(reliability.mtbf_hours),
+      availability_percent: normalizeMetric(reliability.availability_percent)
     },
     timeline: Array.isArray(data.timeline) ? data.timeline : [],
     topFailureCodes: Array.isArray(data.top_failure_codes) ? data.top_failure_codes : [],

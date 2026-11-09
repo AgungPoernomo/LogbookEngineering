@@ -179,6 +179,88 @@
       </div>
 
       <!-- ======================================================== -->
+      <!-- F4.3 KPI KEANDALAN (MTTR, MTBF, Availability)             -->
+      <!-- ======================================================== -->
+      <div class="bg-surface rounded-lg shadow-card border border-line overflow-hidden">
+        <div class="px-3.5 pt-3 pb-2 flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5">
+            <Gauge class="w-4 h-4 text-primary" />
+            <h2 class="text-xs font-bold text-ink uppercase tracking-wide">KPI Keandalan</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-ink-3">{{ periodLabel }}</span>
+            <span
+              class="text-[9px] font-semibold px-1.5 py-0.5 rounded border border-line bg-muted text-ink-2"
+              title="Dihitung otomatis dari logbook PENDING & APPROVED pada periode terpilih"
+            >
+              ISO 22400-2
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 pt-1">
+          <!-- MTTR -->
+          <div class="rounded-md border border-line bg-muted/20 p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold text-ink-3 uppercase tracking-wide">
+                MTTR
+              </span>
+              <Wrench class="w-3.5 h-3.5 text-violet" />
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span class="text-lg font-bold text-ink tabular-nums">
+                {{ loading ? '—' : mttrDisplay.main }}
+              </span>
+            </div>
+            <div class="text-[10px] text-ink-3 mt-0.5 leading-snug">
+              {{ loading ? 'Menghitung…' : mttrDisplay.hint }}
+            </div>
+          </div>
+
+          <!-- MTBF -->
+          <div class="rounded-md border border-line bg-muted/20 p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold text-ink-3 uppercase tracking-wide">
+                MTBF
+              </span>
+              <Repeat class="w-3.5 h-3.5 text-success" />
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span
+                :class="[
+                  'font-bold text-ink tabular-nums',
+                  mtbfDisplay.isFallback ? 'text-xs leading-5' : 'text-lg'
+                ]"
+              >
+                {{ loading ? '—' : mtbfDisplay.main }}
+              </span>
+            </div>
+            <div class="text-[10px] text-ink-3 mt-0.5 leading-snug">
+              {{ loading ? 'Menghitung…' : mtbfDisplay.hint }}
+            </div>
+          </div>
+
+          <!-- Availability -->
+          <div class="rounded-md border border-line bg-muted/20 p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-semibold text-ink-3 uppercase tracking-wide">
+                Availability
+              </span>
+              <Gauge class="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div class="mt-1 flex items-baseline gap-1">
+              <span class="text-lg font-bold text-ink tabular-nums">
+                {{ loading ? '—' : availabilityDisplay.main }}
+              </span>
+            </div>
+            <div class="text-[10px] text-ink-3 mt-0.5 leading-snug">
+              {{ loading ? 'Menghitung…' : availabilityDisplay.hint }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
       <!-- GRID 2 KOLOM: Timeline (kiri) & Sidebar (kanan)           -->
       <!-- ======================================================== -->
       <div class="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start">
@@ -553,11 +635,13 @@ import {
   Cpu,
   Factory,
   FileText,
+  Gauge,
   History,
   Inbox,
   Info,
   Package,
   RefreshCw,
+  Repeat,
   TimerOff,
   UserCircle2,
   Wrench
@@ -594,6 +678,13 @@ const stats = ref({
   total_repair_minutes: 0,
   breakdown_count: 0,
   preventive_count: 0
+})
+// F4.3 KPI keandalan (null = belum dapat dihitung, mis. belum ada 2x breakdown)
+const reliability = ref({
+  mttr_minutes: null,
+  mtbf_minutes: null,
+  mtbf_hours: null,
+  availability_percent: null
 })
 const timeline = ref([])
 const topFailureCodes = ref([])
@@ -743,6 +834,101 @@ function formatMinutesShort(minutes) {
   return `${mins}m`
 }
 
+// ---- F4.3 Formatter KPI keandalan ----
+
+/**
+ * Format menit desimal menjadi "1j 15m" (MTTR).
+ * Pembulatan ke menit terdekat agar tidak muncul "1j 0.7m".
+ *
+ * @param {number|null} minutes
+ * @returns {string|null} null bila tidak dapat dihitung
+ */
+function formatMinutesCompact(minutes) {
+  if (minutes === null || minutes === undefined) return null
+  const num = Number(minutes)
+  if (!Number.isFinite(num) || num < 0) return null
+
+  const total = Math.round(num)
+  if (total === 0) return '0m'
+
+  const hours = Math.floor(total / 60)
+  const mins = total % 60
+  if (hours > 0 && mins > 0) return `${hours}j ${mins}m`
+  if (hours > 0) return `${hours}j`
+  return `${mins}m`
+}
+
+/**
+ * Format menit menjadi "3h 12j" / "2j 45m" / "45m" untuk MTBF (skala hari/jam).
+ *  - >= 1 hari : "Xh Yj"  (h = hari, j = jam)
+ *  - >= 1 jam  : "Xj Ym"  (j = jam, m = menit)
+ *  - < 1 jam   : "Ym"
+ *
+ * @param {number|null} minutes
+ * @returns {string|null}
+ */
+function formatMtbf(minutes) {
+  if (minutes === null || minutes === undefined) return null
+  const num = Number(minutes)
+  if (!Number.isFinite(num) || num < 0) return null
+
+  const total = Math.round(num)
+  const days = Math.floor(total / 1440)
+  const hours = Math.floor((total % 1440) / 60)
+  const mins = total % 60
+
+  if (days > 0) return `${days}h ${hours}j`
+  if (hours > 0) return mins > 0 ? `${hours}j ${mins}m` : `${hours}j`
+  return `${mins}m`
+}
+
+/**
+ * Format persentase: 1 desimal bila bukan bilangan bulat, tanpa desimal bila bulat.
+ * Contoh: 97.2973 → "97,3%" (locale id-ID) / 100 → "100%".
+ *
+ * @param {number|null} percent
+ * @returns {string|null}
+ */
+function formatPercent(percent) {
+  if (percent === null || percent === undefined) return null
+  const num = Number(percent)
+  if (!Number.isFinite(num)) return null
+
+  const rounded = Math.round(num * 10) / 10
+  const isInteger = Number.isInteger(rounded)
+  return `${rounded.toLocaleString('id-ID', {
+    minimumFractionDigits: isInteger ? 0 : 1,
+    maximumFractionDigits: 1
+  })}%`
+}
+
+// ---- Tampilan kartu KPI (main = angka besar, hint = keterangan kecil) ----
+
+const mttrDisplay = computed(() => {
+  const label = formatMinutesCompact(reliability.value.mttr_minutes)
+  if (label === null) {
+    return { main: '-', hint: 'Belum ada perbaikan kerusakan' }
+  }
+  return { main: label, hint: 'Rata-rata waktu perbaikan' }
+})
+
+const mtbfDisplay = computed(() => {
+  const label = formatMtbf(reliability.value.mtbf_minutes)
+  if (label === null) {
+    // MTBF butuh minimal 2 kejadian BREAKDOWN untuk membentuk 1 selang.
+    return { main: 'N/A (Baru 1x rusak)', hint: 'Butuh minimal 2 breakdown', isFallback: true }
+  }
+  return { main: label, hint: 'Rata-rata jarak antar kerusakan', isFallback: false }
+})
+
+const availabilityDisplay = computed(() => {
+  const label = formatPercent(reliability.value.availability_percent)
+  if (label === null) {
+    return { main: '-', hint: 'Butuh data MTTR & MTBF' }
+  }
+  return { main: label, hint: 'MTBF / (MTBF + MTTR)' }
+})
+
 // ---- Data loading ----
 async function loadHistory() {
   if (!machineId.value) {
@@ -768,6 +954,8 @@ async function loadHistory() {
     machine.value = data.machine
     currentStatus.value = data.currentStatus
     stats.value = data.stats
+    // Spread ke objek baru: menimpa ref dengan plain object akan memutus reaktivitas.
+    reliability.value = { ...reliability.value, ...(data.reliability || {}) }
     timeline.value = data.timeline
     topFailureCodes.value = data.topFailureCodes
     topSpareparts.value = data.topSpareparts

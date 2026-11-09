@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { getWIBDateString } from '../utils/date.js'
+import { calculateReliabilitySummary } from '../utils/reliabilityMetrics.js'
 
 // F3.4 "Buku Pintar Mesin" — rekam medis mesin (timeline, top failure code, top sparepart).
 // Hanya log yang sudah diajukan/disetujui yang dianggap sah sebagai riwayat (DRAFT & REJECTED tidak dihitung).
@@ -133,6 +134,10 @@ export async function getMachineHistory(req, res, next) {
           machine_end_status: true,
           duration_minutes: true,
           downtime_minutes: true,
+          // F4.3 — wajib untuk KPI keandalan: basis filter MTTR (BREAKDOWN/CORRECTIVE)
+          // dan MTBF/Availability (BREAKDOWN). Tanpa kolom ini semua metrik akan null.
+          maintenance_type: true,
+          end_time: true,
           failure_code_id: true,
           failureCode: { select: { code: true, name: true, category: true } },
           sparepartUsages: {
@@ -171,6 +176,10 @@ export async function getMachineHistory(req, res, next) {
       is_flagged: latestLog ? FLAGGED_END_STATUSES.includes(latestLog.machine_end_status) : false
     }
 
+    // ---- F4.3 KPI Keandalan (MTTR, MTBF, Availability) ----
+    // Memakai array `logs` yang sudah diambil di atas (tanpa query tambahan / tanpa N+1).
+    const reliability = buildReliabilityPayload(logs)
+
     return successResponse(res, {
       message: 'Riwayat mesin berhasil diambil.',
       data: {
@@ -184,6 +193,7 @@ export async function getMachineHistory(req, res, next) {
         },
         current_status: currentStatus,
         stats,
+        reliability,
         timeline: pagedLogs.map(formatTimelineItem),
         top_failure_codes: buildTopFailureCodes(logs),
         top_spareparts: buildTopSpareparts(logs)
@@ -202,6 +212,54 @@ export async function getMachineHistory(req, res, next) {
   } catch (err) {
     next(err)
   }
+}
+
+/**
+ * F4.3 — Menyusun payload KPI keandalan untuk respons riwayat mesin.
+ *
+ * Seluruh perhitungan dilakukan oleh pure function `calculateReliabilitySummary`
+ * (utils/reliabilityMetrics.js) memakai array `logs` yang SUDAH diambil pada
+ * query agregat — sehingga tidak ada query tambahan (bebas N+1).
+ *
+ * Pembulatan dilakukan di layer controller (bukan di pure function) karena
+ * sifatnya presentasi: menjaga payload JSON ringkas & stabil untuk UI:
+ *  - mttr_minutes / mtbf_minutes : 1 desimal
+ *  - availability_percent        : 2 desimal (mis. 97.3)
+ *
+ * @param {Array<object>} logs - baris logbook PENDING/APPROVED pada periode
+ * @returns {{ mttr_minutes: number|null, mtbf_minutes: number|null, mtbf_hours: number|null, availability_percent: number|null }}
+ */
+function buildReliabilityPayload(logs) {
+  const summary = calculateReliabilitySummary(logs || [])
+
+  const mttrMinutes = roundTo(summary.mttr_minutes, 1)
+  const mtbfMinutes = roundTo(summary.mtbf_minutes, 1)
+  const availabilityPercent = roundTo(summary.availability_percent, 2)
+
+  return {
+    mttr_minutes: mttrMinutes,
+    mtbf_minutes: mtbfMinutes,
+    // Turunan untuk kenyamanan UI (jam). Dihitung dari nilai yang sudah dibulatkan
+    // agar angka jam & menit pada kartu tidak saling bertentangan.
+    mtbf_hours: mtbfMinutes === null ? null : roundTo(mtbfMinutes / 60, 2),
+    availability_percent: availabilityPercent
+  }
+}
+
+/**
+ * Membulatkan angka ke sejumlah desimal; null/non-finite dibiarkan null
+ * agar UI dapat menampilkan placeholder ("-" / "N/A").
+ *
+ * @param {number|null|undefined} value
+ * @param {number} decimals
+ * @returns {number|null}
+ */
+function roundTo(value, decimals) {
+  if (value === null || value === undefined) return null
+  const num = Number(value)
+  if (!Number.isFinite(num)) return null
+  const factor = 10 ** decimals
+  return Math.round(num * factor) / factor
 }
 
 function formatTimelineItem(log) {
