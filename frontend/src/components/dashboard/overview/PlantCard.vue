@@ -95,9 +95,10 @@
                 class="w-full max-w-[24px] rounded-t transition-all duration-300 group-hover:opacity-80"
                 :style="{
                   height: `${getBarHeight(bar.count)}%`,
-                  backgroundColor: plant.color.hex,
-                  minHeight: bar.count > 0 ? '4px' : '2px'
+                  backgroundColor: bar.count > 0 ? plant.color.hex : undefined,
+                  minHeight: bar.count > 0 ? '4px' : '3px'
                 }"
+                :class="bar.count > 0 ? '' : 'bg-line'"
               />
 
               <!-- Label Sumbu-X (Sen, Sel, ...) -->
