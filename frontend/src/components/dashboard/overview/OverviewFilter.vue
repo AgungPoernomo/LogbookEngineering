@@ -110,6 +110,7 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue'
+import { getWIBYearMonth } from '../../../utils/dateKeys'
 import { Filter, RotateCcw, Search } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -124,7 +125,7 @@ const props = defineProps({
   modelValue: {
     type: Object,
     default: () => ({
-      yearMonth: new Date().toISOString().substring(0, 7),
+      yearMonth: getWIBYearMonth(),
       groupId: 'ALL',
       shiftId: 'ALL',
       search: ''
@@ -135,7 +136,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 
 const localFilters = reactive({
-  yearMonth: props.modelValue.yearMonth || new Date().toISOString().substring(0, 7),
+  yearMonth: props.modelValue.yearMonth || getWIBYearMonth(),
   groupId: props.modelValue.groupId || 'ALL',
   shiftId: props.modelValue.shiftId || 'ALL',
   search: props.modelValue.search || ''
@@ -158,7 +159,7 @@ function emitUpdate() {
 }
 
 function handleReset() {
-  localFilters.yearMonth = new Date().toISOString().substring(0, 7)
+  localFilters.yearMonth = getWIBYearMonth()
   localFilters.groupId = 'ALL'
   localFilters.shiftId = 'ALL'
   localFilters.search = ''
