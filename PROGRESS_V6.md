@@ -62,21 +62,37 @@
 
 ---
 
-## 🚀 FASE 4 — Supervisor (BERJALAN)
-*(Validasi Teknis, Pareto, MTTR/MTBF, Skill Matrix)*
+## ✅ FASE 4 — Pengalaman Supervisor (SELESAI)
+
+### ✅ F4.1a Banner Repeat Failure - [SELESAI]
+- **Backend:** `approvalController.js` diperkaya dengan deteksi `repeat_failure` (1 query tambahan, window 30 hari, filter `machine_id` + `failure_code_id` + status PENDING/APPROVED).
+- **Frontend:** Banner peringatan di `ApprovalListView.vue` + link ke Buku Pintar Mesin.
+- **Bugfix:** Perbaikan scope `<template v-for>` (Vue 3) dan sinkronisasi field `logs` vs `logbooks`.
 
 ### ✅ F4.1b Antrean Handover Supervisor - [SELESAI]
-- **Pendekatan Frontend:** Komponen baru `SupervisorHandoverQueue.vue` (tabel ringkas: Nama Mesin, Status, Teknisi Terakhir, Tanggal, Umur, Aksi) — dipilih karena `HandoverBoard.vue` berorientasi kartu untuk teknisi, sedangkan Supervisor perlu tabel padat dengan *umur terbuka dalam hari* (F4.2) dan aksi ganda (Detail + Riwayat Mesin).
-- **Data source:** Tetap `GET /api/v1/handover` (tanpa endpoint/schema baru, tanpa N+1).
-- **Penempatan:** `SupervisorDashboard.vue` — tepat di bawah `DashboardOverviewLogBook` (KPI) dan **di atas** `StatisticsChartCard` (high visibility). Prop `plantId` tidak dikirim (null).
-- **Backend (perbaikan RBAC):** Sebelumnya Supervisor bisa override `?plant_id=` dan `?plant_id=ALL` (bocor lintas Line). Logika dipindah ke util murni `backend/src/utils/handoverScope.js` → `resolveHandoverPlantScope()`. Kini: Teknisi & Supervisor **dikunci** ke `plant_id` JWT; hanya Admin yang boleh override/`ALL`. Supervisor tanpa `plant_id` → data kosong (bukan error).
-- **Token desain:** 0 hex color; memakai `bg-surface`, `border-line`, `text-ink`, `text-primary`, `bg-warning/10`, `bg-danger/10`, `bg-success/10`, `bg-muted`.
-- **P1:** Tidak ada leaderboard/ranking/poin. Empty state positif: "Tidak ada mesin yang menggantung 🎉".
-- **Test:** `backend/test/handoverSupervisor.test.js` (14 test). Total backend **85/85 lulus**, frontend 16/16 lulus.
-- **TODO (lanjutan):** Aksi "Detail" saat ini mengarah ke `/mesin/:id` (Buku Pintar). Ganti dengan modal detail logbook + Approve/Reject saat F4.1 dibuka.
+- **Backend:** Refactor `handoverController.js` menggunakan util baru `handoverScope.js`. Menutup celah RBAC di mana Supervisor bisa mengintip Line lain via URL.
+- **Frontend:** Komponen baru `SupervisorHandoverQueue.vue` (tabel padat dengan indikator "Umur Terbuka") disisipkan di Dashboard Supervisor.
 
-## 🚀 FASE 5 — Admin (BELUM)
-*(Radar Aset, Master Sparepart, Generator QR)*
+### 🚨 BUG-013 & BUG-014 (Dashboard SPV) - [SELESAI]
+- **Backend:** Perbaikan query agregasi statistik di `overviewController.js` (memisahkan filter bulan, search, dan `groupBy` per Line). Menambahkan filter untuk membuang data `task_date` rusak.
+- **Frontend:** Perbaikan chart kosong di `PlantCard.vue` menjadi *stub abu-abu*.
+- **Test:** Menambahkan 12 test regresi baru (`overviewDashboard.test.js`, `overviewPlantStats.test.js`).
+
+### ✅ F4.3 KPI Keandalan (MTTR/MTBF/Availability) - [SELESAI]
+- **Backend:** Membuat pure function `reliabilityMetrics.js` (WIB-safe, anti NaN/Infinity) + 26 test. Diintegrasikan ke `machineHistoryController.js`.
+- **Frontend:** Menambahkan 3 kartu KPI di `MachineHistoryView.vue`.
+- **Catatan:** MTTR menggunakan `duration_minutes`, MTBF berbasis gap antar `BREAKDOWN`.
+
+### ✅ F4.4 Pareto Bad Actor & Skill Matrix - [SELESAI]
+- **Backend:** Controller baru `reliabilityAnalyticsController.js` + Service baru `reliabilityAnalyticsService.js`. Menggunakan `groupBy` Prisma murni (tanpa raw SQL) untuk menghitung Pareto Mesin, Pareto Kode Kerusakan, dan Skill Matrix. Dilengkapi 24 test.
+- **Frontend:** Halaman baru `ReliabilityAnalyticsView.vue` + menu Sidebar. 
+- **Visualisasi:** Komponen baru `ParetoChart.vue` (Bar + Line Kumulatif) menggunakan Chart.js. Terdaftar secara lokal untuk optimasi bundle.
+- **Aturan P1:** Skill Matrix diurutkan abjad (bukan ranking) untuk mencegah *HR-tool*.
+
+---
+
+## 🚀 FASE 5 — Admin (SEDANG BERJALAN)
+*(Radar Aset Belum Terdaftar, Master Sparepart, Generator QR)*
 
 ---
 

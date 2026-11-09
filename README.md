@@ -632,6 +632,7 @@ erDiagram
 | `/approval/detail/:id` | Detail Pemeriksaan & Action Approval | Supervisor |
 | `/supervisor/teknisi` | Aktivitas & Frekuensi Logbook Teknisi Tim | Supervisor |
 | `/laporan` | Ekspor Laporan Tim (PDF / Excel) | Supervisor |
+| `/supervisor/reliability` | **Analitik Keandalan** (Pareto Bad Actor & Skill Matrix) | Supervisor, Admin |
 | `/admin/users` | Manajemen Akun Pengguna | Admin |
 | `/admin/plants` | Master Plant (Manajemen Fasilitas & Pabrik) | Admin |
 | `/admin/machines` | Master Machine (Mesin Utama & Sub-Mesin) | Admin |
@@ -1252,7 +1253,7 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 - [ ] **Fase 3.2 (Quick-start & QR)**: *Ditunda* menunggu stiker fisik QR Code dicetak.
 - [x] **Fase 3.3 (Handover Board)**: `HandoverBoard.vue` + `GET /api/v1/handover` — dedup log terbaru per mesin/sub-mesin, filter `WAITING_SPAREPART`/`TEMPORARY_FIX`, urut kritikalitas. Menggantikan slot Leaderboard di Dashboard Teknisi.
 - [x] **Fase 3.4 (Machine History)**: `MachineHistoryView.vue` + `GET /api/v1/machines/:id/history` — timeline berhalaman, statistik downtime (dasar MTTR/MTBF), top failure code & top sparepart; kartu mesin di dashboard kini menuju `/mesin/:id`.
-- [ ] **Fase 4 (Supervisor)**: Approval sebagai validasi teknis (banner *repeat failure*), antrean tindak lanjut dari Handover Board, KPI keandalan (MTTR/MTBF/Availability/Planned Ratio/Repeat Failure Rate), Pareto bad actor, dan reframing `/supervisor/teknisi` + skill matrix.
+- [x] **Fase 4 (Supervisor)**: Approval sebagai validasi teknis (banner *repeat failure*), antrean tindak lanjut dari Handover Board, KPI keandalan (MTTR/MTBF/Availability/Planned Ratio/Repeat Failure Rate), Pareto bad actor, dan reframing `/supervisor/teknisi` + skill matrix.
 - [ ] **Fase 5 (Admin)**: Radar aset belum terdaftar, master sparepart lengkap, dan generator QR mesin.
 - [ ] **Fase 6–7 (Hardening & Fitur Tertunda)**: Test tambahan (token expired → 401, injeksi input), dokumentasi, serta fitur yang sebelumnya BLOCKED.
 
@@ -1302,6 +1303,7 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 | POST | `/api/v1/logbooks/:id/approval` | Action Approve / Reject Logbook (wajib catatan bila ditolak) | Supervisor, Admin |
 | GET | `/api/v1/logbooks/:id/approvals` | Riwayat Persetujuan Logbook | Terotentikasi (Semua Peran) |
 | GET | `/api/v1/master/:type` | Ambil Data Master (`plants`, `shifts`, `machines`, `sub-machines`, `groups`, `roles`, **`failure-codes`**, **`spareparts`**) | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/supervisor/reliability-analytics` | **Analitik Keandalan**: Pareto Mesin, Pareto Failure Code, Skill Matrix (query: `plant_id`, `year_month`) | Supervisor, Admin |
 | POST | `/api/v1/master/:type` | Tambah Data Master Baru | Admin |
 | PUT | `/api/v1/master/:type/:id` | Perbarui Data Master | Admin |
 | DELETE | `/api/v1/master/:type/:id` | Nonaktifkan / Hapus Data Master | Admin |
