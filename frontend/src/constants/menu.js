@@ -45,6 +45,15 @@ export const NAVIGATION_MENU = [
     activeMatchPrefixes: ['/supervisor/teknisi']
   },
   {
+    // Fase 4.4 — Pareto Bad Actor & Skill Matrix (analitik keandalan aset).
+    name: 'Analitik Keandalan',
+    path: '/supervisor/reliability',
+    icon: 'LineChart',
+    section: 'Menu',
+    roles: [ROLES.SUPERVISOR, ROLES.ADMIN],
+    activeMatchPrefixes: ['/supervisor/reliability']
+  },
+  {
     name: 'Laporan Tim',
     path: '/laporan',
     icon: 'FileBarChart',

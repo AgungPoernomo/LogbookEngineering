@@ -50,6 +50,14 @@ const routes = [
     meta: { roles: [ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Aktivitas Teknisi Tim' }
   },
   {
+    // Fase 4.4 — Pareto Bad Actor & Skill Matrix.
+    // Analitik KEANDALAN ASET + pemetaan keahlian (bukan leaderboard / penilaian kinerja).
+    path: '/supervisor/reliability',
+    name: 'supervisor-reliability',
+    component: () => import('../views/supervisor/ReliabilityAnalyticsView.vue'),
+    meta: { roles: [ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Analitik Keandalan' }
+  },
+  {
     path: '/laporan',
     name: 'laporan',
     component: () => import('../views/supervisor/LaporanTimView.vue'),

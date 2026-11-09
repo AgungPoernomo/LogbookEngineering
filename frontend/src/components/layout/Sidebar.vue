@@ -182,6 +182,7 @@ import {
   Building2,
   Cpu,
   Layers,
+  LineChart,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -211,6 +212,7 @@ const iconMap = {
   Building2,
   Cpu,
   Layers,
+  LineChart,
   ScrollText,
   UserCircle
 }
