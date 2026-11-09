@@ -1,11 +1,59 @@
 import prisma from '../config/prisma.js'
 import { successResponse } from '../utils/response.js'
-import { getWIBDateString, getWIBLastNDays } from '../utils/date.js'
+import { getWIBDateString, getWIBLastNDays, getWIBYearMonth } from '../utils/date.js'
 
 const MONTH_SHORT_ID = [
   'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
   'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
 ]
+
+// Batas bawah leksikografis untuk kolom `task_date` (VARCHAR 'YYYY-MM-DD').
+// Dipakai untuk mengecualikan baris legacy yang task_date-nya bukan tanggal
+// (mis. 'pengamatan', 'diskusi ta') agar tidak merusak urutan/agregasi.
+const ISO_DATE_PREFIX = '1000-01-01'
+const ISO_DATE_SUFFIX = '9999-12-31'
+
+/**
+ * Apakah nilai `task_date` berformat ISO 'YYYY-MM-DD'.
+ * Dipakai sebagai penjaga: agregasi statistik hanya boleh menghitung baris valid.
+ */
+function isIsoTaskDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+/**
+ * Filter `task_date` untuk satu jendela waktu yang SUDAH FINAL.
+ *
+ * PENTING (BUG-014): jendela waktu WAJIB selalu ditetapkan di sini dan MENIMPA
+ * `task_date` yang mungkin sudah ada pada `baseWhere`/`periodWhere`. Sebelumnya
+ * `{ ...baseWhere, task_date: <hari ini> }` membuat `task_date` yang lebih akhir
+ * (yaitu `gte/lte` atau `startsWith` bulan) membatalkan filter hari tersebut,
+ * sehingga "Log Harian" pada kartu plant bisa berisi total seluruh scope.
+ *
+ * @param {'period'|'day'|'range'} kind
+ * @param {string|string[]} value bulan 'YYYY-MM', tanggal 'YYYY-MM-DD', atau daftar tanggal
+ * @returns {{ task_date: string | { startsWith: string } | { in: string[] } }}
+ */
+function taskDateWindow(kind, value) {
+  if (kind === 'period') {
+    // Buang tanggal rusak (mis. 'pengamatan') sekaligus saring bulan.
+    return { task_date: { gte: `${value}-00`, lte: `${value}-99` } }
+  }
+  if (kind === 'range') {
+    const dates = Array.isArray(value) ? value.filter(isIsoTaskDate) : []
+    return { task_date: { in: dates } }
+  }
+  return { task_date: value }
+}
+
+/**
+ * Batas jendela `baseWhere.task_date` sebagai object mentah (tanpa `task_date`)
+ * agar aman di-spread sebelum jendela waktu khusus ditimpakan.
+ */
+function scopeWithoutTaskDate(where) {
+  const { task_date: _ignored, ...rest } = where || {}
+  return rest
+}
 
 function formatDateTimeIndo(dateStr, timeStr = '08:00') {
   if (!dateStr) return '-'
@@ -56,26 +104,39 @@ export async function getDashboardOverview(req, res, next) {
   try {
     const { yearMonth, month, year, plant_id, shift_id, group_id, search } = req.query
 
-    // Target Bulan & Tahun
+    // Target Bulan & Tahun (acuan WIB, bukan UTC)
+    // Default = bulan berjalan WIB, sehingga "Total Log" tidak pernah
+    // diam-diam berubah menjadi all-time saat filter dikosongkan.
     let targetYM = yearMonth
     if (!targetYM && year && month) {
       targetYM = `${year}-${String(month).padStart(2, '0')}`
     }
 
-    const whereClause = {}
-
-    if (targetYM) {
-      whereClause.task_date = { startsWith: targetYM }
+    // BUG FIX #1 — Sanitasi input filter bulan.
+    // <input type="month"> mengirim '' saat dikosongkan, dan klien bisa
+    // mengirim 'undefined'/'null' sebagai string. Tanpa validasi, targetYM
+    // menjadi string sampah → `task_date startsWith 'undefined'` → 0 baris.
+    if (typeof targetYM !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(targetYM.trim())) {
+      targetYM = getWIBYearMonth()
+    } else {
+      targetYM = targetYM.trim()
     }
 
+    // `baseWhere`  = scope organisasi (Supervisor/Plant/Shift/Group/Search) TANPA filter bulan.
+    //                Dipakai untuk: Log Harian, User Aktif, Chart 7 Hari, Log Terbaru.
+    // `periodWhere` = baseWhere + filter bulan.
+    //                Dipakai HANYA untuk: "Total Log" (kartu periode).
+    const baseWhere = {}
+    const periodWhere = {}
+
     if (req.user?.role === 'Supervisor' && req.user?.plant_id) {
-      whereClause.plant_id = BigInt(req.user.plant_id)
+      baseWhere.plant_id = BigInt(req.user.plant_id)
     } else if (plant_id && plant_id !== 'ALL') {
-      whereClause.plant_id = BigInt(plant_id)
+      baseWhere.plant_id = BigInt(plant_id)
     }
 
     if (shift_id && shift_id !== 'ALL') {
-      whereClause.shift_id = BigInt(shift_id)
+      baseWhere.shift_id = BigInt(shift_id)
     }
 
     if (group_id && group_id !== 'ALL') {
@@ -83,12 +144,17 @@ export async function getDashboardOverview(req, res, next) {
         where: { group_id: BigInt(group_id) },
         select: { id: true }
       })
-      whereClause.user_id = { in: groupUsers.map(u => u.id) }
+      baseWhere.user_id = { in: groupUsers.map(u => u.id) }
     }
 
+    // BUG FIX #2 — Pencarian hanya menyaring daftar Log Terbaru.
+    // Dulu `search` ikut masuk ke where agregasi, sehingga mengetik
+    // apa pun di kolom pencarian membuat SELURUH kartu statistik & chart
+    // menjadi 0 (termasuk saat debounce 300ms masih berjalan).
+    const searchWhere = {}
     if (search && search.trim()) {
       const q = search.trim()
-      whereClause.OR = [
+      searchWhere.OR = [
         { activity_description: { contains: q } },
         { sparepart: { contains: q } },
         { machine: { name: { contains: q } } },
@@ -96,14 +162,76 @@ export async function getDashboardOverview(req, res, next) {
       ]
     }
 
-    // Tanggal acuan WIB
+    Object.assign(periodWhere, baseWhere)
+
+    // BUG FIX #3 — Hanya hitung baris dengan task_date berformat ISO 'YYYY-MM-DD'.
+    // Ditemukan 3 baris legacy berisi 'pengamatan' / 'diskusi ta' (created_at 2025)
+    // yang merusak GROUP BY & urutan `orderBy task_date desc` (muncul paling atas
+    // dan menggeser log asli dari daftar "Log Terbaru").
+    baseWhere.task_date = { gte: ISO_DATE_PREFIX, lte: ISO_DATE_SUFFIX }
+
+    if (targetYM) {
+      periodWhere.task_date = { startsWith: targetYM }
+    }
+
+    // Tanggal acuan WIB (Asia/Jakarta / UTC+7) — JANGAN pakai toISOString() yang UTC.
     const todayStr = getWIBDateString()
     const last2Days = getWIBLastNDays(2)
     const yesterdayStr = last2Days[0].date
     const last7Days = getWIBLastNDays(7)
     const last7DaysStrings = last7Days.map(d => d.date)
 
-    // Agregasi Database Terpusat (Prisma Count & GroupBy)
+    // Scope organisasi TANPA pembatas tanggal. Setiap agregasi WAJIB menimpakan
+    // jendela waktunya sendiri lewat `taskDateWindow()`.
+    const baseScope = scopeWithoutTaskDate(baseWhere)
+
+    /**
+     * Muat seluruh agregasi statistik untuk plant-card yang SEDANG DITAMPILKAN.
+     *
+     * BUG-014: sebelumnya agregasi memakai `baseWhere`/`periodWhere` global tanpa
+     * menyertakan plant dari kartu yang dirender. Akibatnya, saat scope dipersempit
+     * (Admin memilih satu Line, atau Supervisor Line), `groupBy` hanya mengembalikan
+     * baris milik Line yang dipilih, sehingga SEMUA kartu lain — termasuk kartu Line
+     * yang sedang difilter — mendapat `0` untuk Total Log, Log Harian, User Aktif,
+     * dan Chart 7 Hari. Daftar "Log Terbaru"-nya tetap berisi data karena query-nya
+     * memakai `plant_id: p.id` secara langsung.
+     *
+     * Karena kartu memang selalu dirender per plant, setiap agregasi kini di-scope
+     * ke `plant_id: { in: plantIds }` sehingga tidak ada baris yang hilang.
+     */
+    async function loadPlantAggregates(plantIds) {
+      const plantScope = { plant_id: { in: plantIds } }
+      const periodScope = { ...baseScope, ...plantScope, ...taskDateWindow('period', targetYM) }
+      const todayScope = { ...baseScope, ...plantScope, ...taskDateWindow('day', todayStr) }
+      const yesterdayScope = { ...baseScope, ...plantScope, ...taskDateWindow('day', yesterdayStr) }
+      const last7Scope = { ...baseScope, ...plantScope, ...taskDateWindow('range', last7DaysStrings) }
+
+      const [logCounts, todayCounts, yesterdayCounts, activeUsersToday, activeUsersYesterday, trend7, logUserCountsPeriod, topMachines] =
+        await Promise.all([
+          prisma.logbook.groupBy({ by: ['plant_id'], where: periodScope, _count: { id: true } }),
+          prisma.logbook.groupBy({ by: ['plant_id'], where: todayScope, _count: { id: true } }),
+          prisma.logbook.groupBy({ by: ['plant_id'], where: yesterdayScope, _count: { id: true } }),
+          prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: todayScope }),
+          prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: yesterdayScope }),
+          prisma.logbook.groupBy({ by: ['plant_id', 'task_date'], where: last7Scope, _count: { id: true } }),
+          prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: periodScope, _count: { id: true } }),
+          prisma.logbook.groupBy({ by: ['machine_id', 'plant_id'], where: periodScope, _count: { id: true } })
+        ])
+
+      return {
+        logCounts,
+        todayCounts,
+        yesterdayCounts,
+        activeUsersToday,
+        activeUsersYesterday,
+        trend7,
+        logUserCountsPeriod,
+        topMachines
+      }
+    }
+
+    // FASE A — Agregasi global (KPI) + master data. Agregasi per plant BELUM
+    // dijalankan karena daftar plant-card yang dirender belum diketahui.
     const [
       totalLogGlobal,
       todayLogGlobal,
@@ -112,42 +240,40 @@ export async function getDashboardOverview(req, res, next) {
       activeUsersYesterdayGroup,
       allPlants,
       allUsers,
-      plantLogCounts,
-      plantTodayCounts,
-      plantYesterdayCounts,
-      plantActiveUsersToday,
-      plantActiveUsersYesterday,
-      trend7DaysGroup,
-      userLogCountsGroup,
-      topMachinesGroup,
+      cardScopePeriod,
+      cardScopeLatest,
       allMachines,
       recent5Activities
     ] = await Promise.all([
-      prisma.logbook.count({ where: whereClause }),
-      prisma.logbook.count({ where: { ...whereClause, task_date: todayStr } }),
-      prisma.logbook.count({ where: { ...whereClause, task_date: yesterdayStr } }),
-      prisma.logbook.groupBy({ by: ['user_id'], where: { ...whereClause, task_date: todayStr } }),
-      prisma.logbook.groupBy({ by: ['user_id'], where: { ...whereClause, task_date: yesterdayStr } }),
+      // Total Log = kartu periode → mengikuti filter bulan (periodWhere)
+      prisma.logbook.count({ where: periodWhere }),
+      // Log Harian, User Aktif, Chart 7 Hari → TIDAK boleh terikat filter bulan.
+      // `taskDateWindow` WAJIB ditimpakan agar `task_date` milik baseWhere tidak
+      // membatalkan filter hari (lihat catatan BUG-014 pada taskDateWindow).
+      prisma.logbook.count({ where: { ...baseScope, ...taskDateWindow('day', todayStr) } }),
+      prisma.logbook.count({ where: { ...baseScope, ...taskDateWindow('day', yesterdayStr) } }),
+      prisma.logbook.groupBy({ by: ['user_id'], where: { ...baseScope, ...taskDateWindow('day', todayStr) } }),
+      prisma.logbook.groupBy({ by: ['user_id'], where: { ...baseScope, ...taskDateWindow('day', yesterdayStr) } }),
       prisma.plant.findMany({ orderBy: { id: 'asc' } }),
       prisma.user.findMany({
         where: { is_active: true },
         select: { id: true, full_name: true, plant_id: true, photo_url: true }
       }),
-      prisma.logbook.groupBy({ by: ['plant_id'], where: whereClause, _count: { id: true } }),
-      prisma.logbook.groupBy({ by: ['plant_id'], where: { ...whereClause, task_date: todayStr }, _count: { id: true } }),
-      prisma.logbook.groupBy({ by: ['plant_id'], where: { ...whereClause, task_date: yesterdayStr }, _count: { id: true } }),
-      prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: { ...whereClause, task_date: todayStr } }),
-      prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: { ...whereClause, task_date: yesterdayStr } }),
-      prisma.logbook.groupBy({
-        by: ['plant_id', 'task_date'],
-        where: { ...whereClause, task_date: { in: last7DaysStrings } },
-        _count: { id: true }
-      }),
-      prisma.logbook.groupBy({ by: ['plant_id', 'user_id'], where: whereClause, _count: { id: true } }),
-      prisma.logbook.groupBy({ by: ['machine_id', 'plant_id'], where: whereClause, _count: { id: true } }),
-      prisma.machine.findMany({ select: { id: true, name: true, plant_id: true } }),
+      // Ringan: hanya dipakai untuk menentukan plant mana saja yang punya log.
+      prisma.logbook.groupBy({ by: ['plant_id'], where: periodWhere, _count: { id: true } }),
+      // Daftar "Log Terbaru" per kartu tidak terikat filter bulan, jadi plant yang
+      // hanya punya log di luar periode tetap harus mendapat kartu.
       prisma.logbook.findMany({
-        where: whereClause,
+        where: baseWhere,
+        orderBy: [{ task_date: 'desc' }, { start_time: 'desc' }],
+        take: 60,
+        select: { plant_id: true }
+      }),
+      prisma.machine.findMany({ select: { id: true, name: true, plant_id: true } }),
+      // Log Terbaru = aktivitas paling akhir dari seluruh scope (tanpa filter bulan),
+      // supaya selalu ada isi seperti yang terlihat di UI.
+      prisma.logbook.findMany({
+        where: { ...baseWhere, ...searchWhere },
         orderBy: [{ task_date: 'desc' }, { start_time: 'desc' }],
         take: 5,
         include: {
@@ -162,14 +288,51 @@ export async function getDashboardOverview(req, res, next) {
     const userMap = new Map(allUsers.map(u => [Number(u.id), u]))
     const plantMap = new Map(allPlants.map(p => [Number(p.id), p]))
 
-    // 4 Plant Utama
-    const plants = allPlants.slice(0, 4)
+    const collectPlantIds = (rows) => new Set(
+      (rows || []).filter(r => r?.plant_id != null).map(r => Number(r.plant_id))
+    )
+
+    // FASE B — Tentukan plant-card yang dirender.
+    // Kartu WAJIB mencakup plant tempat data logbook berada (bukan hanya id 1-4):
+    // plant lain (mis. 30001 'General') harus mendapat kartu yang terisi, bukan 0.
+    const plantIdsWithLogs = collectPlantIds(cardScopePeriod)
+    const plantIdsWithRecentLogs = collectPlantIds(cardScopeLatest)
+    let plants = allPlants.filter(p => [1, 2, 3, 4].includes(Number(p.id)))
+    // Tambahkan plant yang punya log pada scope ini (belum tercakup di 4 kartu utama)
+    allPlants.forEach(p => {
+      const pid = Number(p.id)
+      if (!plants.some(pl => Number(pl.id) === pid) && (plantIdsWithLogs.has(pid) || plantIdsWithRecentLogs.has(pid) || Number(req.user?.plant_id) === pid)) {
+        plants.push(p)
+      }
+    })
+    // Supervisor: prioritaskan plant-nya sendiri di urutan pertama
+    if (req.user?.role === 'Supervisor' && req.user?.plant_id) {
+      const supPlant = plants.find(p => Number(p.id) === Number(req.user.plant_id))
+      if (supPlant) {
+        plants = [supPlant, ...plants.filter(p => p !== supPlant)]
+      }
+    }
+
+    // FASE C — Agregasi statistik untuk plant-card yang dirender (BUG-014).
+    // Di-scope ke `plants.map(p => p.id)`, sehingga setiap kartu memperoleh angka
+    // miliknya sendiri, bukan hanya milik plant yang sedang difilter.
+    const {
+      logCounts: plantLogCounts,
+      todayCounts: plantTodayCounts,
+      yesterdayCounts: plantYesterdayCounts,
+      activeUsersToday: plantActiveUsersToday,
+      activeUsersYesterday: plantActiveUsersYesterday,
+      trend7: trend7DaysGroup,
+      logUserCountsPeriod: userLogCountsGroup,
+      topMachines: topMachinesGroup
+    } = await loadPlantAggregates(plants.map(p => p.id))
 
     // Ambil 3 log terbaru untuk masing-masing plant secara paralel
+    // (`baseWhere` tanpa filter bulan → daftar "Log Terbaru" per kartu selalu terisi)
     const recent3LogsPerPlant = await Promise.all(
       plants.map(p =>
         prisma.logbook.findMany({
-          where: { ...whereClause, plant_id: p.id },
+          where: { ...baseWhere, ...searchWhere, plant_id: p.id },
           orderBy: [{ task_date: 'desc' }, { start_time: 'desc' }],
           take: 3,
           include: {
@@ -282,7 +445,7 @@ export async function getDashboardOverview(req, res, next) {
         id: pid,
         name: `PLANT ${pid}`,
         fullName: plant.name,
-        code: plant.code,
+        code: String(plant.name).toUpperCase().replace(/\s+/g, '-'),
         status: 'OPERASIONAL',
         color: plantColors[pid] || plantColors[1],
         totalLog,
