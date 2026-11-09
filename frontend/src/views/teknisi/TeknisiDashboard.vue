@@ -306,7 +306,13 @@
           <div
             v-for="machine in displayedMachines"
             :key="machine.id"
-            class="p-3 rounded-lg border border-line bg-muted/20 hover:bg-muted/40 transition flex flex-col justify-between space-y-2 group"
+            role="button"
+            tabindex="0"
+            class="p-3 rounded-lg border border-line bg-muted/20 hover:bg-muted/40 hover:border-primary/40 transition flex flex-col justify-between space-y-2 group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
+            :title="`Buka buku pintar mesin ${machine.name}`"
+            @click="goToMachineHistory(machine)"
+            @keydown.enter.prevent="goToMachineHistory(machine)"
+            @keydown.space.prevent="goToMachineHistory(machine)"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
@@ -496,7 +502,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useLogbookStore } from "../../stores/logbook";
 import { overviewLogbookService } from "../../services/overviewLogbookService";
@@ -512,6 +518,7 @@ import { Cpu, Wrench, Users, Activity } from "lucide-vue-next";
 
 const authStore = useAuthStore();
 const logbookStore = useLogbookStore();
+const router = useRouter();
 
 const loading = ref(false);
 const selectedLog = ref(null);
@@ -578,6 +585,12 @@ const currentTableLogs = computed(() => {
 
 function handleOpenLogDetail(log) {
   selectedLog.value = log;
+}
+
+// F3.4: klik kartu mesin → buka "Buku Pintar Mesin" (riwayat & rekam medis mesin)
+function goToMachineHistory(machine) {
+  if (!machine?.id) return;
+  router.push(`/mesin/${machine.id}`);
 }
 
 // 12 months trend calculated from Line's logs

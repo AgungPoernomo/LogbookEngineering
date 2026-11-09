@@ -8,50 +8,65 @@
 
 ## 📌 Status Saat Ini
 - **Branch Aktif:** `feat/v6-reliability`
-- **Fase Selesai:** Fase 0, Fase 1, Fase 2.
-- **Fase Berjalan:** Fase 3A (UI Form 5 Tombol Besar).
+- **Fase Selesai:** Fase 0, 1, 2, 3.1, 3.3, 3.4.
+- **Fase Berjalan:** Fase 4 (Persiapan Supervisor Dashboard).
 - **Status Test:** Backend 59/59 Lulus, Frontend 14/14 Lulus.
+- **⚠️ Catatan Penting Backend:** Ada bug library `path-to-regexp` di `node_modules` lokal. Jalankan `npm install` di folder `backend` jika route API >1 segmen error 404.
 
 ---
 
 ## ✅ FASE 0 — Recon & Baseline (SELESAI)
 - Baseline test awal: 34 backend, 9 frontend lulus.
-- `machines.plant_id` sudah ada (nullable).
-- `machine.code` tidak ada di database (hanya di UI).
+- `machines.plant_id` sudah ada (nullable). `machine.code` tidak ada.
 - Masalah Node v24 lokal: script test diubah menjadi `node --test "test/**/*.test.js"`.
 - Branch git dibuat: `feat/v6-reliability`.
 
 ## ✅ FASE 1 — Hotfix Black Box & Stabilitas (SELESAI)
-- **13 Bug diperbaiki:** (Scope approval SPV per-Line, validasi waktu, anti multi-submit, hapus draft, pagination/filter tabel, dll).
+- **13 Bug diperbaiki** (Scope approval SPV, validasi waktu, anti multi-submit, dll).
 - **Stabilitas Jaringan:** `masterStore.js` menerapkan Stale-While-Revalidate (cache `localStorage`).
-- **Standarisasi SweetAlert2:** Menghapus banner error merah inline di 8 file Vue (termasuk `LogbookForm.vue`). Semua validasi & konfirmasi kini menggunakan pop-up SweetAlert.
-- **P1 (Bukan Alat HR):** Menghapus Leaderboard, Ranking, dan indikator "Hari Tanpa Log".
-- **Label:** Mengubah semua teks "Plant" menjadi "Line".
+- **Standarisasi SweetAlert2:** Menghapus banner error inline (semua pakai pop-up).
+- **P1:** Menghapus Leaderboard, Ranking, "Hari Tanpa Log". Ubah "Plant" jadi "Line".
 - **Test:** Backend 42/42 Lulus, Frontend 14/14 Lulus.
 
 ## ✅ FASE 2 — Migrasi Database (SELESAI)
-- **Schema Prisma:** Menambahkan 6 enum baru (`ActivityCategory`, `MachineEndStatus`, dll), 3 model baru (`FailureCode`, `Sparepart`, `LogbookSparepart`), dan kolom baru di `Logbook`, `User`, `Machine`. Semua aditif (tidak menghapus data lama).
-- **Controller:** `logbookController.js` diperbarui untuk menerima payload baru, memvalidasi per kategori (tabel 4.3), dan menurunkan `maintenance_type` (tabel 4.2).
-- **Seed:** 12 FailureCode (ISO 14224) dan 10 Sparepart awal berhasil dimasukkan.
-- **Migrasi DB:** Menggunakan `npx prisma db push` (bukan `migrate dev` karena menghindari reset database).
-- **Test:** Backend 59/59 Lulus (termasuk 17 test baru untuk validasi kategori).
+- **Schema Prisma:** 6 enum baru (`ActivityCategory`, `MachineEndStatus`, dll), 3 model baru (`FailureCode`, `Sparepart`, `LogbookSparepart`).
+- **Controller:** `logbookController.js` validasi per kategori (tabel 4.3) & turunkan `maintenance_type` (tabel 4.2).
+- **Seed:** 12 FailureCode (ISO 14224) dan 10 Sparepart awal.
+- **Migrasi DB:** Menggunakan `npx prisma db push` (tanpa reset).
+- **Test:** Backend 59/59 Lulus (17 test validasi kategori).
 
 ---
 
-## 🚀 FASE 3 — Pengalaman Teknisi (SEDANG BERJALAN)
-Fase ini adalah perubahan fundamental dari *Supervisor-oriented* menjadi *Teknisi-oriented*.
+## 🚀 FASE 3 — Pengalaman Teknisi (SELESAI)
 
-### F3.1 Form Input Adaptif (5 Tombol Besar) - [PROSES]
-- Target file: `frontend/src/views/teknisi/InputLogbookView.vue`.
-- Menambahkan 5 tombol: 🔧 MACHINE_TROUBLE, 🛡️ PREVENTIVE_PM, 🛒 KERETA_TRAY_REPAIR, ⚡ FABRICATION_PROJECT, 📋 SUPPORT_NON_MACHINE.
-- Form menyesuaikan kategori (sembunyikan mesin jika NON_MACHINE, tampilkan qty jika KERETA, tampilkan status akhir & downtime jika TROUBLE).
+### ✅ F3.1 Form Input Adaptif (5 Tombol Besar) - [SELESAI]
+- `InputLogbookView.vue` dirombak menjadi 5 tombol besar (🔧, 🛡️, 🛒, ⚡, 📋).
+- Form adaptif (sembunyikan mesin jika NON_MACHINE, dll).
 
-### F3.2 Quick-start & QR [BELUM]
-### F3.3 Papan Serah-Terima Shift [BELUM]
-### F3.4 Riwayat Mesin [BELUM]
+### ⏸️ F3.2 Quick-start & QR - [DITUNDA]
+- Menunggu stiker fisik QR Code dicetak.
+
+### ✅ F3.3 Papan Serah-Terima Shift (Handover Board) - [SELESAI]
+- **Tujuan:** Menggantikan slot Leaderboard di Dashboard Teknisi.
+- **Backend:** `handoverController.js` (Dedup log terbaru per mesin, filter `WAITING_SPAREPART` & `TEMPORARY_FIX`, sort criticality). Route: `GET /api/v1/handover`.
+- **Frontend:** `HandoverBoard.vue` (Papan UI dengan filter & modal detail). 
+- **Bugfix Sampingan:** 
+  1. Fix token Service (pakai Pinia).
+  2. Fix layout Grid (tinggi `StatisticsChartCard` disamakan jadi `min-h-[320px]`).
+  3. Fix data "Teknisi di Line Ini" kosong (Buka *read-only* `GET /users` untuk Teknisi, filter ketat `plant_id` JWT di `userController.js`).
+
+### ✅ F3.4 Riwayat Mesin / Buku Pintar (Machine History) - [SELESAI]
+- **Backend:** `machineHistoryController.js` (Endpoint `GET /api/v1/machines/:id/history`). Optimasi query paralel, hitung statistik dari seluruh periode, filter WIB.
+- **Frontend:** `MachineHistoryView.vue` (821 baris). UI lengkap: Header detail, Statistik downtime, Timeline pagination (Prev/Next), Sidebar Top Failure Codes & Spareparts. Anti-race condition (`requestSeq`).
+- **Integrasi:** Card mesin di `TeknisiDashboard.vue` sekarang bisa diklik menuju `/mesin/:id`.
+
+---
 
 ## 🚀 FASE 4 — Supervisor (BELUM)
+*(Validasi Teknis, Pareto, MTTR/MTBF, Skill Matrix)*
+
 ## 🚀 FASE 5 — Admin (BELUM)
+*(Radar Aset, Master Sparepart, Generator QR)*
 
 ---
 

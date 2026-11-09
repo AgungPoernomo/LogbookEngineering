@@ -14,6 +14,7 @@ import notificationRoutes from './routes/notificationRoutes.js'
 import supervisorRoutes from './routes/supervisorRoutes.js'
 import overviewRoutes from './routes/overviewRoutes.js'
 import handoverRoutes from './routes/handoverRoutes.js'
+import machineRoutes from './routes/machineRoutes.js'
 import { errorHandler } from './middlewares/errorHandler.js'
 import { successResponse, errorResponse } from './utils/response.js'
 
@@ -90,6 +91,7 @@ app.use(`${API_PREFIX}/notifications`, notificationRoutes)
 app.use(`${API_PREFIX}/supervisor`, supervisorRoutes)
 app.use(API_PREFIX, overviewRoutes)
 app.use(API_PREFIX, handoverRoutes)
+app.use(API_PREFIX, machineRoutes)
 
 // 404 Route Handler
 app.use((req, res) => {

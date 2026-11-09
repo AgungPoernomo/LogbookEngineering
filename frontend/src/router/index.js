@@ -95,6 +95,19 @@ const routes = [
     component: () => import('../views/shared/ProfileView.vue'),
     meta: { roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Profil Akun' }
   },
+  {
+    // F3.4 "Buku Pintar Mesin" — rekam medis detail per mesin (timeline, statistik, top failure & part).
+    // `requiresAuth: true` eksplisit; `roles` membuat guard RBAC bawaan hanya mengizinkan user terautentikasi
+    // (endpoint backend sendiri membatasi Teknisi/Supervisor ke plant-nya).
+    path: '/mesin/:id',
+    name: 'machine-history',
+    component: () => import('../views/shared/MachineHistoryView.vue'),
+    meta: {
+      requiresAuth: true,
+      roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN],
+      title: 'Buku Pintar Mesin'
+    }
+  },
   // Backward redirects for old routes
   {
     path: '/log/input',
