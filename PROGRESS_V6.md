@@ -99,8 +99,106 @@
 
 ---
 
-## 🚀 FASE 5 — Admin (SEDANG BERJALAN)
-*(Radar Aset Belum Terdaftar, Master Sparepart, Generator QR)*
+## ✅ FASE 5 — Admin (SELESAI)
+
+### ✅ F5.1 Radar Aset Belum Terdaftar - [SELESAI]
+- **Backend:** `adminUnmappedAssetController.js` — grouping logbook dengan `unmapped_asset_note`, `PROMOTE_UNMAPPED_ASSET` transaction (create machine + update logbooks + audit trail).
+- **Frontend:** `UnmappedAssetsView.vue` + `/admin/unmapped-assets`. Modal "Jadikan Mesin Baru" dengan pre-fill dari baris.
+- **Bug Fixed:** `B_GENERAL` → `B_ESSENTIAL` (typo enum AI Agent).
+- **Test:** 11 unit test (`adminUnmappedAsset.test.js`).
+
+### ✅ F5.2 Master Sparepart - [SELESAI]
+- **Backend:** `masterController.js` + `case 'spareparts'` (GET/POST/PUT/DELETE). Soft delete (`is_active=false`). Pure function `buildSparepartPayload` + `buildSparepartWhere` + `mapSparepart`.
+- **Frontend:** `MasterSparepartView.vue` + `/admin/spareparts`. Filter tab Tipe (MACHINE_PART / CONSUMABLE_WORKSHOP), search debounce, modal CRUD.
+- **Test:** 17 unit test (`masterSparepart.test.js`).
+
+### ✅ F5.3 QR Generator - [SELESAI]
+- **Backend:** `qrcode` package (pure JS, no native binding). Endpoint `GET /machines/:id/qr` (PNG blob), `GET /machines/:id/qr-data` (JSON info), `GET /machines/qr-batch` (batch data, max 200).
+- **Frontend:** `MachineQrModal.vue` (single QR), `MachineQRPrintView.vue` (batch print A4, 3 kolom), `machineQrService.js` (fetch as blob + cache Pinia), `qrPrint.js` (utility HTML print).
+- **Deteksi Bug Kritis:** `<img src>` tidak bisa kirim `Authorization` header → fetch sebagai blob + `URL.createObjectURL()`.
+- **Test:** 13 unit test (`machineQr.test.js`).
+
+### 🚨 BUG-015 — TDZ di InputLogbookView (FASE 6)
+- `filteredMachines` diakses di `applyQuickStartQuery` (line 920) sebelum dideklarasi (line 1100+). Ini penyebab halaman `/logbook/input?machine=1` **blank** (hanya sidebar).
+- **Fix:** Reorder — pindahkan deklarasi `filteredMachines` ke atas `applyQuickStartQuery`.
+
+---
+
+## ✅ FASE 6 — Hardening (SESI 1 & 2 SELESAI, SESI 3-4 BERJALAN)
+
+### ✅ F6-H1 Catat Logbook dari Buku Pintar - [SELESAI]
+- **Frontend:** `MachineHistoryView.vue` + tombol "Catat Logbook untuk Mesin Ini" (khusus Teknisi). `InputLogbookView.vue` handler `?machine=&sub=&task_type=` dengan state machine (`empty|invalid|applied|denied|unknown|pending`).
+- **Helper:** `logbookQuickStart.js` + 20 unit test. Kontrak query terdokumentasi, bukan tersembunyi di view.
+- **Bug Fixed:** TDZ (reorder) + `router.replace` untuk clear query string setelah prefill.
+
+### ✅ F6-H2 RBAC Audit - [SELESAI]
+- **Skrip:** `backend/scripts/rbac-audit.ps1` — 11 test otomatis.
+- **Hasil:** **11/11 PASSED**. Zero kebocoran RBAC di endpoint baru Fase 5.
+- **Kompatibel:** PowerShell 5.1 (Windows default) & 7+.
+
+### ✅ F6-H3 Verifikasi `FRONTEND_URL` - [SELESAI]
+- `backend/.env`: `FRONTEND_URL="http://localhost:5173"`
+- `backend/.env.example`: dokumentasi + komentar untuk production domain.
+- **Fase 7 (Deploy):** WAJIB ubah ke domain Vercel production.
+
+### ✅ F6-S2 UI Polish (3 file, 105 insertions) - [SELESAI]
+- **InputLogbookView:** skeleton draft (loadingDrafts tidak dipakai di template sejak Fase 2.6), mobile flex-col, `clearQuickStart()` setelah "Muat ke Form".
+- **ApprovalListView:** skeleton loading (blank white sebelumnya), empty state kontekstual (search vs status), toggle "Semua Log" visible di HP (sebelumnya `hidden sm:flex` = tidak bisa diakses mobile).
+- **MachineHistoryView:** skeleton 7 kartu (4 stat + 3 KPI, sebelumnya `—`), `shrink-0` di label, judul kondisional error state.
+- **Total:** 55/55 frontend test lulus, build 1.99s.
+
+### ⏳ F6-S3 Dokumentasi - [BERJALAN]
+- Update README, PROGRESS, CHANGELOG.
+
+### ⏳ F6-S4 E2E Test Manual - [BELUM]
+- 4 skenario role: Teknisi → input → approve SPV; Admin → radar → master; Admin → QR → print; SPV → approval → Pareto.
+
+---
+
+## 🚀 FASE 7 — Release & Deployment (BELUM)
+
+- Merge `feat/v6-reliability` → `main`
+- Deploy Frontend ke Vercel
+- Deploy Backend ke Vercel Serverless
+- Setup `FRONTEND_URL` production di Vercel env
+- Smoke test production
+
+---
+
+## 📦 BACKLOG v6.1 (Ditunda dari v6.0)
+
+### 🔴 Prioritas Tinggi (User Feedback)
+- **PWA Foundation** — Request SPV: aplikasi dimohon tidak bergantung internet. Solusi: manifest.json + service worker + "Add to Home Screen". Estimasi: 1-2 hari.
+- **Offline-First Logbook** — IndexedDB + background sync API. Teknisi bisa input 100% offline, sync otomatis saat online. Estimasi: 2-3 hari.
+- **Capacitor APK** (opsional) — Bungkus PWA jadi APK untuk distribusi via Play Store atau file manual. Estimasi: 2 hari.
+
+### 🟡 Prioritas Sedang
+- **Dashboard Skeleton Proper** — TeknisiDashboard, SupervisorDashboard, AdminDashboard saat ini pakai teks "Memuat..." bukan skeleton. Ganti `animate-pulse`.
+- **Token Konsistensi** — Beberapa file masih pakai `amber-*`/`blue-*` (bukan token `text-warning`/`text-primary`). Technical debt, low priority.
+- **`hasLoadedOnce` Reset Logic** — Cek apakah reset saat ganti mesin di MachineHistoryView. Kalau tidak, layout shift saat navigasi.
+- **F5.1 `ASSIGN_TO_EXISTING`** — Promote aset ke mesin existing (bukan cuma create baru). User story: teknisi salah ketik nama mesin, padahal mesinnya sudah ada.
+
+### 🟢 Prioritas Rendah
+- **F3.2 QR Quick-Start** — Menunggu stiker fisik QR Code dicetak.
+- **Performance Audit** — Endpoint `/reliability-analytics` response time jika data tumbuh.
+
+---
+
+## 📊 Status Test Terakhir (9 November 2026)
+
+- **Backend:** **176/176** lulus (`node --test "test/**/*.test.js"`)
+- **Frontend:** **55/55** lulus (`vitest run`)
+- **Build:** **1.99s** (Vite 8.3.4)
+- **RBAC Audit:** **11/11 PASSED** (`scripts/rbac-audit.ps1`)
+
+---
+
+## 📝 Aturan untuk AI Agent Selanjutnya
+1. Baca file ini dan spesifikasi utama (`AGENT_SPEC_Upgrade...`).
+2. Patuhi daftar file LOCKED di Bagian 7.1 spesifikasi.
+3. Jangan ubah schema database lagi (Fase 2 sudah selesai).
+4. Hemat token: Jangan baca seluruh repo. Fokus hanya pada file yang diminta.
+5. **JANGAN merge ke `main`** sampai Fase 7 (Release) dijadwalkan.
 
 ---
 
