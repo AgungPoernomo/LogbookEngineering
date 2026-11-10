@@ -43,3 +43,8 @@ Thumbs.db
 AGENT_SPEC_Upgrade_Engineer_Logbook_Satoria_v6.md
 .clineignore
 
+
+# Dokumentasi kerja lokal
+Temuan/
+context_*.md
+struktur.md
