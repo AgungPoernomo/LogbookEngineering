@@ -8,13 +8,26 @@
         <p class="text-xs text-ink-2 mt-0.5">Kelola data registrasi mesin utama dan komponen sub-mesin / suku cadang terpasang per plant.</p>
       </div>
 
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs sm:text-sm transition shadow-card"
-        @click="openAddModal"
-      >
-        <span>+ Tambah {{ currentTab === 'machines' ? 'Mesin Utama' : 'Sub-Mesin' }}</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="currentTab === 'machines'"
+          type="button"
+          class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-line bg-surface text-ink hover:bg-muted font-medium text-xs sm:text-sm transition shadow-card"
+          title="Cetak label QR semua mesin per Line"
+          @click="openBatchQrPrint"
+        >
+          <Grid3x3 class="w-4 h-4" />
+          <span>Cetak QR per Line</span>
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs sm:text-sm transition shadow-card"
+          @click="openAddModal"
+        >
+          <span>+ Tambah {{ currentTab === 'machines' ? 'Mesin Utama' : 'Sub-Mesin' }}</span>
+        </button>
+      </div>
     </div>
 
     <!-- F1.2: Indikator data offline (cache lokal) -->
@@ -170,6 +183,15 @@
               </td>
               <td class="px-4 py-3 text-right whitespace-nowrap">
                 <div class="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    class="h-7 w-7 rounded-md border border-line bg-surface text-ink-2 hover:bg-primary-soft hover:text-primary inline-flex items-center justify-center transition"
+                    :aria-label="`QR Code mesin ${machine.name}`"
+                    title="QR Code mesin (Buku Pintar Mesin)"
+                    @click="openQrModal(machine)"
+                  >
+                    <QrCode class="w-3.5 h-3.5" />
+                  </button>
                   <button
                     type="button"
                     class="h-7 px-2.5 rounded-md text-xs font-medium border border-line bg-surface text-ink hover:bg-muted transition"
@@ -388,16 +410,27 @@
         </div>
       </form>
     </AppModal>
+
+    <!-- FASE 5.3 — Modal QR Code Mesin (preview, unduh PNG, cetak, cetak batch) -->
+    <MachineQrModal
+      :is-open="isQrModalOpen"
+      :machine="qrMachine"
+      @close="isQrModalOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { QrCode, Grid3x3 } from 'lucide-vue-next'
 import { useMasterStore } from '../../stores/master'
 import { alert } from '../../utils/alert'
 import AppModal from '../../components/common/AppModal.vue'
+import MachineQrModal from '../../components/admin/MachineQrModal.vue'
 
 const masterStore = useMasterStore()
+const router = useRouter()
 
 // BUG-005 (MST-02/03): cegah multi-submit (double click)
 const isSubmitting = ref(false)
@@ -411,6 +444,10 @@ const statusFilter = ref('all')
 const isMachineModalOpen = ref(false)
 const isSubMachineModalOpen = ref(false)
 const editingId = ref(null)
+
+// FASE 5.3 — Modal QR Code Mesin
+const isQrModalOpen = ref(false)
+const qrMachine = ref(null)
 
 const machineForm = ref({ name: '', plant_id: 1 })
 const subMachineForm = ref({ name: '', machine_id: 1 })
@@ -511,6 +548,19 @@ function viewMachineSubMachines(machineId) {
   if (m) {
     plantFilter.value = m.plant_id
   }
+}
+
+// FASE 5.3 — Buka modal QR Code mesin (preview + unduh PNG + cetak).
+function openQrModal(machine) {
+  qrMachine.value = machine
+  isQrModalOpen.value = true
+}
+
+// FASE 5.3 — Buka halaman cetak batch QR untuk Line yang sedang difilter.
+// Tanpa filter Line → arahkan ke halaman cetak agar Admin memilih Line di sana.
+function openBatchQrPrint() {
+  const query = plantFilter.value !== 'all' ? { plant_id: plantFilter.value } : {}
+  router.push({ name: 'admin-machines-qr-print', query })
 }
 
 function openAddModal() {

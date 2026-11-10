@@ -82,6 +82,14 @@ const routes = [
     meta: { roles: [ROLES.ADMIN], title: 'Master Mesin & Sub-Mesin' }
   },
   {
+    // FASE 5.3 — Cetak batch label QR per Line (grid kartu QR + @media print).
+    // Generator QR disiapkan sekarang walau stiker QR fisik menyusul (Fase 3.2).
+    path: '/admin/machines/qr-print',
+    name: 'admin-machines-qr-print',
+    component: () => import('../views/admin/MachineQRPrintView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Cetak QR Code Mesin' }
+  },
+  {
     // FASE 5.2 — Master Sparepart (katalog MACHINE_PART & CONSUMABLE_WORKSHOP).
     path: '/admin/spareparts',
     name: 'admin-spareparts',
