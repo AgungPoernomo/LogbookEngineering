@@ -18,7 +18,7 @@
           <div class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <h1 class="text-base sm:text-lg font-bold text-ink tracking-tight truncate">
-                {{ machine?.name || 'Memuat mesin...' }}
+                {{ machine?.name || (loading ? 'Memuat mesin...' : 'Data mesin tidak tersedia') }}
               </h1>
               <span
                 v-if="machine"
@@ -32,7 +32,7 @@
               <Factory class="w-3.5 h-3.5 text-ink-3 shrink-0" />
               <span class="truncate">{{ machine?.plant_name || '-' }}</span>
               <span class="text-ink-3">•</span>
-              <span class="text-ink-3">{{ machine?.sub_machine_count ?? 0 }} sub-mesin</span>
+              <span class="text-ink-3 shrink-0">{{ machine?.sub_machine_count ?? 0 }} sub-mesin</span>
             </div>
             <p class="text-[11px] text-ink-3 mt-1">
               Buku Pintar Mesin — rekam medis perbaikan &amp; riwayat logbook mesin ini.
@@ -136,6 +136,35 @@
     </div>
 
     <template v-else>
+      <!-- ======================================================== -->
+      <!-- Fase 6: Loading Skeleton ringkasan (stats + KPI)           -->
+      <!-- Menggantikan angka '—' agar tidak ada layout shift di HP   -->
+      <!-- ======================================================== -->
+      <div v-if="loading && !hasLoadedOnce" class="space-y-4 animate-pulse" aria-busy="true">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div
+            v-for="n in 4"
+            :key="`sk-stat-${n}`"
+            class="bg-surface rounded-lg shadow-card border border-line p-3.5 space-y-2 h-[92px]"
+          >
+            <div class="h-3 bg-muted rounded w-2/3" />
+            <div class="h-6 bg-muted rounded w-1/2" />
+            <div class="h-3 bg-muted rounded w-3/4" />
+          </div>
+        </div>
+        <div class="bg-surface rounded-lg shadow-card border border-line p-3.5 space-y-3">
+          <div class="h-4 bg-muted rounded w-1/3" />
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div
+              v-for="n in 3"
+              :key="`sk-kpi-${n}`"
+              class="h-20 bg-muted rounded-md"
+            />
+          </div>
+        </div>
+      </div>
+
+      <template v-else>
       <!-- ======================================================== -->
       <!-- STATISTIK (4 KOTAK)                                       -->
       <!-- ======================================================== -->
@@ -280,6 +309,7 @@
           </div>
         </div>
       </div>
+      </template>
 
       <!-- ======================================================== -->
       <!-- GRID 2 KOLOM: Timeline (kiri) & Sidebar (kanan)           -->
@@ -690,6 +720,9 @@ const authStore = useAuthStore()
 
 // ---- State ----
 const loading = ref(false)
+// Fase 6: true setelah load pertama sukses → skeleton ringkasan hanya untuk
+// muat-awal, sedangkan ganti periode/halaman tetap memakai angka lama (tanpa kedip).
+const hasLoadedOnce = ref(false)
 const errorMessage = ref('')
 const period = ref(DEFAULT_HISTORY_PERIOD)
 const page = ref(1)
@@ -1014,6 +1047,7 @@ async function loadHistory() {
     page.value = data.meta.page
     pageSize.value = data.meta.page_size
     period.value = data.meta.period_days
+    hasLoadedOnce.value = true
   } catch (err) {
     if (seq !== requestSeq) return
     console.error('[MachineHistoryView] gagal memuat riwayat mesin:', err)

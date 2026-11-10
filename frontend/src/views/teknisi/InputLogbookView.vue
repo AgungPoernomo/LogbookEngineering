@@ -351,7 +351,7 @@
                 {{ s.name }} ({{ s.start_time }} - {{ s.end_time }})
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">
+            <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
               Pilih jadwal jam kerja operasional shift.
             </p>
           </div>
@@ -461,7 +461,7 @@
             required
             class="w-full sm:w-56 h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           />
-          <p class="text-[10px] text-ink-3 mt-1">
+          <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
             Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.
           </p>
         </div>
@@ -494,7 +494,7 @@
                 {{ m.name }}
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">
+            <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
               Daftar mesin aktif pada {{ lockedPlantName }}.
             </p>
           </div>
@@ -529,7 +529,7 @@
                 {{ sub.name }}
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">
+            <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
               Bagian komponen mesin yang mengalami kendala/perawatan.
             </p>
           </div>
@@ -550,7 +550,7 @@
             placeholder="Contoh: Bearing SKF 6204-2Z, Seal O-Ring Silikon Ø25mm, Selang Pneumatik 6mm..."
             class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           />
-          <p class="text-[10px] text-ink-3 mt-1">
+          <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
             Tuliskan spesifikasi part, ukuran, nomor seri, atau material jika
             ada penggantian.
           </p>
@@ -753,9 +753,10 @@
           </div>
         </div>
 
-        <!-- Tombol Aksi Formulir (Draft, Submit, Reset) -->
+        <!-- Tombol Aksi Formulir (Draft, Submit, Reset)
+             Fase 6 (mobile 360px): aksi menumpuk vertikal agar tidak berhimpitan -->
         <div
-          class="pt-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3"
+          class="pt-4 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3"
         >
           <button
             type="button"
@@ -765,7 +766,7 @@
             Bersihkan Formulir
           </button>
 
-          <div class="flex items-center gap-2.5 w-full sm:w-auto">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
             <button
               type="button"
               :disabled="submitting"
@@ -830,8 +831,18 @@
         </div>
       </div>
 
+      <!-- Fase 6: Loading Skeleton saat draft sedang diambil (bukan empty state palsu) -->
+      <div
+        v-if="loadingDrafts && draftLogs.length === 0"
+        class="p-4 sm:p-5 animate-pulse space-y-3"
+      >
+        <div class="h-4 bg-muted rounded w-3/4" />
+        <div class="h-4 bg-muted rounded w-1/2" />
+        <div class="h-14 bg-muted rounded-md" />
+      </div>
+
       <!-- Body: Empty State jika tidak ada draft -->
-      <div v-if="draftLogs.length === 0" class="p-8 sm:p-12 text-center">
+      <div v-else-if="draftLogs.length === 0" class="p-8 sm:p-12 text-center">
         <div
           class="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-ink-3"
         >
@@ -899,8 +910,8 @@
 
               <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="font-semibold text-ink flex items-center gap-1">
-                  <Cpu class="w-3.5 h-3.5 text-primary" />
-                  {{ draft.machine_name }}
+                  <Cpu class="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span class="break-words min-w-0">{{ draft.machine_name }}</span>
                 </span>
                 <span
                   v-if="
@@ -1912,6 +1923,9 @@ async function handleDeleteDraft(draft) {
 function handleLoadDraftToForm(draft) {
   // BUG-007 (LOG-09): isi hanya mesin, sub-mesin, sparepart, dan uraian.
   // Tanggal & jam TIDAK ditimpa agar tidak mengubah konteks input yang sedang aktif.
+  // Fase 6: penanda pre-fill dilepas agar banner "Diisi otomatis" tidak menyesatkan
+  // (mesin kini berasal dari draft yang dipilih teknisi, bukan dari tautan).
+  clearQuickStart();
   form.machine_id = draft.machine_id;
   form.sub_machine_id = draft.sub_machine_id || null;
   form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";

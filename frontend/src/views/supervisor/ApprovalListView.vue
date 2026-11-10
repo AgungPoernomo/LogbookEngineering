@@ -92,9 +92,10 @@
           </svg>
         </div>
 
-        <!-- Mode Toggle (Per Teknisi vs Semua Logbook) -->
+        <!-- Mode Toggle (Per Teknisi vs Semua Logbook)
+             Fase 6: tampil juga di HP agar tampilan "Semua Log" tetap bisa dipilih -->
         <div
-          class="hidden sm:flex items-center bg-muted border border-line rounded-md p-0.5"
+          class="flex items-center bg-muted border border-line rounded-md p-0.5 shrink-0"
         >
           <button
             type="button"
@@ -127,9 +128,29 @@
     </div>
 
     <!-- ======================================================== -->
+    <!-- Fase 6: Loading Skeleton (jangan blank / empty state palsu) -->
+    <!-- ======================================================== -->
+    <div v-if="logbookStore.loading" class="space-y-3.5" aria-busy="true">
+      <div
+        v-for="n in 3"
+        :key="`sk-tech-${n}`"
+        class="bg-surface rounded-lg shadow-card border border-line p-4 sm:p-5 animate-pulse"
+      >
+        <div class="flex items-center gap-3.5">
+          <div class="w-9 h-9 rounded-full bg-muted shrink-0" />
+          <div class="flex-1 space-y-2 min-w-0">
+            <div class="h-4 bg-muted rounded w-3/4" />
+            <div class="h-4 bg-muted rounded w-1/2" />
+          </div>
+          <div class="hidden sm:block w-28 h-8 bg-muted rounded-md shrink-0" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
     <!-- TAMPILAN 1: Approval Berdasarkan User (Teknisi)            -->
     <!-- ======================================================== -->
-    <div v-if="viewMode === 'technician'" class="space-y-3.5">
+    <div v-else-if="viewMode === 'technician'" class="space-y-3.5">
       <!-- Empty State -->
       <div
         v-if="filteredTechnicians.length === 0"
@@ -153,9 +174,11 @@
         </div>
         <div class="text-xs text-ink-2 mt-0.5">
           {{
-            selectedFilter === LOG_STATUS.PENDING
-              ? "Seluruh logbook teknisi telah diproses dengan baik."
-              : "Tidak ada riwayat pada kriteria ini."
+            searchQuery.trim()
+              ? "Tidak ada teknisi yang cocok dengan kata kunci pencarian."
+              : selectedFilter === LOG_STATUS.PENDING
+                ? "Seluruh logbook teknisi telah diproses dengan baik."
+                : "Tidak ada riwayat pada kriteria ini."
           }}
         </div>
       </div>
@@ -496,8 +519,20 @@
           </thead>
           <tbody class="divide-y divide-line text-ink">
             <tr v-if="filteredLogs.length === 0">
-              <td colspan="6" class="px-4 py-12 text-center text-ink-3 text-xs">
-                Tidak ada data logbook yang sesuai dengan filter.
+              <td colspan="6" class="px-4 py-10 text-center">
+                <Inbox class="w-10 h-10 mx-auto mb-2 text-ink-3 opacity-60" />
+                <div class="text-sm font-semibold text-ink">
+                  Belum ada data logbook
+                </div>
+                <div class="text-xs text-ink-2 mt-0.5">
+                  {{
+                    searchQuery.trim()
+                      ? "Tidak ada logbook yang cocok dengan kata kunci pencarian."
+                      : selectedFilter === LOG_STATUS.PENDING
+                        ? "Seluruh logbook teknisi telah diproses dengan baik."
+                        : "Tidak ada logbook pada status ini untuk periode saat ini."
+                  }}
+                </div>
               </td>
             </tr>
             <tr
@@ -765,6 +800,7 @@ import { useLogbookStore } from "../../stores/logbook";
 import { LOG_STATUS } from "../../constants/logStatus";
 import { formatDuration } from "../../utils/duration";
 import { alert } from "../../utils/alert";
+import { Inbox } from "lucide-vue-next";
 import AppBadge from "../../components/common/AppBadge.vue";
 import AppModal from "../../components/common/AppModal.vue";
 import Avatar from "../../components/common/Avatar.vue";
