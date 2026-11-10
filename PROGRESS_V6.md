@@ -87,6 +87,14 @@
 - **Backend:** Controller baru `reliabilityAnalyticsController.js` + Service baru `reliabilityAnalyticsService.js`. Menggunakan `groupBy` Prisma murni (tanpa raw SQL) untuk menghitung Pareto Mesin, Pareto Kode Kerusakan, dan Skill Matrix. Dilengkapi 24 test.
 - **Frontend:** Halaman baru `ReliabilityAnalyticsView.vue` + menu Sidebar. 
 - **Visualisasi:** Komponen baru `ParetoChart.vue` (Bar + Line Kumulatif) menggunakan Chart.js. Terdaftar secara lokal untuk optimasi bundle.
+
+### ✅ TODO H1 Tombol "Catat Logbook" + Auto-Pre-fill Form - [SELESAI]
+- **Latar:** README 11.5.13 menjanjikan tombol "Catat Logbook untuk mesin ini" di Buku Pintar Mesin, tetapi belum ada di Fase 3.4 → flow "scan QR → Buku Pintar → catat logbook" terputus.
+- **Frontend (`MachineHistoryView.vue`):** tombol primary `SquarePen` "Catat Logbook untuk Mesin Ini" di grup aksi header (sebelah Kembali/periode/refresh). `router.push('/logbook/input?machine=<id>&task_type=MACHINE_TROUBLE')`. Tombol hanya tampil untuk Teknisi (rute `/logbook/input` = `roles: [TEKNISI]`) dan dinonaktifkan selama data mesin belum termuat.
+- **Frontend (`InputLogbookView.vue`):** pre-fill `?machine=&sub=&task_type=` lewat watcher `route.query` yang sudah ada (termasuk `task_type` → `activity_category`), banner "Diisi otomatis dari Buku Pintar Mesin", toast informatif bila param diabaikan (mesin Line lain / ID tak dikenal), dan preselect mesin pertama **tidak** menimpa mesin dari tautan.
+- **Util baru:** `utils/logbookQuickStart.js` (`parseMachineId`, `resolveQueryMachine`, `resolveQuerySubMachine`, `resolveQuickStartCategory`, `isTechnicianRole`, `buildMachineQuickStartRoute`) + `logbookQuickStart.test.js` (20 test).
+- **Verifikasi:** Frontend 55/55 test lulus; `npm run build` sukses.
+
 - **Aturan P1:** Skill Matrix diurutkan abjad (bukan ranking) untuk mencegah *HR-tool*.
 
 ---

@@ -40,8 +40,8 @@
           </div>
         </div>
 
-        <!-- Filter periode + refresh -->
-        <div class="flex items-center gap-2 shrink-0">
+        <!-- Aksi header: filter periode, refresh, dan Catat Logbook -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
           <div class="inline-flex rounded-md p-0.5 bg-muted border border-line text-[11px] font-medium">
             <button
               v-for="opt in periodOptions"
@@ -65,6 +65,27 @@
             @click="loadHistory()"
           >
             <RefreshCw :class="['w-3.5 h-3.5', loading ? 'animate-spin' : '']" />
+          </button>
+
+          <!--
+            TODO H1 — Tombol "Catat Logbook untuk Mesin Ini" (README 11.5.13).
+            Hanya untuk Teknisi: rute /logbook/input difilter `roles: [TEKNISI]`,
+            agar Supervisor/Admin tidak dilempar ke halaman 403.
+          -->
+          <button
+            v-if="canRecordLogbook"
+            type="button"
+            :disabled="!machine"
+            :title="
+              machine
+                ? `Buat logbook baru untuk ${machine.name}`
+                : 'Menunggu data mesin selesai dimuat'
+            "
+            class="h-8 px-3 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold transition shadow-card inline-flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-primary"
+            @click="goToRecordLogbook"
+          >
+            <SquarePen class="w-3.5 h-3.5" />
+            <span>Catat Logbook untuk Mesin Ini</span>
           </button>
         </div>
       </div>
@@ -642,6 +663,7 @@ import {
   Package,
   RefreshCw,
   Repeat,
+  SquarePen,
   TimerOff,
   UserCircle2,
   Wrench
@@ -654,10 +676,17 @@ import {
   DEFAULT_HISTORY_PERIOD,
   DEFAULT_PAGE_SIZE
 } from '../../services/machineHistoryService'
+import {
+  DEFAULT_QUICK_START_CATEGORY,
+  buildMachineQuickStartRoute,
+  isTechnicianRole
+} from '../../utils/logbookQuickStart'
+import { useAuthStore } from '../../stores/auth'
 import { formatDuration } from '../../utils/duration'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
 // ---- State ----
 const loading = ref(false)
@@ -708,6 +737,26 @@ const machineId = computed(() => {
   const id = Number(Array.isArray(raw) ? raw[0] : raw)
   return Number.isInteger(id) && id > 0 ? id : null
 })
+
+// ---- TODO H1: tombol "Catat Logbook untuk Mesin Ini" ----
+// Rute /logbook/input hanya untuk Teknisi, jadi tombol disembunyikan bagi
+// Supervisor/Admin agar tidak berujung halaman 403.
+const canRecordLogbook = computed(() => isTechnicianRole(authStore.role))
+
+/**
+ * Buka form Input Logbook dengan mesin ini sudah terpilih (auto pre-fill).
+ * Kontrak query: `/logbook/input?machine=<id>&task_type=MACHINE_TROUBLE`
+ * (`buildMachineQuickStartRoute` dijaga unit test `utils/logbookQuickStart`).
+ */
+function goToRecordLogbook() {
+  if (!machine.value) return
+
+  router.push(
+    buildMachineQuickStartRoute(machine.value.id || machineId.value, {
+      task_type: DEFAULT_QUICK_START_CATEGORY
+    })
+  )
+}
 
 const periodOptions = HISTORY_PERIOD_OPTIONS.map((days) => ({
   value: days,

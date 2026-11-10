@@ -1000,7 +1000,7 @@ Halaman: `frontend/src/views/shared/MachineHistoryView.vue`, rute `/mesin/:id`. 
 
 | Elemen | Spesifikasi |
 |---|---|
-| Header detail | Nama mesin (`title-page`), Line/Plant + sub-mesin aktif (`caption`, `ink-2`), badge kritikalitas aset (A/B/C), tombol "Kembali" (secondary) dan "Catat Logbook untuk mesin ini" (primary, membawa query `?machine=<id>`) |
+| Header detail | Nama mesin (`title-page`), Line/Plant + sub-mesin aktif (`caption`, `ink-2`), badge kritikalitas aset (A/B/C), tombol "Kembali" (secondary) dan **"Catat Logbook untuk Mesin Ini"** (primary, ikon `SquarePen`) yang membuka `/logbook/input?machine=<id>&task_type=MACHINE_TROUBLE` — form Input Logbook langsung terisi mesin (dan sub-mesin bila `&sub=<id>` ikut dikirim). Tombol hanya dirender untuk peran Teknisi karena rute `/logbook/input` difilter `roles: [TEKNISI]` |
 | Baris statistik | 4 kotak statistik (`radius-md`, border 1 px `line`, padding 14 px): **Total Log** · **Total Downtime** (`danger`) · **Waktu Perbaikan** (`violet`) · **Jumlah Breakdown** (dengan sub-teks "n preventive"). Format ringkas `12j 30m` / `45m`; angka besar `stat-value` tabular-nums |
 | Kiri: Timeline Riwayat | Daftar kronologis terbalik dengan garis vertikal + titik penanda; tiap item: tanggal & jam, chip kategori (`ActivityCategory`), chip aksi cepat, kode kerusakan (`FailureCode`), chip downtime & durasi, daftar sparepart + qty; pagination **Prev / Next** berbasis meta server (`page`, `total_pages`) |
 | Kanan: Sidebar | Kartu **Top Failure Codes** (bar persentase + jumlah kejadian + total downtime) dan kartu **Top Spareparts** (nama part standar, qty total, jumlah pemakaian). Maksimal 5 baris (Top-5) |

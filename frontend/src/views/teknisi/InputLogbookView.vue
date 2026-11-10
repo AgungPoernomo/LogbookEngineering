@@ -10,11 +10,22 @@
     />
 
     <!-- Header Halaman -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-line">
+    <div
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-line"
+    >
       <div>
-        <div class="text-[12px] font-semibold text-primary uppercase tracking-wider">Formulir Logbook Teknisi</div>
-        <h1 class="text-xl sm:text-2xl font-bold text-ink tracking-tight">Input Logbook Harian</h1>
-        <p class="text-xs text-ink-2 mt-0.5">Pencatatan aktivitas pemeliharaan, servis, dan perbaikan mesin operasional Satoria.</p>
+        <div
+          class="text-[12px] font-semibold text-primary uppercase tracking-wider"
+        >
+          Formulir Logbook Teknisi
+        </div>
+        <h1 class="text-xl sm:text-2xl font-bold text-ink tracking-tight">
+          Input Logbook Harian
+        </h1>
+        <p class="text-xs text-ink-2 mt-0.5">
+          Pencatatan aktivitas pemeliharaan, servis, dan perbaikan mesin
+          operasional Satoria.
+        </p>
       </div>
 
       <RouterLink
@@ -27,16 +38,54 @@
 
     <form @submit.prevent="handleSubmit(true)" class="space-y-5">
       <!-- ======================================================== -->
+      <!-- TODO H1: BANNER PRE-FILL DARI BUKU PINTAR MESIN           -->
+      <!-- ======================================================== -->
+      <div
+        v-if="quickStart.machine"
+        class="rounded-lg border border-primary/30 bg-primary-soft p-3 flex items-start gap-2.5"
+      >
+        <Info class="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div class="min-w-0 flex-1 text-[11px] leading-relaxed text-ink-2">
+          <span class="font-bold text-ink"
+            >Diisi otomatis dari Buku Pintar Mesin:</span
+          >
+          <span class="font-semibold text-primary">
+            {{ quickStartMachineName || "Mesin terpilih" }}</span
+          >
+          <span v-if="quickStart.subMachine" class="text-ink-3">
+            (sub-mesin ikut terisi)</span
+          >
+          <span class="text-ink-3">
+            — kategori &amp; mesin boleh diubah bila tidak sesuai.</span
+          >
+        </div>
+        <button
+          type="button"
+          class="text-[10px] font-semibold text-primary hover:underline shrink-0"
+          @click="clearQuickStart"
+        >
+          Sembunyikan
+        </button>
+      </div>
+
+      <!-- ======================================================== -->
       <!-- 0. KATEGORI AKTIVITAS (F3.1: FORM INPUT ADAPTIF 5 TOMBOL) -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+      <div
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4"
+      >
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <span class="text-base leading-none">🗂️</span>
           <div>
-            <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+            <h2
+              class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+            >
               Jenis Pekerjaan Hari Ini
             </h2>
-            <p class="text-[11px] text-ink-3">Pilih satu kategori paling sesuai dengan pekerjaan Anda di lapangan.</p>
+            <p class="text-[11px] text-ink-3">
+              Pilih satu kategori paling sesuai dengan pekerjaan Anda di
+              lapangan.
+            </p>
           </div>
         </div>
 
@@ -50,21 +99,27 @@
               'flex items-start gap-3 p-3.5 rounded-lg border-2 text-left transition w-full',
               selectedCategory === opt.value
                 ? 'border-primary bg-primary-soft ring-1 ring-primary/30 shadow-card'
-                : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40'
+                : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40',
             ]"
             @click="selectCategory(opt.value)"
           >
             <span class="text-2xl leading-none shrink-0">{{ opt.icon }}</span>
             <span class="min-w-0">
-              <span class="block text-xs sm:text-sm font-bold text-ink">{{ opt.label }}</span>
-              <span class="block text-[10px] text-ink-3 leading-snug mt-0.5">{{ opt.sublabel }}</span>
+              <span class="block text-xs sm:text-sm font-bold text-ink">{{
+                opt.label
+              }}</span>
+              <span class="block text-[10px] text-ink-3 leading-snug mt-0.5">{{
+                opt.sublabel
+              }}</span>
             </span>
           </button>
         </div>
 
         <!-- Chip Cepat (Quick Action Tag) sesuai kategori terpilih -->
         <div v-if="categoryConfig.chips.length" class="pt-1">
-          <div class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider mb-1.5">
+          <div
+            class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider mb-1.5"
+          >
             Chip Cepat — wajib pilih satu
           </div>
           <div class="flex flex-wrap gap-2">
@@ -76,7 +131,7 @@
                 'inline-flex items-center h-8 px-3 rounded-full border text-xs font-medium transition',
                 quickActionTag === chip
                   ? 'bg-primary text-white border-primary shadow-sm'
-                  : 'bg-surface text-ink-2 border-line hover:border-primary hover:text-primary'
+                  : 'bg-surface text-ink-2 border-line hover:border-primary hover:text-primary',
               ]"
               @click="quickActionTag = chip"
             >
@@ -89,15 +144,23 @@
       <!-- ======================================================== -->
       <!-- 1. BAGIAN PALING ATAS: TANGGAL MASUK (OTOMATIS SISTEM)   -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 border border-line shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div
+        class="bg-surface rounded-lg p-4 border border-line shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-9 h-9 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0">
+          <div
+            class="w-9 h-9 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0"
+          >
             <Server class="w-5 h-5" />
           </div>
           <div class="min-w-0">
-            <div class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider flex items-center gap-1.5">
+            <div
+              class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider flex items-center gap-1.5"
+            >
               <span>Tanggal Masuk (Sistem / Server)</span>
-              <span class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-status-approved-bg text-status-approved-fg border border-success/20">
+              <span
+                class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-status-approved-bg text-status-approved-fg border border-success/20"
+              >
                 Otomatis
               </span>
             </div>
@@ -107,7 +170,9 @@
           </div>
         </div>
 
-        <div class="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-line text-[11px] text-ink-2">
+        <div
+          class="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-line text-[11px] text-ink-2"
+        >
           <span>Pelaksana: </span>
           <strong class="text-ink font-semibold">{{ currentUserName }}</strong>
           <span class="text-ink-3 font-mono ml-1">({{ currentUserNik }})</span>
@@ -117,29 +182,42 @@
       <!-- ======================================================== -->
       <!-- 2. BAGIAN PALING ATAS: KALENDER INPUT TANGGAL TUGAS      -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-line gap-2">
+      <div
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4"
+      >
+        <div
+          class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-line gap-2"
+        >
           <div class="flex items-center gap-2">
             <CalendarIcon class="w-4 h-4 text-primary shrink-0" />
             <div>
-              <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+              <h2
+                class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+              >
                 1. Tanggal Tugas / Pekerjaan
               </h2>
-              <p class="text-[11px] text-ink-3">Klik salah satu tanggal pada kalender di bawah untuk memilih hari pelaksanaan tugas.</p>
+              <p class="text-[11px] text-ink-3">
+                Klik salah satu tanggal pada kalender di bawah untuk memilih
+                hari pelaksanaan tugas.
+              </p>
             </div>
           </div>
 
           <!-- Lencana Tanggal Terpilih -->
           <div class="flex items-center gap-2">
             <span class="text-xs text-ink-3">Terpilih:</span>
-            <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-primary text-white shadow-sm font-mono">
+            <span
+              class="px-2.5 py-1 rounded-md text-xs font-bold bg-primary text-white shadow-sm font-mono"
+            >
               {{ formattedSelectedDate }}
             </span>
           </div>
         </div>
 
         <!-- Widget Kalender Visual Interaktif -->
-        <div class="bg-muted/40 p-3.5 sm:p-4 rounded-lg border border-line select-none">
+        <div
+          class="bg-muted/40 p-3.5 sm:p-4 rounded-lg border border-line select-none"
+        >
           <!-- Navigasi Bulan & Tahun Kalender -->
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
@@ -207,7 +285,7 @@
                     ? 'border border-primary text-primary font-bold bg-primary-soft/50 hover:bg-primary-soft'
                     : cell.isCurrentMonth
                       ? 'bg-surface hover:bg-muted text-ink border border-line/50 hover:border-line'
-                      : 'bg-surface/50 text-ink-3 hover:bg-muted/60 opacity-60'
+                      : 'bg-surface/50 text-ink-3 hover:bg-muted/60 opacity-60',
               ]"
               @click="selectDate(cell.dateStr)"
             >
@@ -222,7 +300,10 @@
 
         <!-- Input Tanggal Native Fallback / Keyboard -->
         <div class="flex items-center gap-3 pt-1">
-          <label for="native-task-date" class="text-xs text-ink-2 font-medium shrink-0">
+          <label
+            for="native-task-date"
+            class="text-xs text-ink-2 font-medium shrink-0"
+          >
             Atau pilih tanggal langsung:
           </label>
           <input
@@ -238,10 +319,14 @@
       <!-- ======================================================== -->
       <!-- 3. INPUTAN SHIFT, GROUP, DAN PLANT (GROUP & PLANT DILOCK)-->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+      <div
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4"
+      >
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <Clock class="w-4 h-4 text-primary shrink-0" />
-          <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+          <h2
+            class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+          >
             2. Shift, Group & Lokasi Plant
           </h2>
         </div>
@@ -249,7 +334,10 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- Inputan Shift Kerja -->
           <div>
-            <label for="form-shift" class="block text-xs font-semibold text-ink mb-1.5">
+            <label
+              for="form-shift"
+              class="block text-xs font-semibold text-ink mb-1.5"
+            >
               Shift Kerja <span class="text-danger">*</span>
             </label>
             <select
@@ -263,14 +351,21 @@
                 {{ s.name }} ({{ s.start_time }} - {{ s.end_time }})
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">Pilih jadwal jam kerja operasional shift.</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              Pilih jadwal jam kerja operasional shift.
+            </p>
           </div>
 
           <!-- Inputan Group Kerja (DILOCK) -->
           <div>
-            <label for="form-group" class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between">
+            <label
+              for="form-group"
+              class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between"
+            >
               <span>Group / Departemen</span>
-              <span class="text-[10px] font-semibold text-ink-3 flex items-center gap-1">
+              <span
+                class="text-[10px] font-semibold text-ink-3 flex items-center gap-1"
+              >
                 <Lock class="w-3 h-3 text-ink-3" />
                 Terkunci
               </span>
@@ -284,16 +379,25 @@
                 :value="lockedGroupName"
                 class="w-full h-10 px-3 pr-8 rounded-md border border-line bg-muted text-xs font-medium text-ink-2 cursor-not-allowed select-none"
               />
-              <Lock class="w-4 h-4 text-ink-3 absolute right-2.5 top-3 pointer-events-none" />
+              <Lock
+                class="w-4 h-4 text-ink-3 absolute right-2.5 top-3 pointer-events-none"
+              />
             </div>
-            <p class="text-[10px] text-ink-3 mt-1">*Ditetapkan oleh Admin pada akun Anda</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              *Ditetapkan oleh Admin pada akun Anda
+            </p>
           </div>
 
           <!-- Inputan Plant (DILOCK) -->
           <div>
-            <label for="form-plant" class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between">
+            <label
+              for="form-plant"
+              class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between"
+            >
               <span>Lokasi Fasilitas (Plant)</span>
-              <span class="text-[10px] font-semibold text-ink-3 flex items-center gap-1">
+              <span
+                class="text-[10px] font-semibold text-ink-3 flex items-center gap-1"
+              >
                 <Lock class="w-3 h-3 text-ink-3" />
                 Terkunci
               </span>
@@ -307,9 +411,13 @@
                 :value="lockedPlantName"
                 class="w-full h-10 px-3 pr-8 rounded-md border border-line bg-muted text-xs font-medium text-ink-2 cursor-not-allowed select-none"
               />
-              <Lock class="w-4 h-4 text-ink-3 absolute right-2.5 top-3 pointer-events-none" />
+              <Lock
+                class="w-4 h-4 text-ink-3 absolute right-2.5 top-3 pointer-events-none"
+              />
             </div>
-            <p class="text-[10px] text-ink-3 mt-1">*Ditetapkan oleh Admin pada akun Anda</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              *Ditetapkan oleh Admin pada akun Anda
+            </p>
           </div>
         </div>
       </div>
@@ -317,21 +425,32 @@
       <!-- ======================================================== -->
       <!-- 4. INPUTAN AREA PEKERJAAN (ADAPTIF SESUAI KATEGORI F3.1) -->
       <!-- ======================================================== -->
-      <div v-if="!isNonMachineCategory" class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+      <div
+        v-if="!isNonMachineCategory"
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4"
+      >
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <Cpu class="w-4 h-4 text-primary shrink-0" />
-          <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+          <h2
+            class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+          >
             3. Area Pekerjaan & Komponen Mesin
           </h2>
-          <span class="ml-auto text-[10px] font-semibold text-primary bg-primary-soft px-2 py-0.5 rounded-full whitespace-nowrap">
+          <span
+            class="ml-auto text-[10px] font-semibold text-primary bg-primary-soft px-2 py-0.5 rounded-full whitespace-nowrap"
+          >
             {{ categoryConfig.icon }} {{ categoryConfig.label }}
           </span>
         </div>
 
         <!-- KERETA_TRAY_REPAIR: jumlah unit diperbaiki (mesin otomatis = KERETA) -->
         <div v-if="isKeretaCategory">
-          <label for="form-unit-qty" class="block text-xs font-semibold text-ink mb-1.5">
-            Jumlah Unit Kereta / Tray Diperbaiki <span class="text-danger">*</span>
+          <label
+            for="form-unit-qty"
+            class="block text-xs font-semibold text-ink mb-1.5"
+          >
+            Jumlah Unit Kereta / Tray Diperbaiki
+            <span class="text-danger">*</span>
           </label>
           <input
             id="form-unit-qty"
@@ -342,14 +461,20 @@
             required
             class="w-full sm:w-56 h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           />
-          <p class="text-[10px] text-ink-3 mt-1">Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.</p>
+          <p class="text-[10px] text-ink-3 mt-1">
+            Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.
+          </p>
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <!-- Inputan Mesin (Dropdown) -->
           <div>
-            <label for="form-machine" class="block text-xs font-semibold text-ink mb-1.5">
-              Peralatan Mesin <span v-if="isMachineRequired" class="text-danger">*</span>
+            <label
+              for="form-machine"
+              class="block text-xs font-semibold text-ink mb-1.5"
+            >
+              Peralatan Mesin
+              <span v-if="isMachineRequired" class="text-danger">*</span>
             </label>
             <select
               id="form-machine"
@@ -358,18 +483,30 @@
               class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer"
               @change="handleMachineChange"
             >
-              <option :value="null" disabled>{{ isMachineRequired ? '-- Pilih Mesin --' : '-- Tanpa Mesin Spesifik --' }}</option>
+              <option :value="null" disabled>
+                {{
+                  isMachineRequired
+                    ? "-- Pilih Mesin --"
+                    : "-- Tanpa Mesin Spesifik --"
+                }}
+              </option>
               <option v-for="m in filteredMachines" :key="m.id" :value="m.id">
                 {{ m.name }}
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">Daftar mesin aktif pada {{ lockedPlantName }}.</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              Daftar mesin aktif pada {{ lockedPlantName }}.
+            </p>
           </div>
 
           <!-- Inputan Sub-Mesin (Dropdown) -->
           <div>
-            <label for="form-submachine" class="block text-xs font-semibold text-ink mb-1.5">
-              Bagian Mesin (Sub-Mesin) <span v-if="isMachineRequired" class="text-danger">*</span>
+            <label
+              for="form-submachine"
+              class="block text-xs font-semibold text-ink mb-1.5"
+            >
+              Bagian Mesin (Sub-Mesin)
+              <span v-if="isMachineRequired" class="text-danger">*</span>
             </label>
             <select
               id="form-submachine"
@@ -378,19 +515,32 @@
               class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option :value="null">
-                {{ !form.machine_id ? 'Pilih mesin terlebih dahulu' : '-- Tanpa Bagian Spesifik / Mesin Utama --' }}
+                {{
+                  !form.machine_id
+                    ? "Pilih mesin terlebih dahulu"
+                    : "-- Tanpa Bagian Spesifik / Mesin Utama --"
+                }}
               </option>
-              <option v-for="sub in filteredSubMachines" :key="sub.id" :value="sub.id">
+              <option
+                v-for="sub in filteredSubMachines"
+                :key="sub.id"
+                :value="sub.id"
+              >
                 {{ sub.name }}
               </option>
             </select>
-            <p class="text-[10px] text-ink-3 mt-1">Bagian komponen mesin yang mengalami kendala/perawatan.</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              Bagian komponen mesin yang mengalami kendala/perawatan.
+            </p>
           </div>
         </div>
 
         <!-- Inputan Spesifikasi Part (Text) -->
         <div>
-          <label for="form-sparepart" class="block text-xs font-semibold text-ink mb-1.5">
+          <label
+            for="form-sparepart"
+            class="block text-xs font-semibold text-ink mb-1.5"
+          >
             Spesifikasi Part / Suku Cadang Terpasang
           </label>
           <input
@@ -400,14 +550,21 @@
             placeholder="Contoh: Bearing SKF 6204-2Z, Seal O-Ring Silikon Ø25mm, Selang Pneumatik 6mm..."
             class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
           />
-          <p class="text-[10px] text-ink-3 mt-1">Tuliskan spesifikasi part, ukuran, nomor seri, atau material jika ada penggantian.</p>
+          <p class="text-[10px] text-ink-3 mt-1">
+            Tuliskan spesifikasi part, ukuran, nomor seri, atau material jika
+            ada penggantian.
+          </p>
         </div>
 
         <!-- MACHINE_TROUBLE: kondisi akhir mesin + toggle downtime -->
-        <div v-if="isMachineTroubleCategory" class="pt-3 border-t border-line space-y-3">
+        <div
+          v-if="isMachineTroubleCategory"
+          class="pt-3 border-t border-line space-y-3"
+        >
           <div>
             <div class="text-xs font-semibold text-ink mb-2">
-              Bagaimana kondisi mesin sekarang? <span class="text-danger">*</span>
+              Bagaimana kondisi mesin sekarang?
+              <span class="text-danger">*</span>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
@@ -418,24 +575,34 @@
                   'flex items-center gap-2 p-2.5 rounded-lg border-2 text-left transition w-full',
                   form.machine_end_status === st.value
                     ? 'border-primary bg-primary-soft'
-                    : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40'
+                    : 'border-line bg-surface hover:border-primary/50 hover:bg-muted/40',
                 ]"
                 @click="form.machine_end_status = st.value"
               >
-                <span class="text-base leading-none shrink-0">{{ st.icon }}</span>
-                <span class="text-xs font-semibold text-ink">{{ st.label }}</span>
+                <span class="text-base leading-none shrink-0">{{
+                  st.icon
+                }}</span>
+                <span class="text-xs font-semibold text-ink">{{
+                  st.label
+                }}</span>
               </button>
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/40 p-3 rounded-lg border border-line">
-            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+          <div
+            class="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/40 p-3 rounded-lg border border-line"
+          >
+            <label
+              class="inline-flex items-center gap-2 cursor-pointer select-none"
+            >
               <input
                 v-model="form.is_downtime"
                 type="checkbox"
                 class="w-4 h-4 rounded border-line text-primary focus:ring-primary cursor-pointer"
               />
-              <span class="text-xs font-semibold text-ink">Mesin berhenti produksi?</span>
+              <span class="text-xs font-semibold text-ink"
+                >Mesin berhenti produksi?</span
+              >
             </label>
             <div v-if="form.is_downtime" class="flex items-center gap-2">
               <input
@@ -454,17 +621,25 @@
       <!-- ======================================================== -->
       <!-- 5. INPUT DETAIL AKTIVITAS (TEXT / TEXTAREA)              -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-3">
+      <div
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-3"
+      >
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <FileText class="w-4 h-4 text-primary shrink-0" />
-          <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+          <h2
+            class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+          >
             4. Detail Aktivitas & Uraian Pekerjaan
           </h2>
         </div>
 
         <div>
-          <label for="form-activity" class="block text-xs font-semibold text-ink mb-1.5">
-            Uraian Pekerjaan yang Dilaksanakan <span class="text-danger">*</span>
+          <label
+            for="form-activity"
+            class="block text-xs font-semibold text-ink mb-1.5"
+          >
+            Uraian Pekerjaan yang Dilaksanakan
+            <span class="text-danger">*</span>
           </label>
           <textarea
             id="form-activity"
@@ -475,9 +650,20 @@
             placeholder="Jelaskan secara rinci tindakan pekerjaan yang dilakukan, temuan masalah atau kendala teknis di lapangan, tindakan perbaikan, serta kondisi operasional mesin setelah penanganan..."
             class="w-full p-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition leading-relaxed"
           />
-          <div class="flex items-center justify-between text-[10px] text-ink-3 mt-1">
-            <span>Pastikan uraian ditulis secara spesifik untuk memudahkan validasi Supervisor. Maksimal 1000 karakter.</span>
-            <span :class="form.activity_description.length > 1000 ? 'text-danger font-semibold' : ''">
+          <div
+            class="flex items-center justify-between text-[10px] text-ink-3 mt-1"
+          >
+            <span
+              >Pastikan uraian ditulis secara spesifik untuk memudahkan validasi
+              Supervisor. Maksimal 1000 karakter.</span
+            >
+            <span
+              :class="
+                form.activity_description.length > 1000
+                  ? 'text-danger font-semibold'
+                  : ''
+              "
+            >
               {{ form.activity_description.length }}/1000 karakter
             </span>
           </div>
@@ -487,10 +673,14 @@
       <!-- ======================================================== -->
       <!-- 6. BAGIAN PALING BAWAH: WAKTU MULAI, SELESAI, DURASI     -->
       <!-- ======================================================== -->
-      <div class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4">
+      <div
+        class="bg-surface rounded-lg p-4 sm:p-5 border border-line shadow-card space-y-4"
+      >
         <div class="flex items-center gap-2 pb-3 border-b border-line">
           <Timer class="w-4 h-4 text-primary shrink-0" />
-          <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+          <h2
+            class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+          >
             5. Waktu Mulai, Waktu Selesai & Durasi Pekerjaan
           </h2>
         </div>
@@ -498,7 +688,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
           <!-- Waktu Mulai -->
           <div>
-            <label for="form-start-time" class="block text-xs font-semibold text-ink mb-1.5">
+            <label
+              for="form-start-time"
+              class="block text-xs font-semibold text-ink mb-1.5"
+            >
               Waktu Mulai <span class="text-danger">*</span>
             </label>
             <input
@@ -513,7 +706,10 @@
 
           <!-- Waktu Selesai -->
           <div>
-            <label for="form-end-time" class="block text-xs font-semibold text-ink mb-1.5">
+            <label
+              for="form-end-time"
+              class="block text-xs font-semibold text-ink mb-1.5"
+            >
               Waktu Selesai <span class="text-danger">*</span>
             </label>
             <input
@@ -528,26 +724,39 @@
 
           <!-- Durasi Terhitung Otomatis -->
           <div>
-            <label class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between">
+            <label
+              class="block text-xs font-semibold text-ink mb-1.5 flex items-center justify-between"
+            >
               <span>Total Durasi</span>
-              <span class="text-[10px] font-semibold text-success flex items-center gap-1">
+              <span
+                class="text-[10px] font-semibold text-success flex items-center gap-1"
+              >
                 Kalkulasi Otomatis
               </span>
             </label>
-            <div class="h-10 px-3 rounded-md border border-line bg-muted/60 flex items-center justify-between">
+            <div
+              class="h-10 px-3 rounded-md border border-line bg-muted/60 flex items-center justify-between"
+            >
               <span class="text-xs sm:text-sm font-bold font-mono text-primary">
                 {{ durationFormatted }}
               </span>
-              <span v-if="isCrossMidnight" class="text-[9px] font-semibold text-warning bg-amber-50 px-1.5 py-0.5 rounded border border-warning/20">
+              <span
+                v-if="isCrossMidnight"
+                class="text-[9px] font-semibold text-warning bg-amber-50 px-1.5 py-0.5 rounded border border-warning/20"
+              >
                 Lintas Tengah Malam (+24j)
               </span>
             </div>
-            <p class="text-[10px] text-ink-3 mt-1">{{ calculatedMinutes }} menit total pengerjaan.</p>
+            <p class="text-[10px] text-ink-3 mt-1">
+              {{ calculatedMinutes }} menit total pengerjaan.
+            </p>
           </div>
         </div>
 
         <!-- Tombol Aksi Formulir (Draft, Submit, Reset) -->
-        <div class="pt-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div
+          class="pt-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3"
+        >
           <button
             type="button"
             class="w-full sm:w-auto h-9 px-4 rounded-md border border-line bg-surface hover:bg-muted text-ink text-xs font-medium transition"
@@ -572,7 +781,7 @@
               class="w-full sm:w-auto h-10 px-6 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold transition shadow-card flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <Send class="w-3.5 h-3.5" />
-              <span>{{ submitting ? 'Mengirim...' : 'Kirim Logbook' }}</span>
+              <span>{{ submitting ? "Mengirim..." : "Kirim Logbook" }}</span>
             </button>
           </div>
         </div>
@@ -582,16 +791,24 @@
     <!-- ======================================================== -->
     <!-- 7. PENYIMPANAN DATA DRAFT LOGBOOK & KIRIM SEMUA DRAFT    -->
     <!-- ======================================================== -->
-    <div class="bg-surface rounded-lg border border-line shadow-card overflow-hidden">
+    <div
+      class="bg-surface rounded-lg border border-line shadow-card overflow-hidden"
+    >
       <!-- Header Card Draft -->
-      <div class="p-4 sm:p-5 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/20">
+      <div
+        class="p-4 sm:p-5 border-b border-line flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/20"
+      >
         <div class="flex items-start gap-3">
-          <div class="w-9 h-9 rounded-md bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+          <div
+            class="w-9 h-9 rounded-md bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 mt-0.5"
+          >
             <FolderArchive class="w-5 h-5" />
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide">
+              <h2
+                class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wide"
+              >
                 Penyimpanan Data Draft Logbook
               </h2>
               <span
@@ -599,14 +816,15 @@
                   'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border',
                   draftLogs.length > 0
                     ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-muted text-ink-3 border-line'
+                    : 'bg-muted text-ink-3 border-line',
                 ]"
               >
                 {{ draftLogs.length }} Draft Tersimpan
               </span>
             </div>
             <p class="text-xs text-ink-2 mt-0.5">
-              Kumpulan aktivitas pekerjaan yang Anda simpan sebagai draft. Anda dapat menyunting, menghapus, atau mengajukan semuanya sekaligus.
+              Kumpulan aktivitas pekerjaan yang Anda simpan sebagai draft. Anda
+              dapat menyunting, menghapus, atau mengajukan semuanya sekaligus.
             </p>
           </div>
         </div>
@@ -614,25 +832,39 @@
 
       <!-- Body: Empty State jika tidak ada draft -->
       <div v-if="draftLogs.length === 0" class="p-8 sm:p-12 text-center">
-        <div class="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-ink-3">
+        <div
+          class="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3 text-ink-3"
+        >
           <Inbox class="w-6 h-6" />
         </div>
-        <h3 class="text-xs sm:text-sm font-semibold text-ink">Belum Ada Draft Tersimpan</h3>
+        <h3 class="text-xs sm:text-sm font-semibold text-ink">
+          Belum Ada Draft Tersimpan
+        </h3>
         <p class="text-xs text-ink-3 max-w-md mx-auto mt-1 leading-relaxed">
-          Data logbook yang Anda simpan dengan tombol <span class="font-semibold text-ink">"Simpan sebagai Draft"</span> pada formulir di atas akan ditampung di sini sebelum diajukan secara bersamaan.
+          Data logbook yang Anda simpan dengan tombol
+          <span class="font-semibold text-ink">"Simpan sebagai Draft"</span>
+          pada formulir di atas akan ditampung di sini sebelum diajukan secara
+          bersamaan.
         </p>
       </div>
 
       <!-- Body: Daftar Draft jika ada -->
       <div v-else class="divide-y divide-line">
         <!-- Sub-toolbar ringkasan -->
-        <div class="px-4 py-2.5 bg-muted/40 text-[11px] text-ink-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line">
+        <div
+          class="px-4 py-2.5 bg-muted/40 text-[11px] text-ink-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line"
+        >
           <div class="flex items-center gap-2">
             <span class="font-medium">Total Akumulasi Durasi Draft:</span>
-            <span class="font-bold text-primary font-mono">{{ totalDraftDurationFormatted }}</span>
+            <span class="font-bold text-primary font-mono">{{
+              totalDraftDurationFormatted
+            }}</span>
             <span>({{ totalDraftMinutes }} menit)</span>
           </div>
-          <span class="text-ink-3 text-[10px]">Periksa kembali sebelum mengirim seluruh pengajuan ke Supervisor</span>
+          <span class="text-ink-3 text-[10px]"
+            >Periksa kembali sebelum mengirim seluruh pengajuan ke
+            Supervisor</span
+          >
         </div>
 
         <!-- List Kartu Item Draft -->
@@ -648,14 +880,20 @@
                 <span class="text-xs font-bold text-ink">
                   {{ draft.task_date }}
                 </span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-ink-2">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-ink-2"
+                >
                   {{ draft.shift_name }}
                 </span>
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary-soft text-primary">
+                <span
+                  class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary-soft text-primary"
+                >
                   {{ draft.plant_name }}
                 </span>
                 <span class="text-[11px] text-ink-3 font-mono">
-                  {{ draft.start_time }} - {{ draft.end_time }} ({{ formatDuration(draft.duration_minutes) }})
+                  {{ draft.start_time }} - {{ draft.end_time }} ({{
+                    formatDuration(draft.duration_minutes)
+                  }})
                 </span>
               </div>
 
@@ -664,21 +902,33 @@
                   <Cpu class="w-3.5 h-3.5 text-primary" />
                   {{ draft.machine_name }}
                 </span>
-                <span v-if="draft.sub_machine_name && draft.sub_machine_name !== '-'" class="text-ink-2">
+                <span
+                  v-if="
+                    draft.sub_machine_name && draft.sub_machine_name !== '-'
+                  "
+                  class="text-ink-2"
+                >
                   • {{ draft.sub_machine_name }}
                 </span>
-                <span v-if="draft.sparepart && draft.sparepart !== '-'" class="text-ink-3 text-[11px]">
+                <span
+                  v-if="draft.sparepart && draft.sparepart !== '-'"
+                  class="text-ink-3 text-[11px]"
+                >
                   (Part: {{ draft.sparepart }})
                 </span>
               </div>
 
-              <p class="text-xs text-ink-2 line-clamp-2 leading-relaxed bg-muted/40 p-2.5 rounded border border-line/60">
+              <p
+                class="text-xs text-ink-2 line-clamp-2 leading-relaxed bg-muted/40 p-2.5 rounded border border-line/60"
+              >
                 {{ draft.activity_description }}
               </p>
             </div>
 
             <!-- Aksi per Item Draft -->
-            <div class="flex items-center gap-2 shrink-0 self-end lg:self-center">
+            <div
+              class="flex items-center gap-2 shrink-0 self-end lg:self-center"
+            >
               <button
                 type="button"
                 title="Muat data ini kembali ke formulir utama di atas"
@@ -712,9 +962,13 @@
         </div>
 
         <!-- Footer Bawah Card Draft: Kirim Semua Draft -->
-        <div class="p-4 bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-line">
+        <div
+          class="p-4 bg-surface flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-line"
+        >
           <div class="text-xs text-ink-2">
-            Ada <span class="font-bold text-ink">{{ draftLogs.length }} draft</span> siap untuk dikirimkan.
+            Ada
+            <span class="font-bold text-ink">{{ draftLogs.length }} draft</span>
+            siap untuk dikirimkan.
           </div>
 
           <button
@@ -724,11 +978,31 @@
             @click="handleSubmitAllDrafts"
           >
             <CheckCheck v-if="!submittingAllDrafts" class="w-4 h-4" />
-            <svg v-else class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            <svg
+              v-else
+              class="animate-spin h-3.5 w-3.5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              ></path>
             </svg>
-            <span>{{ submittingAllDrafts ? 'Mengajukan Semua...' : `Kirim Semua Draft (${draftLogs.length})` }}</span>
+            <span>{{
+              submittingAllDrafts
+                ? "Mengajukan Semua..."
+                : `Kirim Semua Draft (${draftLogs.length})`
+            }}</span>
           </button>
         </div>
       </div>
@@ -737,16 +1011,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/auth'
-import { useMasterStore } from '../../stores/master'
-import { logbookService } from '../../services/logbookService'
-import { LOG_STATUS } from '../../constants/logStatus'
-import { calculateDurationMinutes, formatDuration } from '../../utils/duration'
-import { toLocalDateString, parseLocalDate } from '../../utils/dateKeys'
-import { validateLogbookTimeRange } from '../../utils/timeValidation'
-import { alert } from '../../utils/alert'
+import { ref, reactive, computed, onMounted, watch } from "vue";
+import { RouterLink, useRoute, useRouter } from "vue-router";
+import { useAuthStore } from "../../stores/auth";
+import { useMasterStore } from "../../stores/master";
+import { logbookService } from "../../services/logbookService";
+import { LOG_STATUS } from "../../constants/logStatus";
+import { calculateDurationMinutes, formatDuration } from "../../utils/duration";
+import { toLocalDateString, parseLocalDate } from "../../utils/dateKeys";
+import { validateLogbookTimeRange } from "../../utils/timeValidation";
+import {
+  isTechnicianRole,
+  resolveQueryMachine,
+  resolveQuerySubMachine,
+  resolveQuickStartCategory,
+} from "../../utils/logbookQuickStart";
+import { alert } from "../../utils/alert";
 
 import {
   Server,
@@ -762,73 +1042,91 @@ import {
   FolderArchive,
   CheckCheck,
   Inbox,
+  Info,
   Trash2,
-  Edit3
-} from 'lucide-vue-next'
-import Toast from '../../components/common/Toast.vue'
+  Edit3,
+} from "lucide-vue-next";
+import Toast from "../../components/common/Toast.vue";
 
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
-const masterStore = useMasterStore()
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
+const masterStore = useMasterStore();
 
-const submitting = ref(false)
+const submitting = ref(false);
 
 const toast = reactive({
   show: false,
-  type: 'success',
-  title: '',
-  message: ''
-})
+  type: "success",
+  title: "",
+  message: "",
+});
 
 function showToast(type, title, message) {
-  toast.type = type
-  toast.title = title
-  toast.message = message
-  toast.show = true
+  toast.type = type;
+  toast.title = title;
+  toast.message = message;
+  toast.show = true;
   setTimeout(() => {
-    toast.show = false
-  }, 4000)
+    toast.show = false;
+  }, 4000);
 }
 
 // 1. Tanggal Masuk Otomatis Server
-const now = new Date()
+const now = new Date();
 const serverEntryTimestamp = computed(() => {
-  const d = new Date()
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-  const dayName = days[d.getDay()]
-  const dateNum = d.getDate()
-  const monthName = months[d.getMonth()]
-  const year = d.getFullYear()
-  const hours = String(d.getHours()).padStart(2, '0')
-  const mins = String(d.getMinutes()).padStart(2, '0')
+  const d = new Date();
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  const months = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
+  const dayName = days[d.getDay()];
+  const dateNum = d.getDate();
+  const monthName = months[d.getMonth()];
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
 
-  return `${dayName}, ${dateNum} ${monthName} ${year} • ${hours}:${mins} WIB`
-})
+  return `${dayName}, ${dateNum} ${monthName} ${year} • ${hours}:${mins} WIB`;
+});
 
 // Current User Info
-const currentUserName = computed(() => authStore.user?.full_name || 'Teknisi Satoria')
-const currentUserNik = computed(() => authStore.user?.nik || 'TKN-001')
+const currentUserName = computed(
+  () => authStore.user?.full_name || "Teknisi Satoria",
+);
+const currentUserNik = computed(() => authStore.user?.nik || "TKN-001");
 
 // Group & Plant yang DILOCK
-const lockedPlantId = computed(() => authStore.user?.plant_id || 1)
-const lockedGroupId = computed(() => authStore.user?.group_id || 1)
+const lockedPlantId = computed(() => authStore.user?.plant_id || 1);
+const lockedGroupId = computed(() => authStore.user?.group_id || 1);
 
 const lockedPlantName = computed(() => {
-  if (authStore.user?.plant_name) return authStore.user.plant_name
-  const p = masterStore.plants.find(item => item.id === lockedPlantId.value)
-  return p ? p.name : 'Plant 1 - Satoria Pharma Pasuruan'
-})
+  if (authStore.user?.plant_name) return authStore.user.plant_name;
+  const p = masterStore.plants.find((item) => item.id === lockedPlantId.value);
+  return p ? p.name : "Plant 1 - Satoria Pharma Pasuruan";
+});
 
 const lockedGroupName = computed(() => {
-  if (authStore.user?.group_name) return authStore.user.group_name
-  const g = masterStore.workGroups.find(item => item.id === lockedGroupId.value)
-  return g ? g.name : 'Maintenance & Utility'
-})
+  if (authStore.user?.group_name) return authStore.user.group_name;
+  const g = masterStore.workGroups.find(
+    (item) => item.id === lockedGroupId.value,
+  );
+  return g ? g.name : "Maintenance & Utility";
+});
 
 // State Form Data
-const todayDateStr = toLocalDateString(new Date())
+const todayDateStr = toLocalDateString(new Date());
 
 const form = reactive({
   task_date: route.query.date || todayDateStr,
@@ -837,384 +1135,605 @@ const form = reactive({
   shift_id: 1,
   machine_id: null,
   sub_machine_id: null,
-  sparepart: '',
-  activity_description: '',
-  start_time: route.query.time || '08:00',
-  end_time: '10:00',
+  sparepart: "",
+  activity_description: "",
+  start_time: route.query.time || "08:00",
+  end_time: "10:00",
   // F3.1: field adaptif sesuai kategori aktivitas
-  machine_end_status: 'NORMAL_RESOLVED',
+  machine_end_status: "NORMAL_RESOLVED",
   is_downtime: false,
   downtime_minutes: 0,
-  unit_repaired_qty: null
-})
+  unit_repaired_qty: null,
+});
+
+// ========================================================
+// TODO H1: PRE-FILL DARI BUKU PINTAR MESIN (`?machine=&sub=&task_type=`)
+// Flow "scan QR → Buku Pintar Mesin → Catat Logbook" harus langsung mengisi
+// mesin, sub-mesin, dan kategori. Logika parsing/otorisasi ada di
+// `utils/logbookQuickStart.js` (diuji unit) agar view tetap ringkas.
+// ========================================================
+const quickStart = reactive({
+  // true = mesin terpilih berasal dari tautan (bukan pilihan manual teknisi)
+  machine: false,
+  subMachine: false,
+  // alasan param diabaikan: '' | 'invalid' | 'denied' | 'unknown'
+  ignoredReason: "",
+  // ID dari tautan yang master-nya belum termuat → diisi setelah master tiba
+  pendingMachineId: null,
+  pendingSubMachineId: null,
+});
+
+const quickStartMachineName = computed(() => {
+  if (!quickStart.machine || !form.machine_id) return "";
+  return masterStore.machines.find((m) => m.id === form.machine_id)?.name || "";
+});
+
+// Master Machines & Sub Machines Terfilter
+const filteredMachines = computed(() => {
+  return masterStore.machines.filter((m) => m.plant_id === lockedPlantId.value);
+});
+
+/**
+ * Terapkan `?machine=&sub=&task_type=` ke form.
+ *
+ * - Mesin dari tautan MENANG atas preselect otomatis (mesin pertama Line).
+ * - Bila mesin berada di Line lain / tidak dikenal, param diabaikan dan
+ *   alasan disimpan agar bisa ditampilkan sebagai toast informatif (F3.3).
+ * - Bila master mesin belum termuat, ID disimpan sebagai pending dan
+ *   diterapkan lagi setelah `masterStore.fetchAll()` selesai.
+ *
+ * @param {Record<string, any>} query
+ * @param {{ silent?: boolean }} [options] `silent` untuk pemanggilan ulang
+ *        setelah master termuat (tanpa toast ganda)
+ */
+function applyQuickStartQuery(query = {}, { silent = false } = {}) {
+  const hasMachineParam = query?.machine !== undefined && query?.machine !== "";
+  if (!hasMachineParam) return;
+
+  const machines = filteredMachines.value;
+  const result = resolveQueryMachine(
+    query.machine,
+    machines,
+    lockedPlantId.value,
+  );
+
+  if (result.status === "pending") {
+    quickStart.pendingMachineId = result.machineId;
+    quickStart.pendingSubMachineId = query?.sub ?? null;
+    return;
+  }
+
+  quickStart.pendingMachineId = null;
+  quickStart.pendingSubMachineId = null;
+
+  if (result.status !== "applied") {
+    quickStart.machine = false;
+    quickStart.subMachine = false;
+    quickStart.ignoredReason = result.status;
+    if (result.message && !silent) {
+      showToast("info", "Mesin Tidak Diisi Otomatis", result.message);
+    }
+    return;
+  }
+
+  // Kategori hanya dipaksa bila user memang teknisi (form ini khusus teknisi,
+  // tapi dijaga agar helper tetap aman dipakai di konteks lain).
+  if (isTechnicianRole(authStore.role) && query?.task_type) {
+    const category = resolveQuickStartCategory(query.task_type);
+    form.machine_end_status = "NORMAL_RESOLVED";
+    form.is_downtime = false;
+    form.downtime_minutes = 0;
+    selectCategory(category);
+  }
+
+  form.machine_id = result.machineId;
+  quickStart.machine = true;
+  quickStart.ignoredReason = "";
+
+  const sub = resolveQuerySubMachine(
+    query?.sub,
+    result.machineId,
+    masterStore.subMachines,
+  );
+  form.sub_machine_id = sub.subMachineId;
+  quickStart.subMachine = sub.applied;
+
+  if (!silent) {
+    const machineName = result.machine?.name || `Mesin #${result.machineId}`;
+    showToast(
+      "info",
+      "Mesin Sudah Terisi Otomatis",
+      `Form diisi untuk ${machineName}. Lengkapi chip aksi & uraian pekerjaan sebelum mengirim.`,
+    );
+  }
+  router.replace({ path: "/logbook/input" });
+}
+
+/** Hapus penanda pre-fill (mis. teknisi memilih mesin lain secara manual). */
+function clearQuickStart() {
+  quickStart.machine = false;
+  quickStart.subMachine = false;
+  quickStart.ignoredReason = "";
+  quickStart.pendingMachineId = null;
+  quickStart.pendingSubMachineId = null;
+}
 
 // ========================================================
 // F3.1: KATEGORI AKTIVITAS (5 TOMBOL BESAR) & CHIP CEPAT
 // ========================================================
 const ACTIVITY_CATEGORY_OPTIONS = [
   {
-    value: 'MACHINE_TROUBLE',
-    icon: '🔧',
-    label: 'Perbaikan & Setting Mesin',
-    sublabel: 'Mesin trouble, macet, bocor, ganti part, atau setting',
-    chips: ['Ganti Part Rusak', 'Setting / Adjust', 'Mesin Macet / Error', 'Bocor Angin / Air / Oli']
+    value: "MACHINE_TROUBLE",
+    icon: "🔧",
+    label: "Perbaikan & Setting Mesin",
+    sublabel: "Mesin trouble, macet, bocor, ganti part, atau setting",
+    chips: [
+      "Ganti Part Rusak",
+      "Setting / Adjust",
+      "Mesin Macet / Error",
+      "Bocor Angin / Air / Oli",
+    ],
   },
   {
-    value: 'PREVENTIVE_PM',
-    icon: '🛡️',
-    label: 'Rawat Rutin & Kebersihan',
-    sublabel: 'Lubrikasi, greasing, cleaning mesin, atau cek rutin',
-    chips: ['Lubrikasi / Greasing', 'Cleaning Mesin / Area', 'Backwash / Kuras', 'Cek Rutin']
+    value: "PREVENTIVE_PM",
+    icon: "🛡️",
+    label: "Rawat Rutin & Kebersihan",
+    sublabel: "Lubrikasi, greasing, cleaning mesin, atau cek rutin",
+    chips: [
+      "Lubrikasi / Greasing",
+      "Cleaning Mesin / Area",
+      "Backwash / Kuras",
+      "Cek Rutin",
+    ],
   },
   {
-    value: 'KERETA_TRAY_REPAIR',
-    icon: '🛒',
-    label: 'Repair Kereta & Tray',
-    sublabel: 'Khusus kereta, roda, bearing, dan tray autoclave',
-    chips: ['Ganti Bearing Roda/Tray', 'Las Rangka / Stoper', 'Luruskan / Bending Tray', 'Rakitan Baru']
+    value: "KERETA_TRAY_REPAIR",
+    icon: "🛒",
+    label: "Repair Kereta & Tray",
+    sublabel: "Khusus kereta, roda, bearing, dan tray autoclave",
+    chips: [
+      "Ganti Bearing Roda/Tray",
+      "Las Rangka / Stoper",
+      "Luruskan / Bending Tray",
+      "Rakitan Baru",
+    ],
   },
   {
-    value: 'FABRICATION_PROJECT',
-    icon: '⚡',
-    label: 'Bengkel, Las & Project',
-    sublabel: 'Potong plat, bubut, bikin part, atau garap project line',
-    chips: ['Potong / Gerinda / Bor', 'Pengelasan (Las)', 'Bubut / Milling', 'Garap Project Line']
+    value: "FABRICATION_PROJECT",
+    icon: "⚡",
+    label: "Bengkel, Las & Project",
+    sublabel: "Potong plat, bubut, bikin part, atau garap project line",
+    chips: [
+      "Potong / Gerinda / Bor",
+      "Pengelasan (Las)",
+      "Bubut / Milling",
+      "Garap Project Line",
+    ],
   },
   {
-    value: 'SUPPORT_NON_MACHINE',
-    icon: '📋',
-    label: 'Tugas Non-Mesin',
-    sublabel: 'Standby line, gambar CAD, TOR/DOR, cek stok, training',
-    chips: ['Standby Jaga Line', 'Drawing / Sket CAD', 'TOR / DOR / Admin Part', 'Cek Gudang / Stok', 'Meeting / Training / HR']
-  }
-]
+    value: "SUPPORT_NON_MACHINE",
+    icon: "📋",
+    label: "Tugas Non-Mesin",
+    sublabel: "Standby line, gambar CAD, TOR/DOR, cek stok, training",
+    chips: [
+      "Standby Jaga Line",
+      "Drawing / Sket CAD",
+      "TOR / DOR / Admin Part",
+      "Cek Gudang / Stok",
+      "Meeting / Training / HR",
+    ],
+  },
+];
 
 const MACHINE_END_STATUS_OPTIONS = [
-  { value: 'NORMAL_RESOLVED', icon: '🟢', label: 'Sudah Normal / Aman' },
-  { value: 'MONITORING_NEEDED', icon: '🟡', label: 'Jalan, tapi minta shift berikutnya pantau' },
-  { value: 'TEMPORARY_FIX', icon: '🔴', label: 'Baru diakali sementara' },
-  { value: 'WAITING_SPAREPART', icon: '🔴', label: 'Tunggu sparepart' }
-]
+  { value: "NORMAL_RESOLVED", icon: "🟢", label: "Sudah Normal / Aman" },
+  {
+    value: "MONITORING_NEEDED",
+    icon: "🟡",
+    label: "Jalan, tapi minta shift berikutnya pantau",
+  },
+  { value: "TEMPORARY_FIX", icon: "🔴", label: "Baru diakali sementara" },
+  { value: "WAITING_SPAREPART", icon: "🔴", label: "Tunggu sparepart" },
+];
 
 // Default kategori otomatis dari sub_team user (spec F3.1).
 const SUB_TEAM_DEFAULT_CATEGORY = {
-  DRAFTER: 'SUPPORT_NON_MACHINE',
-  PART_SOURCE: 'SUPPORT_NON_MACHINE',
-  KERETA_TEAM: 'KERETA_TRAY_REPAIR',
-  WORKSHOP_FAB: 'FABRICATION_PROJECT',
-  LINE_TECH: 'MACHINE_TROUBLE'
-}
+  DRAFTER: "SUPPORT_NON_MACHINE",
+  PART_SOURCE: "SUPPORT_NON_MACHINE",
+  KERETA_TEAM: "KERETA_TRAY_REPAIR",
+  WORKSHOP_FAB: "FABRICATION_PROJECT",
+  LINE_TECH: "MACHINE_TROUBLE",
+};
 
-const defaultCategory = SUB_TEAM_DEFAULT_CATEGORY[authStore.user?.sub_team] || 'MACHINE_TROUBLE'
+const defaultCategory =
+  SUB_TEAM_DEFAULT_CATEGORY[authStore.user?.sub_team] || "MACHINE_TROUBLE";
 
-const selectedCategory = ref(defaultCategory)
-const quickActionTag = ref('')
+const selectedCategory = ref(defaultCategory);
+const quickActionTag = ref("");
 
 const categoryConfig = computed(
-  () => ACTIVITY_CATEGORY_OPTIONS.find(opt => opt.value === selectedCategory.value) || ACTIVITY_CATEGORY_OPTIONS[0]
-)
+  () =>
+    ACTIVITY_CATEGORY_OPTIONS.find(
+      (opt) => opt.value === selectedCategory.value,
+    ) || ACTIVITY_CATEGORY_OPTIONS[0],
+);
 
-const isNonMachineCategory = computed(() => selectedCategory.value === 'SUPPORT_NON_MACHINE')
-const isKeretaCategory = computed(() => selectedCategory.value === 'KERETA_TRAY_REPAIR')
-const isMachineTroubleCategory = computed(() => selectedCategory.value === 'MACHINE_TROUBLE')
+const isNonMachineCategory = computed(
+  () => selectedCategory.value === "SUPPORT_NON_MACHINE",
+);
+const isKeretaCategory = computed(
+  () => selectedCategory.value === "KERETA_TRAY_REPAIR",
+);
+const isMachineTroubleCategory = computed(
+  () => selectedCategory.value === "MACHINE_TROUBLE",
+);
 const isMachineRequired = computed(
-  () => selectedCategory.value === 'MACHINE_TROUBLE' || selectedCategory.value === 'PREVENTIVE_PM'
-)
+  () =>
+    selectedCategory.value === "MACHINE_TROUBLE" ||
+    selectedCategory.value === "PREVENTIVE_PM",
+);
 
 function selectCategory(category) {
-  selectedCategory.value = category
-  quickActionTag.value = ''
+  selectedCategory.value = category;
+  quickActionTag.value = "";
 
-  if (category === 'SUPPORT_NON_MACHINE') {
-    form.machine_id = null
-    form.sub_machine_id = null
-    form.sparepart = ''
+  if (category === "SUPPORT_NON_MACHINE") {
+    form.machine_id = null;
+    form.sub_machine_id = null;
+    form.sparepart = "";
   }
-  if (category !== 'MACHINE_TROUBLE') {
-    form.is_downtime = false
-    form.downtime_minutes = 0
-    form.machine_end_status = 'NORMAL_RESOLVED'
+  if (category !== "MACHINE_TROUBLE") {
+    form.is_downtime = false;
+    form.downtime_minutes = 0;
+    form.machine_end_status = "NORMAL_RESOLVED";
   }
-  if (category !== 'KERETA_TRAY_REPAIR') {
-    form.unit_repaired_qty = null
+  if (category !== "KERETA_TRAY_REPAIR") {
+    form.unit_repaired_qty = null;
   }
 }
 
 // State Kalender Picker Tanggal Tugas
-const viewYear = ref(new Date().getFullYear())
-const viewMonth = ref(new Date().getMonth())
+const viewYear = ref(new Date().getFullYear());
+const viewMonth = ref(new Date().getMonth());
 
-const dayNamesShort = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+const dayNamesShort = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 const MONTH_NAMES_ID = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-]
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
 
-const currentMonthName = computed(() => MONTH_NAMES_ID[viewMonth.value])
+const currentMonthName = computed(() => MONTH_NAMES_ID[viewMonth.value]);
 
 watch(
   () => route.query,
   (newQuery) => {
     if (newQuery?.date) {
-      form.task_date = newQuery.date
+      form.task_date = newQuery.date;
       try {
-        const d = parseLocalDate(newQuery.date)
-        viewYear.value = d.getFullYear()
-        viewMonth.value = d.getMonth()
+        const d = parseLocalDate(newQuery.date);
+        viewYear.value = d.getFullYear();
+        viewMonth.value = d.getMonth();
       } catch {}
     }
     if (newQuery?.time) {
-      form.start_time = newQuery.time
+      form.start_time = newQuery.time;
+    }
+    if (newQuery?.machine) {
+      applyQuickStartQuery(newQuery);
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 const formattedSelectedDate = computed(() => {
-  if (!form.task_date) return '-'
-  const d = parseLocalDate(form.task_date)
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-  return `${days[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES_ID[d.getMonth()]} ${d.getFullYear()}`
-})
+  if (!form.task_date) return "-";
+  const d = parseLocalDate(form.task_date);
+  const days = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES_ID[d.getMonth()]} ${d.getFullYear()}`;
+});
 
 // Kalender Cells Matrix (7 kolom)
 const calendarCells = computed(() => {
-  const year = viewYear.value
-  const month = viewMonth.value
+  const year = viewYear.value;
+  const month = viewMonth.value;
 
-  const firstDayObj = new Date(year, month, 1)
-  let firstDayIndex = firstDayObj.getDay()
-  firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1 // 0 = Senin, 6 = Minggu
+  const firstDayObj = new Date(year, month, 1);
+  let firstDayIndex = firstDayObj.getDay();
+  firstDayIndex = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // 0 = Senin, 6 = Minggu
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const daysInPrevMonth = new Date(year, month, 0).getDate()
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  const cells = []
+  const cells = [];
 
   // Prev month padding
   for (let i = firstDayIndex - 1; i >= 0; i--) {
-    const day = daysInPrevMonth - i
-    const d = new Date(year, month - 1, day)
+    const day = daysInPrevMonth - i;
+    const d = new Date(year, month - 1, day);
     cells.push({
       dateStr: toLocalDateString(d),
       dayNumber: day,
       isCurrentMonth: false,
-      isToday: toLocalDateString(d) === todayDateStr
-    })
+      isToday: toLocalDateString(d) === todayDateStr,
+    });
   }
 
   // Current month days
   for (let d = 1; d <= daysInMonth; d++) {
-    const dateObj = new Date(year, month, d)
-    const dateStr = toLocalDateString(dateObj)
+    const dateObj = new Date(year, month, d);
+    const dateStr = toLocalDateString(dateObj);
     cells.push({
       dateStr,
       dayNumber: d,
       isCurrentMonth: true,
-      isToday: dateStr === todayDateStr
-    })
+      isToday: dateStr === todayDateStr,
+    });
   }
 
   // Next month padding (lengkapi sampai kelipatan 7)
-  const total = cells.length
-  const remainder = total % 7
+  const total = cells.length;
+  const remainder = total % 7;
   if (remainder > 0) {
-    const nextDays = 7 - remainder
+    const nextDays = 7 - remainder;
     for (let d = 1; d <= nextDays; d++) {
-      const dateObj = new Date(year, month + 1, d)
+      const dateObj = new Date(year, month + 1, d);
       cells.push({
         dateStr: toLocalDateString(dateObj),
         dayNumber: d,
         isCurrentMonth: false,
-        isToday: toLocalDateString(dateObj) === todayDateStr
-      })
+        isToday: toLocalDateString(dateObj) === todayDateStr,
+      });
     }
   }
 
-  return cells
-})
+  return cells;
+});
 
 function prevMonth() {
   if (viewMonth.value === 0) {
-    viewMonth.value = 11
-    viewYear.value--
+    viewMonth.value = 11;
+    viewYear.value--;
   } else {
-    viewMonth.value--
+    viewMonth.value--;
   }
 }
 
 function nextMonth() {
   if (viewMonth.value === 11) {
-    viewMonth.value = 0
-    viewYear.value++
+    viewMonth.value = 0;
+    viewYear.value++;
   } else {
-    viewMonth.value++
+    viewMonth.value++;
   }
 }
 
 function selectDate(dateStr) {
-  form.task_date = dateStr
-  const d = parseLocalDate(dateStr)
-  viewYear.value = d.getFullYear()
-  viewMonth.value = d.getMonth()
+  form.task_date = dateStr;
+  const d = parseLocalDate(dateStr);
+  viewYear.value = d.getFullYear();
+  viewMonth.value = d.getMonth();
 }
 
 function pickToday() {
-  selectDate(todayDateStr)
+  selectDate(todayDateStr);
 }
 
 function pickYesterday() {
-  const d = new Date()
-  d.setDate(d.getDate() - 1)
-  selectDate(toLocalDateString(d))
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  selectDate(toLocalDateString(d));
 }
 
-// Master Machines & Sub Machines Terfilter
-const filteredMachines = computed(() => {
-  return masterStore.machines.filter(m => m.plant_id === lockedPlantId.value)
-})
-
 const filteredSubMachines = computed(() => {
-  if (!form.machine_id) return []
-  return masterStore.subMachines.filter(sub => sub.machine_id === form.machine_id)
-})
+  if (!form.machine_id) return [];
+  return masterStore.subMachines.filter(
+    (sub) => sub.machine_id === form.machine_id,
+  );
+});
 
 function handleMachineChange() {
-  form.sub_machine_id = null
+  form.sub_machine_id = null;
+  // Mesin dipilih manual → banner pre-fill tidak relevan lagi
+  clearQuickStart();
+  // Kalau user override manual, hapus query pre-fill dari URL
+  if (route.query?.machine) {
+    router.replace({ path: "/logbook/input" });
+  }
 }
 
 function handleShiftChange() {
-  const s = masterStore.shifts.find(item => item.id === form.shift_id)
+  const s = masterStore.shifts.find((item) => item.id === form.shift_id);
   if (s) {
     // Saran otomatis waktu jika masih default
-    if (form.start_time === '08:00' && form.end_time === '10:00') {
-      form.start_time = s.start_time
-      form.end_time = s.end_time
+    if (form.start_time === "08:00" && form.end_time === "10:00") {
+      form.start_time = s.start_time;
+      form.end_time = s.end_time;
     }
   }
 }
 
 // Perhitungan Durasi
 const calculatedMinutes = computed(() => {
-  return calculateDurationMinutes(form.start_time, form.end_time)
-})
+  return calculateDurationMinutes(form.start_time, form.end_time);
+});
 
 const durationFormatted = computed(() => {
-  return formatDuration(calculatedMinutes.value)
-})
+  return formatDuration(calculatedMinutes.value);
+});
 
 const isCrossMidnight = computed(() => {
-  if (!form.start_time || !form.end_time) return false
-  const [sH, sM] = form.start_time.split(':').map(Number)
-  const [eH, eM] = form.end_time.split(':').map(Number)
-  return (eH * 60 + eM) < (sH * 60 + sM)
-})
+  if (!form.start_time || !form.end_time) return false;
+  const [sH, sM] = form.start_time.split(":").map(Number);
+  const [eH, eM] = form.end_time.split(":").map(Number);
+  return eH * 60 + eM < sH * 60 + sM;
+});
 
 function handleResetForm() {
-  form.task_date = todayDateStr
-  form.shift_id = 1
-  form.machine_id = null
-  form.sub_machine_id = null
-  form.sparepart = ''
-  form.activity_description = ''
-  form.start_time = '08:00'
-  form.end_time = '10:00'
+  form.task_date = todayDateStr;
+  form.shift_id = 1;
+  form.machine_id = null;
+  form.sub_machine_id = null;
+  form.sparepart = "";
+  form.activity_description = "";
+  form.start_time = "08:00";
+  form.end_time = "10:00";
   // F3.1: reset kategori adaptif ke default sub_team & bersihkan chip
-  selectedCategory.value = defaultCategory
-  quickActionTag.value = ''
-  form.machine_end_status = 'NORMAL_RESOLVED'
-  form.is_downtime = false
-  form.downtime_minutes = 0
-  form.unit_repaired_qty = null
+  selectedCategory.value = defaultCategory;
+  quickActionTag.value = "";
+  form.machine_end_status = "NORMAL_RESOLVED";
+  form.is_downtime = false;
+  form.downtime_minutes = 0;
+  form.unit_repaired_qty = null;
+  // TODO H1: hentikan penanda pre-fill — teknisi meminta form kosong
+  clearQuickStart();
+  if (route.query?.machine || route.query?.task_type) {
+    router.replace({ path: "/logbook/input" });
+  }
 }
 
 // Submit Form
 async function handleSubmit(isSubmitForApproval) {
   if (!form.task_date) {
-    await alert.error('Data Belum Lengkap', 'Silakan pilih tanggal tugas pada kalender.')
-    return
+    await alert.error(
+      "Data Belum Lengkap",
+      "Silakan pilih tanggal tugas pada kalender.",
+    );
+    return;
   }
 
   // F3.1: mesin & sub-mesin wajib hanya untuk kategori yang membutuhkannya (Bagian 4.3).
   if (isMachineRequired.value && !form.machine_id) {
-    await alert.error('Data Belum Lengkap', 'Silakan pilih peralatan mesin yang ditangani.')
-    return
+    await alert.error(
+      "Data Belum Lengkap",
+      "Silakan pilih peralatan mesin yang ditangani.",
+    );
+    return;
   }
 
   if (isMachineRequired.value && !form.sub_machine_id) {
-    await alert.error('Data Belum Lengkap', 'Silakan pilih bagian mesin (sub-mesin) yang ditangani.')
-    return
+    await alert.error(
+      "Data Belum Lengkap",
+      "Silakan pilih bagian mesin (sub-mesin) yang ditangani.",
+    );
+    return;
   }
 
   // F3.1: chip aksi cepat (quick_action_tag) wajib dipilih untuk semua kategori.
   if (!quickActionTag.value) {
-    await alert.error('Chip Aksi Belum Dipilih', 'Silakan pilih salah satu chip aksi cepat sesuai pekerjaan Anda.')
-    return
+    await alert.error(
+      "Chip Aksi Belum Dipilih",
+      "Silakan pilih salah satu chip aksi cepat sesuai pekerjaan Anda.",
+    );
+    return;
   }
 
   // F3.1: kategori Repair Kereta & Tray wajib mengisi jumlah unit minimal 1.
   if (isKeretaCategory.value) {
-    const qty = Number(form.unit_repaired_qty)
+    const qty = Number(form.unit_repaired_qty);
     if (!Number.isFinite(qty) || qty < 1) {
-      await alert.error('Jumlah Unit Belum Diisi', 'Kategori Repair Kereta & Tray wajib mengisi jumlah unit minimal 1.')
-      return
+      await alert.error(
+        "Jumlah Unit Belum Diisi",
+        "Kategori Repair Kereta & Tray wajib mengisi jumlah unit minimal 1.",
+      );
+      return;
     }
   }
 
   if (!form.activity_description || !form.activity_description.trim()) {
-    await alert.error('Data Belum Lengkap', 'Uraian aktivitas pekerjaan wajib diisi secara lengkap.')
-    return
+    await alert.error(
+      "Data Belum Lengkap",
+      "Uraian aktivitas pekerjaan wajib diisi secara lengkap.",
+    );
+    return;
   }
 
   if (!form.start_time || !form.end_time) {
-    await alert.error('Data Belum Lengkap', 'Waktu mulai dan waktu selesai wajib diisi.')
-    return
+    await alert.error(
+      "Data Belum Lengkap",
+      "Waktu mulai dan waktu selesai wajib diisi.",
+    );
+    return;
   }
 
   // BUG-012: uraian maksimal 1000 karakter
   if (form.activity_description.length > 1000) {
-    await alert.error('Uraian Terlalu Panjang', 'Uraian aktivitas maksimal 1000 karakter.')
-    return
+    await alert.error(
+      "Uraian Terlalu Panjang",
+      "Uraian aktivitas maksimal 1000 karakter.",
+    );
+    return;
   }
 
   // BUG-003 & BUG-004: validasi urutan waktu & durasi 0 menit
-  const selectedShift = masterStore.shifts.find(s => s.id === form.shift_id)
-  const timeError = validateLogbookTimeRange(form.start_time, form.end_time, selectedShift)
+  const selectedShift = masterStore.shifts.find((s) => s.id === form.shift_id);
+  const timeError = validateLogbookTimeRange(
+    form.start_time,
+    form.end_time,
+    selectedShift,
+  );
   if (timeError) {
-    await alert.error('Waktu Tidak Valid', timeError)
-    return
+    await alert.error("Waktu Tidak Valid", timeError);
+    return;
   }
 
   // F1.3: konfirmasi sebelum menyimpan/mengajukan logbook
   const isConfirmed = await alert.confirm(
-    isSubmitForApproval ? 'Ajukan Logbook untuk Persetujuan?' : 'Simpan sebagai Draft?',
     isSubmitForApproval
-      ? 'Logbook harian akan dikirim ke Supervisor untuk diperiksa.'
-      : 'Logbook akan disimpan sebagai draft dan dapat Anda lanjutkan nanti.',
-    isSubmitForApproval ? 'Ya, ajukan' : 'Ya, simpan'
-  )
-  if (!isConfirmed) return
+      ? "Ajukan Logbook untuk Persetujuan?"
+      : "Simpan sebagai Draft?",
+    isSubmitForApproval
+      ? "Logbook harian akan dikirim ke Supervisor untuk diperiksa."
+      : "Logbook akan disimpan sebagai draft dan dapat Anda lanjutkan nanti.",
+    isSubmitForApproval ? "Ya, ajukan" : "Ya, simpan",
+  );
+  if (!isConfirmed) return;
 
-  submitting.value = true
+  submitting.value = true;
   try {
-    const selectedPlant = masterStore.plants.find(p => p.id === lockedPlantId.value)
-    const selectedShift = masterStore.shifts.find(s => s.id === form.shift_id)
-    const selectedMachine = masterStore.machines.find(m => m.id === form.machine_id)
-    const selectedSubMachine = masterStore.subMachines.find(s => s.id === form.sub_machine_id)
+    const selectedPlant = masterStore.plants.find(
+      (p) => p.id === lockedPlantId.value,
+    );
+    const selectedShift = masterStore.shifts.find(
+      (s) => s.id === form.shift_id,
+    );
+    const selectedMachine = masterStore.machines.find(
+      (m) => m.id === form.machine_id,
+    );
+    const selectedSubMachine = masterStore.subMachines.find(
+      (s) => s.id === form.sub_machine_id,
+    );
 
     const payload = {
       task_date: form.task_date,
       plant_id: lockedPlantId.value,
-      plant_name: lockedPlantName.value || selectedPlant?.name || 'Plant 1',
+      plant_name: lockedPlantName.value || selectedPlant?.name || "Plant 1",
       group_id: lockedGroupId.value,
       group_name: lockedGroupName.value,
       shift_id: form.shift_id,
       shift_name: selectedShift?.name || `Shift ${form.shift_id}`,
       machine_id: isNonMachineCategory.value ? null : form.machine_id,
-      machine_name: isNonMachineCategory.value ? 'Non-Mesin' : (selectedMachine?.name || 'Mesin Pabrik'),
-      sub_machine_id: isNonMachineCategory.value ? null : (form.sub_machine_id || null),
-      sub_machine_name: isNonMachineCategory.value ? '-' : (selectedSubMachine?.name || '-'),
-      sparepart: isNonMachineCategory.value ? null : (form.sparepart?.trim() || null),
+      machine_name: isNonMachineCategory.value
+        ? "Non-Mesin"
+        : selectedMachine?.name || "Mesin Pabrik",
+      sub_machine_id: isNonMachineCategory.value
+        ? null
+        : form.sub_machine_id || null,
+      sub_machine_name: isNonMachineCategory.value
+        ? "-"
+        : selectedSubMachine?.name || "-",
+      sparepart: isNonMachineCategory.value
+        ? null
+        : form.sparepart?.trim() || null,
       activity_description: form.activity_description.trim(),
       start_time: form.start_time,
       end_time: form.end_time,
@@ -1225,162 +1744,210 @@ async function handleSubmit(isSubmitForApproval) {
       machine_end_status: form.machine_end_status,
       is_downtime: isMachineTroubleCategory.value ? !!form.is_downtime : false,
       downtime_minutes:
-        isMachineTroubleCategory.value && form.is_downtime ? (Number(form.downtime_minutes) || 0) : 0,
+        isMachineTroubleCategory.value && form.is_downtime
+          ? Number(form.downtime_minutes) || 0
+          : 0,
       unit_repaired_qty: isKeretaCategory.value
-        ? (Number(form.unit_repaired_qty) || null)
+        ? Number(form.unit_repaired_qty) || null
         : null,
       is_submit: isSubmitForApproval,
-      status: isSubmitForApproval ? LOG_STATUS.PENDING : LOG_STATUS.DRAFT
-    }
+      status: isSubmitForApproval ? LOG_STATUS.PENDING : LOG_STATUS.DRAFT,
+    };
 
-    await logbookService.createLogbook(payload, authStore.user)
+    await logbookService.createLogbook(payload, authStore.user);
 
     const successTitle = isSubmitForApproval
-      ? 'Logbook Berhasil Diajukan!'
-      : 'Draft Logbook Disimpan!'
+      ? "Logbook Berhasil Diajukan!"
+      : "Draft Logbook Disimpan!";
     const successMsg = isSubmitForApproval
-      ? 'Pengajuan logbook harian berhasil dikirim untuk pemeriksaan Supervisor.'
-      : 'Logbook tersimpan sebagai draft dan dapat Anda lanjutkan nanti.'
+      ? "Pengajuan logbook harian berhasil dikirim untuk pemeriksaan Supervisor."
+      : "Logbook tersimpan sebagai draft dan dapat Anda lanjutkan nanti.";
 
     // F1.3: gunakan SweetAlert2 untuk sukses kirim logbook
     if (isSubmitForApproval) {
-      await alert.success(successTitle, successMsg)
+      await alert.success(successTitle, successMsg);
     } else {
-      showToast('success', successTitle, successMsg)
+      showToast("success", successTitle, successMsg);
     }
 
     if (isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
-      form.activity_description = ''
-      form.sparepart = ''
+      form.activity_description = "";
+      form.sparepart = "";
       // F3.1: bersihkan chip & field adaptif untuk input berikutnya
-      quickActionTag.value = ''
-      form.machine_end_status = 'NORMAL_RESOLVED'
-      form.is_downtime = false
-      form.downtime_minutes = 0
-      form.unit_repaired_qty = null
+      quickActionTag.value = "";
+      form.machine_end_status = "NORMAL_RESOLVED";
+      form.is_downtime = false;
+      form.downtime_minutes = 0;
+      form.unit_repaired_qty = null;
     }
 
     // Refresh daftar draft tersimpan
-    await fetchDraftLogs()
+    await fetchDraftLogs();
   } catch (err) {
-    await alert.error('Gagal Menyimpan Logbook', err.message || 'Terjadi kesalahan saat menyimpan logbook. Silakan coba lagi.')
+    await alert.error(
+      "Gagal Menyimpan Logbook",
+      err.message ||
+        "Terjadi kesalahan saat menyimpan logbook. Silakan coba lagi.",
+    );
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 
 // ========================================================
 // LOGIKA CARD PENYIMPANAN DRAFT LOGBOOK & SUBMIT BERSAMAAN
 // ========================================================
-const draftLogs = ref([])
-const loadingDrafts = ref(false)
-const submittingAllDrafts = ref(false)
+const draftLogs = ref([]);
+const loadingDrafts = ref(false);
+const submittingAllDrafts = ref(false);
 
 const totalDraftMinutes = computed(() => {
-  return draftLogs.value.reduce((acc, d) => acc + (d.duration_minutes || 0), 0)
-})
+  return draftLogs.value.reduce((acc, d) => acc + (d.duration_minutes || 0), 0);
+});
 
 const totalDraftDurationFormatted = computed(() => {
-  return formatDuration(totalDraftMinutes.value)
-})
+  return formatDuration(totalDraftMinutes.value);
+});
 
 async function fetchDraftLogs() {
-  if (!authStore.user?.id) return
-  loadingDrafts.value = true
+  if (!authStore.user?.id) return;
+  loadingDrafts.value = true;
   try {
     const list = await logbookService.getLogbooks({
       userId: authStore.user.id,
-      status: LOG_STATUS.DRAFT
-    })
-    draftLogs.value = list
+      status: LOG_STATUS.DRAFT,
+    });
+    draftLogs.value = list;
   } catch (err) {
-    console.error('Gagal memuat draft logbook:', err)
+    console.error("Gagal memuat draft logbook:", err);
   } finally {
-    loadingDrafts.value = false
+    loadingDrafts.value = false;
   }
 }
 
 async function handleSubmitAllDrafts() {
-  if (draftLogs.value.length === 0) return
+  if (draftLogs.value.length === 0) return;
   // F1.3: konfirmasi sebelum mengajukan seluruh draft
   const isConfirmed = await alert.confirm(
-    'Ajukan Semua Draft Logbook?',
+    "Ajukan Semua Draft Logbook?",
     `${draftLogs.value.length} draft logbook akan dikirim bersamaan untuk diperiksa Supervisor.`,
-    'Ya, ajukan semua'
-  )
-  if (!isConfirmed) return
-  submittingAllDrafts.value = true
+    "Ya, ajukan semua",
+  );
+  if (!isConfirmed) return;
+  submittingAllDrafts.value = true;
   try {
-    const count = draftLogs.value.length
-    await logbookService.submitAllDrafts(authStore.user.id, authStore.user)
-    showToast('success', 'Semua Draft Berhasil Diajukan!', `${count} draft logbook telah dikirimkan secara bersamaan untuk pemeriksaan Supervisor.`)
-    await fetchDraftLogs()
+    const count = draftLogs.value.length;
+    await logbookService.submitAllDrafts(authStore.user.id, authStore.user);
+    showToast(
+      "success",
+      "Semua Draft Berhasil Diajukan!",
+      `${count} draft logbook telah dikirimkan secara bersamaan untuk pemeriksaan Supervisor.`,
+    );
+    await fetchDraftLogs();
   } catch (err) {
-    showToast('danger', 'Gagal Mengajukan Draft', err.message || 'Terjadi kesalahan saat mengajukan seluruh draft logbook.')
+    showToast(
+      "danger",
+      "Gagal Mengajukan Draft",
+      err.message || "Terjadi kesalahan saat mengajukan seluruh draft logbook.",
+    );
   } finally {
-    submittingAllDrafts.value = false
+    submittingAllDrafts.value = false;
   }
 }
 
 async function handleSubmitSingleDraft(draft) {
   // F1.3: konfirmasi sebelum mengajukan draft
   const isConfirmed = await alert.confirm(
-    'Ajukan Draft Logbook?',
+    "Ajukan Draft Logbook?",
     `Draft untuk mesin ${draft.machine_name} akan dikirim untuk diperiksa Supervisor.`,
-    'Ya, ajukan'
-  )
-  if (!isConfirmed) return
+    "Ya, ajukan",
+  );
+  if (!isConfirmed) return;
   try {
-    await logbookService.updateLogbook(draft.id, { ...draft, is_submit: true, status: LOG_STATUS.PENDING }, authStore.user)
-    showToast('success', 'Draft Berhasil Diajukan!', `Logbook #${draft.id} (${draft.machine_name}) telah diajukan ke Supervisor.`)
-    await fetchDraftLogs()
+    await logbookService.updateLogbook(
+      draft.id,
+      { ...draft, is_submit: true, status: LOG_STATUS.PENDING },
+      authStore.user,
+    );
+    showToast(
+      "success",
+      "Draft Berhasil Diajukan!",
+      `Logbook #${draft.id} (${draft.machine_name}) telah diajukan ke Supervisor.`,
+    );
+    await fetchDraftLogs();
   } catch (err) {
-    showToast('danger', 'Gagal Mengajukan Draft', err.message || 'Gagal mengajukan draft logbook.')
+    showToast(
+      "danger",
+      "Gagal Mengajukan Draft",
+      err.message || "Gagal mengajukan draft logbook.",
+    );
   }
 }
 
 async function handleDeleteDraft(draft) {
   // F1.3: konfirmasi via SweetAlert2
   const ok = await alert.confirm(
-    'Hapus Draft Logbook?',
+    "Hapus Draft Logbook?",
     `Draft untuk mesin ${draft.machine_name} (${draft.task_date}) akan dihapus permanen.`,
-    'Ya, hapus'
-  )
-  if (!ok) return
+    "Ya, hapus",
+  );
+  if (!ok) return;
   try {
-    await logbookService.deleteLogbook(draft.id, authStore.user)
-    showToast('success', 'Draft Dihapus', 'Data draft logbook berhasil dihapus.')
-    await fetchDraftLogs()
+    await logbookService.deleteLogbook(draft.id, authStore.user);
+    showToast(
+      "success",
+      "Draft Dihapus",
+      "Data draft logbook berhasil dihapus.",
+    );
+    await fetchDraftLogs();
   } catch (err) {
-    await alert.error('Gagal Menghapus Draft', err.message || 'Gagal menghapus draft logbook.')
+    await alert.error(
+      "Gagal Menghapus Draft",
+      err.message || "Gagal menghapus draft logbook.",
+    );
   }
 }
 
 function handleLoadDraftToForm(draft) {
   // BUG-007 (LOG-09): isi hanya mesin, sub-mesin, sparepart, dan uraian.
   // Tanggal & jam TIDAK ditimpa agar tidak mengubah konteks input yang sedang aktif.
-  form.machine_id = draft.machine_id
-  form.sub_machine_id = draft.sub_machine_id || null
-  form.sparepart = draft.sparepart === '-' ? '' : (draft.sparepart || '')
-  form.activity_description = draft.activity_description || ''
+  form.machine_id = draft.machine_id;
+  form.sub_machine_id = draft.sub_machine_id || null;
+  form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";
+  form.activity_description = draft.activity_description || "";
 
   // Fokuskan ke formulir utama di atas
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-  showToast('info', 'Draft Dimuat ke Formulir', `Draft ${draft.machine_name} telah dimuat ke form utama. Tanggal & jam tidak diubah.`)
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  showToast(
+    "info",
+    "Draft Dimuat ke Formulir",
+    `Draft ${draft.machine_name} telah dimuat ke form utama. Tanggal & jam tidak diubah.`,
+  );
 }
 
 onMounted(async () => {
   if (masterStore.plants.length === 0 || masterStore.machines.length === 0) {
-    await masterStore.fetchAll()
+    await masterStore.fetchAll();
   }
 
-  // Preselect first machine if available
-  if (filteredMachines.value.length > 0 && !form.machine_id) {
-    form.machine_id = filteredMachines.value[0].id
+  if (quickStart.pendingMachineId) {
+    // Master mesin baru tersedia setelah fetch → terapkan pre-fill dari tautan.
+    applyQuickStartQuery(
+      {
+        machine: quickStart.pendingMachineId,
+        sub: quickStart.pendingSubMachineId,
+      },
+      { silent: false },
+    );
+    quickStart.pendingMachineId = null;
+    quickStart.pendingSubMachineId = null;
+  } else if (filteredMachines.value.length > 0 && !form.machine_id) {
+    // Preselect first machine if available (hanya bila tidak ada pre-fill)
+    form.machine_id = filteredMachines.value[0].id;
   }
 
   // Muat daftar draft logbook tersimpan milik teknisi
-  await fetchDraftLogs()
-})
+  await fetchDraftLogs();
+});
 </script>
