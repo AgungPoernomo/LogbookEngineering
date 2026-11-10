@@ -2,6 +2,170 @@ import prisma from '../config/prisma.js'
 import { successResponse, errorResponse } from '../utils/response.js'
 import { logActivity } from '../services/auditService.js'
 
+// ============================================================================
+// FASE 5.2 — Master Sparepart (MACHINE_PART | CONSUMABLE_WORKSHOP)
+// Helper murni (tanpa database) agar kontrak validasi & mapping dapat diuji.
+// ============================================================================
+
+export const SPAREPART_ITEM_TYPES = ['MACHINE_PART', 'CONSUMABLE_WORKSHOP']
+export const SPAREPART_DEFAULT_UNIT = 'pcs'
+
+/**
+ * Normalisasi teks opsional: trim, string kosong → null.
+ */
+function optionalText(value) {
+  if (value === null || value === undefined) return null
+  const trimmed = String(value).trim()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
+ * Validasi & normalisasi payload sparepart.
+ * Mengembalikan { errors, data }. `data` hanya berisi field yang dikirim
+ * (partial update) agar PUT tidak menghapus kolom yang tidak disertakan.
+ *
+ * Aturan:
+ * - part_name wajib (create), maks 150 karakter.
+ * - item_type hanya MACHINE_PART | CONSUMABLE_WORKSHOP.
+ * - unit default 'pcs' bila kosong/tidak dikirim (create), maks 20 karakter.
+ * - part_code & specification opsional (null bila kosong), masker 50/200 karakter.
+ * - is_active boolean opsional (dipakai untuk soft delete / aktifkan kembali).
+ */
+export function buildSparepartPayload(body = {}, { partial = false } = {}) {
+  const errors = []
+  const data = {}
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key)
+  // Saat partial update hanya field yang benar-benar dikirim yang diproses;
+  // saat create, field wajib tetap divalidasi walau tidak dikirim.
+  const includes = (key) => (partial ? has(key) : true)
+
+  // ── part_name (wajib saat create) ──
+  if (includes('part_name')) {
+    const partName = optionalText(body.part_name)
+    if (!partName) {
+      errors.push('Nama sparepart wajib diisi.')
+    } else if (partName.length > 150) {
+      errors.push('Nama sparepart maksimal 150 karakter.')
+    } else {
+      data.part_name = partName
+    }
+  }
+
+  // ── part_code (opsional, unik bila diisi) ──
+  if (has('part_code')) {
+    const partCode = optionalText(body.part_code)
+    if (partCode && partCode.length > 50) {
+      errors.push('Kode part maksimal 50 karakter.')
+    } else {
+      data.part_code = partCode
+    }
+  }
+
+  // ── specification (opsional) ──
+  if (has('specification')) {
+    const specification = optionalText(body.specification)
+    if (specification && specification.length > 200) {
+      errors.push('Spesifikasi maksimal 200 karakter.')
+    } else {
+      data.specification = specification
+    }
+  }
+
+  // ── item_type (wajib saat create, enum) ──
+  if (includes('item_type')) {
+    const itemType = optionalText(body.item_type)
+    if (!itemType) {
+      errors.push('Tipe item wajib dipilih (Suku Cadang Mesin atau Bahan Habis Pakai).')
+    } else if (!SPAREPART_ITEM_TYPES.includes(itemType)) {
+      errors.push(`Tipe item '${itemType}' tidak valid. Gunakan ${SPAREPART_ITEM_TYPES.join(' atau ')}.`)
+    } else {
+      data.item_type = itemType
+    }
+  }
+
+  // ── unit (default 'pcs' saat create) ──
+  if (includes('unit')) {
+    const unit = optionalText(body.unit)
+    if (!unit) {
+      // Saat partial update unit kosong → abaikan (jangan hapus satuan lama)
+      if (!partial) data.unit = SPAREPART_DEFAULT_UNIT
+    } else if (unit.length > 20) {
+      errors.push('Satuan maksimal 20 karakter.')
+    } else {
+      data.unit = unit
+    }
+  }
+
+  // ── is_active (opsional, untuk soft delete / re-aktifkan) ──
+  if (has('is_active')) {
+    if (typeof body.is_active === 'boolean') {
+      data.is_active = body.is_active
+    } else {
+      const normalized = String(body.is_active).toLowerCase().trim()
+      if (['true', '1', 'aktif'].includes(normalized)) data.is_active = true
+      else if (['false', '0', 'nonaktif'].includes(normalized)) data.is_active = false
+      else errors.push('Status aktif tidak valid (gunakan true/false).')
+    }
+  }
+
+  return { errors, data }
+}
+
+/**
+ * Mapping record Prisma → JSON response (BigInt → Number agar aman di JSON).
+ */
+export function mapSparepart(record) {
+  if (!record) return null
+  return {
+    id: Number(record.id),
+    part_code: record.part_code || null,
+    part_name: record.part_name,
+    specification: record.specification || null,
+    item_type: record.item_type,
+    unit: record.unit || SPAREPART_DEFAULT_UNIT,
+    is_active: record.is_active !== false,
+    created_at: record.created_at || null
+  }
+}
+
+/**
+ * WHERE klausa daftar sparepart:
+ * - item_type (enum) bila dikirim & valid → 1 query terindeks.
+ * - search → OR pada part_name / part_code / specification (substring).
+ * - include_inactive=true → tampilkan semua; selain itu HANYA yang aktif
+ *   (dipakai dropdown form teknisi agar part nonaktif tidak bisa dipilih).
+ */
+export function buildSparepartWhere({ item_type, search, include_inactive } = {}) {
+  const where = {}
+  const itemType = optionalText(item_type)
+  if (itemType && SPAREPART_ITEM_TYPES.includes(itemType)) where.item_type = itemType
+
+  const keyword = optionalText(search)
+  if (keyword) {
+    where.OR = [
+      { part_name: { contains: keyword } },
+      { part_code: { contains: keyword } },
+      { specification: { contains: keyword } }
+    ]
+  }
+
+  const includeInactive = ['true', '1'].includes(String(include_inactive ?? '').toLowerCase())
+  if (!includeInactive) where.is_active = true
+
+  return where
+}
+
+/**
+ * Cek duplikat part_code secara case-insensitive dengan satu query.
+ * `excludeId` dipakai saat update agar record itu sendiri tidak dianggap duplikat.
+ */
+async function findDuplicatePartCode(client, partCode, excludeId = null) {
+  if (!partCode) return null
+  const where = { part_code: { equals: partCode } }
+  if (excludeId !== null) where.id = { not: BigInt(excludeId) }
+  return client.sparepart.findFirst({ where, select: { id: true, part_code: true } })
+}
+
 export async function getMasterData(req, res, next) {
   try {
     const { type } = req.params
@@ -125,6 +289,20 @@ export async function getMasterData(req, res, next) {
         return successResponse(res, { data })
       }
 
+      // FASE 5.2 — Katalog sparepart & bahan habis pakai (F5.3).
+      // Satu query dengan filter opsional `?item_type=` dan `?search=` (tanpa N+1).
+      // Default hanya part AKTIF (konsumsi dropdown form teknisi);
+      // Admin memakai `?include_inactive=true` untuk halaman Master Sparepart.
+      case 'spareparts': {
+        const where = buildSparepartWhere(req.query)
+        const spareparts = await prisma.sparepart.findMany({
+          where,
+          orderBy: [{ part_name: 'asc' }, { id: 'asc' }]
+        })
+        const data = spareparts.map(mapSparepart)
+        return successResponse(res, { data })
+      }
+
       default:
         return errorResponse(res, {
           message: `Tipe master data '${type}' tidak dikenal.`,
@@ -216,15 +394,45 @@ export async function createMasterData(req, res, next) {
         created = await prisma.workGroup.create({ data: { name: body.name } })
         break
 
+      // FASE 5.2 — Tambah sparepart/bahan habis pakai.
+      case 'spareparts': {
+        const { errors, data } = buildSparepartPayload(body)
+        if (errors.length > 0) {
+          return errorResponse(res, { message: errors[0], errors, statusCode: 400 })
+        }
+
+        const duplicate = await findDuplicatePartCode(prisma, data.part_code)
+        if (duplicate) {
+          return errorResponse(res, {
+            message: `Kode part "${data.part_code}" sudah digunakan. Gunakan kode lain atau kosongkan kode.`,
+            statusCode: 409
+          })
+        }
+
+        created = await prisma.sparepart.create({
+          data: {
+            part_name: data.part_name,
+            part_code: data.part_code ?? null,
+            specification: data.specification ?? null,
+            item_type: data.item_type,
+            unit: data.unit || SPAREPART_DEFAULT_UNIT,
+            is_active: data.is_active ?? true
+          }
+        })
+        break
+      }
+
       default:
         return errorResponse(res, { message: `Tipe '${type}' tidak didukung.`, statusCode: 400 })
     }
 
-    await logActivity(req.user.id, `CREATE_MASTER_${type.toUpperCase()}`, `Tambah data master ${type}: ${body.name}`)
+    await logActivity(req.user.id, `CREATE_MASTER_${type.toUpperCase()}`, `Tambah data master ${type}: ${body.name || body.part_name}`)
 
     return successResponse(res, {
       message: `Master data ${type} berhasil ditambahkan.`,
-      data: { ...created, id: Number(created.id) },
+      data: type.toLowerCase() === 'spareparts'
+        ? mapSparepart(created)
+        : { ...created, id: Number(created.id) },
       statusCode: 201
     })
   } catch (err) {
@@ -286,6 +494,44 @@ export async function updateMasterData(req, res, next) {
         })
         break
 
+      // FASE 5.2 — Update sparepart (partial) + toggle is_active (soft delete).
+      case 'spareparts': {
+        const targetId = BigInt(id)
+        const { errors, data } = buildSparepartPayload(body, { partial: true })
+        if (errors.length > 0) {
+          return errorResponse(res, { message: errors[0], errors, statusCode: 400 })
+        }
+
+        const existing = await prisma.sparepart.findUnique({
+          where: { id: targetId },
+          select: { id: true, part_code: true, is_active: true }
+        })
+        if (!existing) {
+          return errorResponse(res, { message: 'Sparepart tidak ditemukan.', statusCode: 404 })
+        }
+
+        // Duplikat dicek hanya bila part_code diubah & diisi.
+        if (Object.prototype.hasOwnProperty.call(data, 'part_code') && data.part_code) {
+          const duplicate = await findDuplicatePartCode(prisma, data.part_code, targetId)
+          if (duplicate) {
+            return errorResponse(res, {
+              message: `Kode part "${data.part_code}" sudah digunakan part lain. Gunakan kode berbeda.`,
+              statusCode: 409
+            })
+          }
+        }
+
+        if (Object.keys(data).length === 0) {
+          return errorResponse(res, { message: 'Tidak ada perubahan data yang dikirim.', statusCode: 400 })
+        }
+
+        updated = await prisma.sparepart.update({
+          where: { id: targetId },
+          data
+        })
+        break
+      }
+
       default:
         return errorResponse(res, { message: `Tipe '${type}' tidak didukung.`, statusCode: 400 })
     }
@@ -294,7 +540,9 @@ export async function updateMasterData(req, res, next) {
 
     return successResponse(res, {
       message: `Master data ${type} berhasil diperbarui.`,
-      data: { ...updated, id: Number(updated.id) }
+      data: type.toLowerCase() === 'spareparts'
+        ? mapSparepart(updated)
+        : { ...updated, id: Number(updated.id) }
     })
   } catch (err) {
     next(err)
@@ -324,6 +572,42 @@ export async function deleteMasterData(req, res, next) {
       case 'work_groups':
         await prisma.workGroup.delete({ where: { id: targetId } })
         break
+
+      // FASE 5.2 — Soft delete sparepart: JANGAN hapus baris karena
+      // `logbook_spareparts` masih mereferensikan part ini (histori pemakaian).
+      case 'spareparts': {
+        const existing = await prisma.sparepart.findUnique({
+          where: { id: targetId },
+          select: { id: true, part_name: true, is_active: true }
+        })
+        if (!existing) {
+          return errorResponse(res, { message: 'Sparepart tidak ditemukan.', statusCode: 404 })
+        }
+
+        if (existing.is_active === false) {
+          return successResponse(res, {
+            message: `Sparepart #${id} sudah berstatus nonaktif.`,
+            data: mapSparepart(existing)
+          })
+        }
+
+        const updated = await prisma.sparepart.update({
+          where: { id: targetId },
+          data: { is_active: false }
+        })
+
+        await logActivity(
+          req.user.id,
+          `DELETE_MASTER_${type.toUpperCase()}`,
+          `Nonaktifkan (soft delete) master ${type} #${id}: ${updated.part_name}`
+        )
+
+        return successResponse(res, {
+          message: `Sparepart "${updated.part_name}" berhasil dinonaktifkan.`,
+          data: mapSparepart(updated)
+        })
+      }
+
       default:
         return errorResponse(res, { message: `Tipe '${type}' tidak didukung.`, statusCode: 400 })
     }

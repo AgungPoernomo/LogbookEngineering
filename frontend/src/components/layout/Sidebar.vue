@@ -184,6 +184,7 @@ import {
   Layers,
   LineChart,
   Radar,
+  Wrench,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -215,6 +216,8 @@ const iconMap = {
   Layers,
   LineChart,
   Radar,
+  // FASE 5.2 — ikon Master Sparepart.
+  Wrench,
   ScrollText,
   UserCircle
 }

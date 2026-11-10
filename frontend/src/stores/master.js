@@ -35,6 +35,9 @@ export const useMasterStore = defineStore('master', () => {
   const subMachines = ref([])
   const workGroups = ref([])
   const roles = ref([])
+  // FASE 5.2 — Katalog sparepart. Tidak ikut `getAllMaster()` (dipakai dropdown
+  // form) agar payload master tetap ringan; di-fetch terpisah oleh halaman admin.
+  const spareparts = ref([])
 
   // ── Cache state ──
   const isLoaded = ref(false)
@@ -141,6 +144,7 @@ export const useMasterStore = defineStore('master', () => {
     subMachines.value = []
     workGroups.value = []
     roles.value = []
+    spareparts.value = []
     isLoaded.value = false
     lastFetchedAt.value = 0
     isOffline.value = false
@@ -185,6 +189,44 @@ export const useMasterStore = defineStore('master', () => {
     return res
   }
 
+  // ── FASE 5.2 — Sparepart (fetch terpisah, selalu menyertakan part nonaktif) ──
+  // `params.itemType` (MACHINE_PART | CONSUMABLE_WORKSHOP) dan `params.search`
+  // dikerjakan server-side (satu query), lalu hasilnya disimpan di state.
+  const isLoadingSpareparts = ref(false)
+
+  async function fetchSpareparts(params = {}) {
+    isLoadingSpareparts.value = true
+    try {
+      const data = await masterService.getSpareparts({ includeInactive: true, ...params })
+      spareparts.value = Array.isArray(data) ? data : []
+      return spareparts.value
+    } catch (err) {
+      console.warn('Gagal memuat master sparepart:', err)
+      throw err
+    } finally {
+      isLoadingSpareparts.value = false
+    }
+  }
+
+  async function addSparepart(payload) {
+    const res = await masterService.addItem('spareparts', payload)
+    await fetchSpareparts()
+    return res
+  }
+
+  async function updateSparepart(id, payload) {
+    const res = await masterService.updateItem('spareparts', id, payload)
+    await fetchSpareparts()
+    return res
+  }
+
+  // Soft delete: backend mengubah `is_active` menjadi false.
+  async function deactivateSparepart(id) {
+    const res = await masterService.deleteItem('spareparts', id)
+    await fetchSpareparts()
+    return res
+  }
+
   return {
     plants,
     shifts,
@@ -192,6 +234,7 @@ export const useMasterStore = defineStore('master', () => {
     subMachines,
     workGroups,
     roles,
+    spareparts,
     isLoaded,
     lastFetchedAt,
     isLoading,
@@ -203,6 +246,11 @@ export const useMasterStore = defineStore('master', () => {
     clearCache,
     addItem,
     updateItem,
-    toggleActive
+    toggleActive,
+    isLoadingSpareparts,
+    fetchSpareparts,
+    addSparepart,
+    updateSparepart,
+    deactivateSparepart
   }
 })

@@ -59,6 +59,17 @@ export const masterService = {
     return await api.get('/master/roles')
   },
 
+  // FASE 5.2 — Katalog sparepart & bahan habis pakai.
+  // Default backend hanya mengembalikan part AKTIF (untuk dropdown form teknisi).
+  // Halaman admin mengirim `include_inactive: true` agar part nonaktif tetap terlihat.
+  async getSpareparts({ itemType = null, search = '', includeInactive = false } = {}) {
+    const params = {}
+    if (itemType) params.item_type = itemType
+    if (search) params.search = search
+    if (includeInactive) params.include_inactive = true
+    return await api.get('/master/spareparts', params)
+  },
+
   async addItem(type, payload) {
     const normalizedType = type === 'sub_machines' ? 'sub-machines' : (type === 'work_groups' ? 'groups' : type)
     return await api.post(`/master/${normalizedType}`, payload)
@@ -72,6 +83,11 @@ export const masterService = {
   async toggleActive(type, id) {
     const normalizedType = type === 'sub_machines' ? 'sub-machines' : (type === 'work_groups' ? 'groups' : type)
     return await api.put(`/master/${normalizedType}/${id}`, { is_active: false })
+  },
+
+  // FASE 5.2 — hapus master (untuk sparepart = soft delete / nonaktifkan).
+  async deleteItem(type, id) {
+    return await api.delete(`/master/${type}/${id}`)
   }
 }
 

@@ -91,6 +91,15 @@ export const NAVIGATION_MENU = [
     roles: [ROLES.ADMIN]
   },
   {
+    // FASE 5.2 — Katalog suku cadang mesin & bahan habis pakai (dropdown form teknisi).
+    name: 'Master Sparepart',
+    path: '/admin/spareparts',
+    icon: 'Wrench',
+    section: 'Menu',
+    roles: [ROLES.ADMIN],
+    activeMatchPrefixes: ['/admin/spareparts']
+  },
+  {
     // FASE 5.1 — Radar aset/mesin yang dilaporkan teknisi tapi belum ada di master data.
     name: 'Radar Aset',
     path: '/admin/unmapped-assets',

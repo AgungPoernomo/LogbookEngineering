@@ -82,6 +82,13 @@ const routes = [
     meta: { roles: [ROLES.ADMIN], title: 'Master Mesin & Sub-Mesin' }
   },
   {
+    // FASE 5.2 — Master Sparepart (katalog MACHINE_PART & CONSUMABLE_WORKSHOP).
+    path: '/admin/spareparts',
+    name: 'admin-spareparts',
+    component: () => import('../views/admin/MasterSparepartView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Master Sparepart' }
+  },
+  {
     // FASE 5.1 — Radar Aset Belum Terdaftar (promote `unmapped_asset_note` → master mesin).
     path: '/admin/unmapped-assets',
     name: 'admin-unmapped-assets',
