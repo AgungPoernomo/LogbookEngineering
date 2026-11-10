@@ -131,7 +131,7 @@
             <div>
               <h2 class="text-xs font-bold text-ink uppercase tracking-wider">Pareto Mesin (Bad Actor Aset)</h2>
               <p class="text-[11px] text-ink-2">
-                Diurutkan dari total downtime terbesar. Mesin pada kelompok 80% kumulatif ditandai.
+                Grafik batang = total downtime per mesin. Garis hitam = persentase kumulatif (sumbu kanan).
               </p>
             </div>
           </div>
@@ -150,7 +150,27 @@
           </p>
         </div>
 
-        <div v-else class="overflow-x-auto">
+        <div v-else class="px-3 sm:px-4 pt-3 pb-1">
+          <!-- HERO: Grafik Pareto (Bar + Garis Kumulatif) -->
+          <ParetoChart
+            :items="machinePareto"
+            metric="machine"
+            value-label="Downtime (Jam)"
+            :threshold-percent="paretoThreshold"
+            :max-bars="PARETO_CHART_MAX_BARS"
+            caption="Diagram Pareto downtime per mesin"
+          />
+        </div>
+
+        <!-- Detail tabel angka pasti (di bawah grafik) -->
+        <div v-if="machinePareto.length > 0" class="px-3 sm:px-4 pt-1 pb-2">
+          <div class="flex items-center gap-1.5 text-[10px] font-semibold text-ink-3 uppercase tracking-wider">
+            <Table2 class="w-3 h-3" />
+            <span>Tabel Detail Pareto Mesin</span>
+          </div>
+        </div>
+
+        <div v-if="machinePareto.length > 0" class="overflow-x-auto border-t border-line">
           <table class="w-full text-left text-[12px] border-collapse min-w-[760px]">
             <thead class="bg-muted/60 text-ink-2 border-b border-line">
               <tr class="font-semibold">
@@ -242,7 +262,7 @@
             <div>
               <h2 class="text-xs font-bold text-ink uppercase tracking-wider">Pareto Kode Kerusakan</h2>
               <p class="text-[11px] text-ink-2">
-                Mode kegagalan paling sering muncul — dasar prioritas analisis akar masalah.
+                Grafik batang = frekuensi kejadian. Garis hitam = persentase kumulatif (sumbu kanan).
               </p>
             </div>
           </div>
@@ -261,7 +281,28 @@
           </p>
         </div>
 
-        <div v-else class="overflow-x-auto">
+        <div v-else class="px-3 sm:px-4 pt-3 pb-1">
+          <!-- HERO: Grafik Pareto Kode Kerusakan (Bar + Garis Kumulatif) -->
+          <ParetoChart
+            :items="failurePareto"
+            metric="failure"
+            value-label="Frekuensi Kejadian"
+            show-code-prefix
+            :threshold-percent="paretoThreshold"
+            :max-bars="PARETO_CHART_MAX_BARS"
+            caption="Diagram Pareto frekuensi kode kerusakan"
+          />
+        </div>
+
+        <!-- Detail tabel angka pasti (di bawah grafik) -->
+        <div v-if="failurePareto.length > 0" class="px-3 sm:px-4 pt-1 pb-2">
+          <div class="flex items-center gap-1.5 text-[10px] font-semibold text-ink-3 uppercase tracking-wider">
+            <Table2 class="w-3 h-3" />
+            <span>Tabel Detail Pareto Kode Kerusakan</span>
+          </div>
+        </div>
+
+        <div v-if="failurePareto.length > 0" class="overflow-x-auto border-t border-line">
           <table class="w-full text-left text-[12px] border-collapse min-w-[840px]">
             <thead class="bg-muted/60 text-ink-2 border-b border-line">
               <tr class="font-semibold">
@@ -498,20 +539,30 @@ import {
   Layers,
   RefreshCw,
   ShieldCheck,
+  Table2,
   TrendingDown,
   Wrench
 } from 'lucide-vue-next'
 import { useAuthStore } from '../../stores/auth'
 import { ROLES } from '../../constants/roles'
+import ParetoChart from '../../components/charts/ParetoChart.vue'
 import {
   reliabilityAnalyticsService,
   buildYearMonthOptions,
   formatYearMonthLabel,
-  PARETO_DEFAULT_LIMIT
+  PARETO_DEFAULT_LIMIT,
+  PARETO_THRESHOLD_PERCENT
 } from '../../services/reliabilityAnalyticsService'
 import { getWIBYearMonth } from '../../utils/dateKeys'
 
 const authStore = useAuthStore()
+
+/**
+ * Batas jumlah bar yang digambar pada grafik Pareto.
+ * Tabel detail di bawah grafik tetap menampilkan seluruh baris dari backend
+ * (PARETO_DEFAULT_LIMIT = 15), sehingga tidak ada angka yang hilang.
+ */
+const PARETO_CHART_MAX_BARS = 12
 
 // ---- State ----
 const loading = ref(false)
@@ -551,6 +602,15 @@ const notes = computed(() => rawData.value.notes || {})
 const periodLabel = computed(() => {
   const ym = filters.value.year_month || selectedYearMonth.value
   return formatYearMonthLabel(ym)
+})
+
+/**
+ * Ambang Hukum Pareto untuk garis bantu grafik (default 80%).
+ * Diambil dari respons backend agar grafik & tabel memakai acuan yang sama.
+ */
+const paretoThreshold = computed(() => {
+  const value = Number(filters.value.pareto_threshold_percent)
+  return Number.isFinite(value) && value > 0 ? value : PARETO_THRESHOLD_PERCENT
 })
 
 /**
