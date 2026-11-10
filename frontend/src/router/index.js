@@ -82,6 +82,13 @@ const routes = [
     meta: { roles: [ROLES.ADMIN], title: 'Master Mesin & Sub-Mesin' }
   },
   {
+    // FASE 5.1 — Radar Aset Belum Terdaftar (promote `unmapped_asset_note` → master mesin).
+    path: '/admin/unmapped-assets',
+    name: 'admin-unmapped-assets',
+    component: () => import('../views/admin/UnmappedAssetsView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Radar Aset Belum Terdaftar' }
+  },
+  {
     path: '/admin/groups',
     name: 'admin-groups',
     component: () => import('../views/admin/MasterGroupView.vue'),

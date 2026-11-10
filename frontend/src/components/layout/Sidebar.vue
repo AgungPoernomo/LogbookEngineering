@@ -183,6 +183,7 @@ import {
   Cpu,
   Layers,
   LineChart,
+  Radar,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -213,6 +214,7 @@ const iconMap = {
   Cpu,
   Layers,
   LineChart,
+  Radar,
   ScrollText,
   UserCircle
 }

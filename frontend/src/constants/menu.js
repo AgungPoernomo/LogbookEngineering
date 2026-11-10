@@ -91,6 +91,15 @@ export const NAVIGATION_MENU = [
     roles: [ROLES.ADMIN]
   },
   {
+    // FASE 5.1 — Radar aset/mesin yang dilaporkan teknisi tapi belum ada di master data.
+    name: 'Radar Aset',
+    path: '/admin/unmapped-assets',
+    icon: 'Radar',
+    section: 'Menu',
+    roles: [ROLES.ADMIN],
+    activeMatchPrefixes: ['/admin/unmapped-assets']
+  },
+  {
     name: 'Audit Trail',
     path: '/admin/audit',
     icon: 'ScrollText',
