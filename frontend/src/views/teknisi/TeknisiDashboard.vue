@@ -294,11 +294,29 @@
               {{ lineMachines.length }} Mesin Terdaftar
             </span>
           </div>
-          <!-- Header kanan: ringkasan jumlah mesin -->
-          <span class="text-[10px] text-ink-3">
-            Menampilkan {{ displayedMachines.length }} dari
-            {{ lineMachines.length }} mesin
-          </span>
+          <!-- Header kanan: search mesin + ringkasan jumlah mesin -->
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div class="relative w-full sm:w-56">
+              <input
+                v-model="machineSearchQuery"
+                type="text"
+                placeholder="Cari mesin..."
+                aria-label="Cari mesin di line ini"
+                class="w-full h-8 pl-8 pr-3 rounded-md border border-line text-xs bg-surface text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+              <Search
+                class="w-3.5 h-3.5 text-ink-3 absolute left-2.5 top-2.5 pointer-events-none"
+              />
+            </div>
+            <span class="text-[10px] text-ink-3 whitespace-nowrap">
+              Menampilkan {{ displayedMachines.length }} dari
+              {{ filteredLineMachines.length }} mesin<template
+                v-if="isMachineSearchActive"
+              >
+                (difilter dari {{ lineMachines.length }})</template
+              >
+            </span>
+          </div>
         </div>
 
         <!-- Grid Mesin di Line Ini (collapsed: max 6 = 2 baris × 3 kolom) -->
@@ -352,22 +370,60 @@
               </span>
             </div>
           </div>
+
+          <!-- Empty state hasil pencarian mesin -->
+          <div
+            v-if="filteredLineMachines.length === 0"
+            class="col-span-full py-8 px-4 rounded-lg border border-dashed border-line bg-surface text-center"
+          >
+            <Search class="w-5 h-5 text-ink-3 mx-auto mb-2" />
+            <p class="text-xs font-semibold text-ink">Mesin tidak ditemukan</p>
+            <p class="text-[11px] text-ink-3 mt-1">
+              Tidak ada mesin yang cocok dengan kata kunci "{{
+                machineSearchQuery
+              }}". Coba kata kunci lain.
+            </p>
+            <button
+              type="button"
+              class="mt-3 h-7 px-2.5 rounded border border-line bg-surface hover:bg-muted text-ink text-xs font-medium transition shadow-xs"
+              @click="machineSearchQuery = ''"
+            >
+              Reset Pencarian
+            </button>
+          </div>
         </div>
 
-        <!-- Footer toggle: hanya muncul jika mesin > 6 (tanpa pagination) -->
+        <!-- Footer toggle: hanya muncul jika hasil (terfilter) > 6 (tanpa pagination) -->
         <div
-          v-if="lineMachines.length > 6"
-          class="pt-3 flex items-center justify-end border-t border-line"
+          v-if="filteredLineMachines.length > 6"
+          class="pt-3 flex items-center justify-between gap-2 border-t border-line"
         >
+          <span class="text-[10px] text-ink-3">
+            {{ isMachineSearchActive
+              ? "Hasil pencarian ditampilkan semua"
+              : showAllMachines
+                ? `Menampilkan semua ${filteredLineMachines.length} mesin`
+                : `Menampilkan ${displayedMachines.length} dari ${filteredLineMachines.length} mesin`
+            }}
+          </span>
           <button
             type="button"
             class="h-7 px-2.5 rounded border border-line bg-surface hover:bg-muted text-ink text-xs font-medium transition shadow-xs"
+            :disabled="isMachineSearchActive"
+            :title="
+              isMachineSearchActive
+                ? 'Kosongkan pencarian untuk mengatur tampilan grid'
+                : undefined
+            "
+            :class="{ 'opacity-50 cursor-not-allowed': isMachineSearchActive }"
             @click="showAllMachines = !showAllMachines"
           >
             {{
-              showAllMachines
-                ? "Tampilkan Lebih Sedikit"
-                : `Tampilkan Semua (${lineMachines.length})`
+              isMachineSearchActive
+                ? `Tampilkan Semua (${filteredLineMachines.length})`
+                : showAllMachines
+                  ? "Tampilkan Lebih Sedikit"
+                  : `Tampilkan Semua (${filteredLineMachines.length})`
             }}
           </button>
         </div>
@@ -514,7 +570,7 @@ import AppBadge from "../../components/common/AppBadge.vue";
 import AppModal from "../../components/common/AppModal.vue";
 import HandoverBoard from "../../components/dashboard/HandoverBoard.vue";
 
-import { Cpu, Wrench, Users, Activity } from "lucide-vue-next";
+import { Cpu, Wrench, Users, Activity, Search } from "lucide-vue-next";
 
 const authStore = useAuthStore();
 const logbookStore = useLogbookStore();
@@ -524,6 +580,7 @@ const loading = ref(false);
 const selectedLog = ref(null);
 const tableMode = ref("all_line"); // 'all_line' | 'my_logs'
 const showAllMachines = ref(false);
+const machineSearchQuery = ref("");
 const lineOverview = ref(null);
 
 const currentYear = new Date().getFullYear();
@@ -549,10 +606,26 @@ onMounted(() => {
 
 const linePlantData = computed(() => lineOverview.value?.plantCard || null);
 const lineMachines = computed(() => lineOverview.value?.lineMachines || []);
-// Grid mesin: max 6 (2 baris × 3 kolom) saat collapsed, semua saat expanded
-const displayedMachines = computed(() =>
-  showAllMachines.value ? lineMachines.value : lineMachines.value.slice(0, 6),
+// Search bar mesin: filter case-insensitive berdasarkan nama mesin
+const filteredLineMachines = computed(() => {
+  const query = machineSearchQuery.value.trim().toLowerCase();
+  if (!query) return lineMachines.value;
+  return lineMachines.value.filter((machine) =>
+    (machine.name || "").toLowerCase().includes(query),
+  );
+});
+// True saat user sedang mencari mesin (query efektif tidak kosong)
+const isMachineSearchActive = computed(
+  () => machineSearchQuery.value.trim() !== "",
 );
+// Grid mesin: max 6 (2 baris × 3 kolom) saat collapsed, semua saat expanded.
+// Saat mencari, hasil filter langsung ditampilkan penuh agar semua kecocokan terlihat.
+const displayedMachines = computed(() => {
+  if (isMachineSearchActive.value || showAllMachines.value) {
+    return filteredLineMachines.value;
+  }
+  return filteredLineMachines.value.slice(0, 6);
+});
 const lineTechnicians = computed(() => {
   if (!lineOverview.value) return [];
 
