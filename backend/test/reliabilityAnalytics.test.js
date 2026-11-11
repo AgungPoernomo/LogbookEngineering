@@ -154,8 +154,8 @@ describe('Fase 4.4 - helper angka', () => {
 
 describe('Fase 4.4 - buildSkillMatrix', () => {
   const userMap = new Map([
-    [1, { full_name: 'Budi Santoso', nik: 'NIK001', plant_name: 'Plant 1', group_name: 'Line A' }],
-    [2, { full_name: 'Andi Wijaya', nik: 'NIK002', plant_name: 'Plant 1', group_name: 'Line A' }]
+    [1, { full_name: 'Budi Santoso', nik: 'NIK001', email: 'budi@satoria.co.id', plant_name: 'Plant 1', group_name: 'Line A' }],
+    [2, { full_name: 'Andi Wijaya', nik: 'NIK002', email: 'andi@satoria.co.id', plant_name: 'Plant 1', group_name: 'Line A' }]
   ])
   const machineNameMap = new Map([[10, 'Filler Capper'], [11, 'Shrink Tunnel']])
   const failureCodeMap = new Map([
@@ -188,6 +188,30 @@ describe('Fase 4.4 - buildSkillMatrix', () => {
     assert.equal(budi.total_handled, 17)
     assert.equal(budi.machine_share_percent, 52.9)
     assert.equal(budi.confidence, 'HIGH')
+  })
+
+  it('menyertakan email sebagai kontak kerja (bukan penilaian) & null bila tidak ada', () => {
+    const matrix = buildSkillMatrix({
+      topMachineRows: [{ key: 1, id: 10, count: 3 }],
+      // Andi hanya punya histori kode kerusakan (tanpa mesin) agar tetap masuk matriks.
+      topFailureRows: [{ key: 2, id: 5, count: 2 }],
+      machineNameMap,
+      failureCodeMap,
+      userMap: new Map([
+        [1, { full_name: 'Budi Santoso', nik: 'NIK001', email: 'budi@satoria.co.id' }],
+        // User legacy yang belum punya email -> tetap muncul dengan email null.
+        [2, { full_name: 'Andi Wijaya', nik: 'NIK002' }]
+      ])
+    })
+
+    const budi = matrix.find(r => r.user_id === 1)
+    const andi = matrix.find(r => r.user_id === 2)
+
+    assert.equal(budi.email, 'budi@satoria.co.id')
+    assert.equal(andi.email, null)
+    // Email hanya tambahan field; kontrak nama field existing tetap utuh.
+    assert.equal(budi.full_name, 'Budi Santoso')
+    assert.equal(budi.machine_name, 'Filler Capper')
   })
 
   it('diurutkan abjad nama, BUKAN berdasarkan jumlah penanganan (aturan P1)', () => {

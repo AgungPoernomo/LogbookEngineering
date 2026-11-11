@@ -580,6 +580,19 @@
                           • {{ tech.group_name }}</span
                         >
                       </div>
+                      <!-- Kontak kerja (P1: untuk menghubungi saat penugasan, bukan penilaian) -->
+                      <a
+                        v-if="tech.email"
+                        :href="`mailto:${tech.email}`"
+                        class="mt-0.5 inline-flex items-center gap-1 max-w-full text-[10px] text-primary hover:underline"
+                        :title="`Kirim email ke ${tech.full_name}`"
+                      >
+                        <Mail class="w-3 h-3 shrink-0" />
+                        <span class="truncate">{{ tech.email }}</span>
+                      </a>
+                      <div v-else class="text-[10px] text-ink-3 mt-0.5 italic">
+                        Email belum tersedia
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -690,6 +703,7 @@ import {
   GraduationCap,
   Info,
   Layers,
+  Mail,
   RefreshCw,
   ShieldCheck,
   Table2,

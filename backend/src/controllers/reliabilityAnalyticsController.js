@@ -127,8 +127,8 @@ function groupRows(rows, { keyField, idField, extra = {} } = {}) {
  *                        downtime_hours, percent, cumulative_percent, is_vital_few }]
  *  - failure_pareto : [{ rank, failure_code_id, code, name, category, count,
  *                        downtime_minutes, downtime_hours, percent, cumulative_percent, is_vital_few }]
- *  - skill_matrix   : [{ user_id, full_name, machine_name, failure_code, failure_name,
- *                        confidence, ... }]
+ *  - skill_matrix   : [{ user_id, full_name, nik, email, machine_name, failure_code,
+ *                        failure_name, confidence, ... }]
  *  - notes          : penjelasan P1 (bukan penilaian kinerja)
  */
 export async function getReliabilityAnalytics(req, res, next) {
@@ -269,6 +269,7 @@ export async function getReliabilityAnalytics(req, res, next) {
             id: true,
             full_name: true,
             nik: true,
+            email: true,
             photo_url: true,
             plant: { select: { name: true } },
             group: { select: { name: true } }
@@ -298,6 +299,7 @@ export async function getReliabilityAnalytics(req, res, next) {
       users.map((u) => [Number(u.id), {
         full_name: u.full_name,
         nik: u.nik,
+        email: u.email || null,
         photo_url: u.photo_url || null,
         plant_name: u.plant?.name || null,
         group_name: u.group?.name || null

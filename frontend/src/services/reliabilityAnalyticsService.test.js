@@ -85,7 +85,7 @@ describe('normalizeAnalyticsPayload', () => {
       summary: { total_downtime_hours: 16.7, vital_machine_count: 2, total_machines_with_downtime: 4 },
       machine_pareto: [{ rank: 1, machine_id: 10, name: 'Filler', cumulative_percent: 60, is_vital_few: true }],
       failure_pareto: [{ rank: 1, failure_code_id: 5, code: 'MECH-BRG', name: 'Bearing Aus', count: 9 }],
-      skill_matrix: [{ user_id: 1, full_name: 'Budi', confidence: 'HIGH' }],
+      skill_matrix: [{ user_id: 1, full_name: 'Budi', email: 'budi@satoria.co.id', confidence: 'HIGH' }],
       notes: { skill_matrix: 'Pemetaan keahlian.' }
     })
 
@@ -95,6 +95,8 @@ describe('normalizeAnalyticsPayload', () => {
     expect(result.machinePareto).toHaveLength(1)
     expect(result.failurePareto[0].code).toBe('MECH-BRG')
     expect(result.skillMatrix[0].full_name).toBe('Budi')
+    // Email diteruskan apa adanya agar kolom kontak di Peta Keahlian terisi.
+    expect(result.skillMatrix[0].email).toBe('budi@satoria.co.id')
     expect(result.notes.skill_matrix).toBe('Pemetaan keahlian.')
   })
 })

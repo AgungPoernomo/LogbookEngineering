@@ -179,7 +179,7 @@ export function resolveConfidence(topCount) {
  * @param {Array<{key:number,id:number|null,count:number}>} params.topFailureRows - groupBy (user_id, failure_code_id)
  * @param {Map<number, string>} [params.machineNameMap]
  * @param {Map<number, {code:string,name:string,category:string}>} [params.failureCodeMap]
- * @param {Map<number, object>} [params.userMap] - id -> { full_name, nik, photo_url, plant_name, group_name }
+ * @param {Map<number, object>} [params.userMap] - id -> { full_name, nik, email, photo_url, plant_name, group_name }
  * @returns {Array<object>}
  */
 export function buildSkillMatrix({
@@ -219,6 +219,8 @@ export function buildSkillMatrix({
       user_id: userId,
       full_name: user.full_name || 'Teknisi',
       nik: user.nik || null,
+      // Kontak kerja (P1: untuk menghubungi saat penugasan, bukan penilaian).
+      email: user.email || null,
       photo_url: user.photo_url || null,
       plant_name: user.plant_name || null,
       group_name: user.group_name || null,
