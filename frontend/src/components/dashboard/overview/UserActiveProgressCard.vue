@@ -1,10 +1,14 @@
 <template>
-  <div class="bg-surface rounded-lg border border-line shadow-card p-4 sm:p-5 flex flex-col justify-between space-y-4">
+  <div
+    class="bg-surface rounded-lg border border-line shadow-card p-4 sm:p-5 flex flex-col justify-between space-y-4"
+  >
     <!-- Header -->
     <div class="flex items-center justify-between pb-3 border-b border-line">
       <div class="flex items-center gap-2">
         <Users class="w-4 h-4 text-primary" />
-        <h3 class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wider">
+        <h3
+          class="text-xs sm:text-sm font-bold text-ink uppercase tracking-wider"
+        >
           USER AKTIF PER PLANT
         </h3>
       </div>
@@ -25,7 +29,9 @@
               :style="{ backgroundColor: item.color.hex }"
             />
             <span class="font-semibold text-ink truncate">{{ item.name }}</span>
-            <span class="text-[11px] text-ink-3 truncate hidden sm:inline">{{ item.fullName }}</span>
+            <span class="text-[11px] text-ink-3 truncate hidden sm:inline">{{
+              item.fullName
+            }}</span>
           </div>
 
           <div class="flex items-center gap-2 shrink-0">
@@ -44,7 +50,7 @@
             class="h-full rounded-full transition-all duration-500"
             :style="{
               width: `${Math.min(100, Math.max(item.percentage, item.active > 0 ? 5 : 0))}%`,
-              backgroundColor: item.color.hex
+              backgroundColor: item.color.hex,
             }"
           />
         </div>
@@ -52,20 +58,21 @@
     </div>
 
     <!-- Footer Summary Total -->
-    <div class="pt-3 border-t border-line flex items-center justify-between text-xs">
+    <div
+      class="pt-3 border-t border-line flex items-center justify-between text-xs"
+    >
       <div class="text-ink-2">
-        Total: <strong class="text-ink">{{ summary.total?.active || 0 }}</strong> dari {{ summary.total?.total || 0 }} user
-        <span class="font-semibold text-primary ml-1">({{ summary.total?.percentage || 0 }}%)</span>
+        Total:
+        <strong class="text-ink">{{ summary.total?.active || 0 }}</strong> dari
+        {{ summary.total?.total || 0 }} user
+        <span class="font-semibold text-primary ml-1"
+          >({{ summary.total?.percentage || 0 }}%)</span
+        >
       </div>
 
       <div class="flex items-center gap-1 text-[11px]">
-        <span
-          :class="[
-            'font-semibold inline-flex items-center px-1 rounded',
-            summary.total?.delta?.isUp ? 'text-success bg-status-approved-bg' : 'text-danger bg-status-rejected-bg'
-          ]"
-        >
-          {{ summary.total?.delta?.text || '0%' }}
+        <span class="text-ink-3 bg-muted">
+          {{ summary.total?.delta?.text || "0%" }}
         </span>
         <span class="text-ink-3">vs. kemarin</span>
       </div>
@@ -74,15 +81,20 @@
 </template>
 
 <script setup>
-import { Users } from 'lucide-vue-next'
+import { Users } from "lucide-vue-next";
 
 defineProps({
   summary: {
     type: Object,
     default: () => ({
       plants: [],
-      total: { active: 0, total: 0, percentage: 0, delta: { text: '0%', isUp: true } }
-    })
-  }
-})
+      total: {
+        active: 0,
+        total: 0,
+        percentage: 0,
+        delta: { text: "0%", isUp: true },
+      },
+    }),
+  },
+});
 </script>
