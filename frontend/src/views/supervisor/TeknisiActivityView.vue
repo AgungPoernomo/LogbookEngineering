@@ -264,13 +264,14 @@
       </button>
     </div>
 
-    <!-- TAMPILAN 1: GRID VIEW (KARTU VISUAL TEKNISI) -->
+    <!-- TAMPILAN 1: GRID VIEW (KARTU VISUAL TEKNISI) — hanya halaman aktif yang dirender -->
     <div
       v-else-if="viewMode === 'grid'"
+      :key="`grid-page-${currentPage}`"
       class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
     >
       <div
-        v-for="tech in filteredTechnicians"
+        v-for="tech in paginatedTechnicians"
         :key="tech.id"
         class="bg-surface rounded-lg border border-line shadow-card p-4 flex flex-col justify-between space-y-3.5 hover:border-primary/40 transition group"
       >
@@ -420,6 +421,47 @@
       </div>
     </div>
 
+    <!-- Pagination (Grid View) — di bawah daftar kartu -->
+    <nav
+      v-if="!loading && filteredTechnicians.length > 0"
+      class="bg-surface rounded-lg shadow-card border border-line px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      aria-label="Navigasi halaman daftar teknisi"
+    >
+      <p class="text-[11px] text-ink-3">
+        Menampilkan
+        <span class="font-semibold text-ink font-mono">{{ rangeStart }}–{{ rangeEnd }}</span>
+        dari <span class="font-semibold text-ink font-mono">{{ filteredTechnicians.length }}</span> teknisi
+        <span class="text-ink-3/80">({{ itemsPerPage }} kartu per halaman)</span>
+      </p>
+
+      <div class="flex items-center gap-1.5 self-start sm:self-auto">
+        <button
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+          :disabled="currentPage <= 1"
+          title="Halaman sebelumnya"
+          @click="goToPage(currentPage - 1)"
+        >
+          <ChevronLeft class="w-3.5 h-3.5" />
+          <span>Prev</span>
+        </button>
+        <span class="text-[11px] text-ink-2 font-medium px-1 whitespace-nowrap">
+          Halaman <strong class="text-ink font-mono">{{ currentPage }}</strong> dari
+          <strong class="text-ink font-mono">{{ totalPages }}</strong>
+        </span>
+        <button
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+          :disabled="currentPage >= totalPages"
+          title="Halaman berikutnya"
+          @click="goToPage(currentPage + 1)"
+        >
+          <span>Next</span>
+          <ChevronRight class="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </nav>
+
     <!-- TAMPILAN 2: TABLE VIEW (TABEL RINGKASAN SEMUA ANGGOTA TIM) -->
     <div
       v-else
@@ -442,7 +484,7 @@
           </thead>
           <tbody class="divide-y divide-line text-ink">
             <tr
-              v-for="tech in filteredTechnicians"
+              v-for="tech in paginatedTechnicians"
               :key="tech.id"
               class="hover:bg-muted/40 transition-colors"
             >
@@ -550,6 +592,42 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination (Table View) -->
+      <nav
+        v-if="filteredTechnicians.length > 0"
+        class="px-3.5 py-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface"
+        aria-label="Navigasi halaman daftar teknisi"
+      >
+        <p class="text-[11px] text-ink-3">
+          Menampilkan <span class="font-semibold text-ink font-mono">{{ rangeStart }}–{{ rangeEnd }}</span>
+          dari <span class="font-semibold text-ink font-mono">{{ filteredTechnicians.length }}</span> teknisi
+        </p>
+        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage <= 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            <ChevronLeft class="w-3.5 h-3.5" />
+            <span>Sebelumnya</span>
+          </button>
+          <span class="text-[11px] text-ink-2 font-medium px-1 whitespace-nowrap">
+            Halaman <strong class="text-ink font-mono">{{ currentPage }}</strong> dari
+            <strong class="text-ink font-mono">{{ totalPages }}</strong>
+          </span>
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage >= totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            <span>Berikutnya</span>
+            <ChevronRight class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </nav>
     </div>
 
     <!-- MODAL DETAIL LENGKAP & RIWAYAT LOGBOOK TEKNISI -->
@@ -925,6 +1003,12 @@ const sortBy = ref('name') // 'name' (urutan default; ranking keaktifan dihapus 
 const searchQuery = ref('')
 const viewMode = ref('grid') // 'grid' | 'table'
 
+// Pagination (client-side) — daftar teknisi bisa puluhan hingga ratusan,
+// jadi hanya satu halaman kartu yang dirender agar halaman tetap ringan.
+// 9 kartu = 3 baris penuh pada grid 3 kolom (xl), 1 baris pada md, 9 baris pada mobile.
+const currentPage = ref(1)
+const itemsPerPage = 9
+
 // Filter plant (hanya dipakai Admin)
 const plantFilter = ref('ALL')
 const plantOptions = computed(() => masterStore.plants || [])
@@ -1116,6 +1200,44 @@ const filteredTechnicians = computed(() => {
   }
 
   return list
+})
+
+/**
+ * --- Pagination (client-side) ---
+ * `filteredTechnicians` tetap menjadi sumber kebenaran (KPI & Counter memakai data
+ * penuh), sedangkan `paginatedTechnicians` hanya yang dirender di halaman aktif.
+ */
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredTechnicians.value.length / itemsPerPage)))
+
+const paginatedTechnicians = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredTechnicians.value.slice(start, start + itemsPerPage)
+})
+
+const rangeStart = computed(() =>
+  filteredTechnicians.value.length === 0 ? 0 : (currentPage.value - 1) * itemsPerPage + 1
+)
+
+const rangeEnd = computed(() =>
+  Math.min(currentPage.value * itemsPerPage, filteredTechnicians.value.length)
+)
+
+function goToPage(page) {
+  if (!Number.isFinite(page) || page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+// Reset ke halaman 1 setiap kali kriteria daftar berubah, agar user tidak
+// "terdampar" di halaman kosong setelah mempersempit filter/pencarian.
+watch([scopeFilter, plantFilter, activityStatusFilter, sortBy, searchQuery, viewMode], () => {
+  currentPage.value = 1
+})
+
+// Jaring pengaman: bila data/filter berubah sehingga halaman aktif melewati
+// total halaman (mis. setelah loadData mengembalikan data lebih sedikit),
+// tarik kembali ke halaman terakhir yang valid.
+watch(totalPages, (max) => {
+  if (currentPage.value > max) currentPage.value = max
 })
 
 function resetFilters() {
