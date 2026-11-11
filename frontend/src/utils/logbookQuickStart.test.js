@@ -4,6 +4,7 @@ import {
   buildMachineQuickStartRoute,
   isTechnicianRole,
   parseMachineId,
+  resolveAutoSubMachineId,
   resolveQueryMachine,
   resolveQuerySubMachine,
   resolveQuickStartCategory
@@ -143,6 +144,44 @@ describe('resolveQuerySubMachine', () => {
     expect(resolveQuerySubMachine('7', null, SUB_MACHINES).subMachineId).toBeNull()
     expect(resolveQuerySubMachine('abc', 1, SUB_MACHINES).subMachineId).toBeNull()
     expect(resolveQuerySubMachine(undefined, 1, SUB_MACHINES).subMachineId).toBeNull()
+  })
+})
+
+// ============================================================================
+// Auto-select sub-mesin: mesin dengan TEPAT satu bagian langsung mengisi
+// `form.sub_machine_id` agar teknisi tidak lupa memilih (sub-mesin wajib).
+// ============================================================================
+describe('resolveAutoSubMachineId', () => {
+  const oneSubMachine = [{ id: 7, machine_id: 1, name: 'Door Autoclave' }]
+  const manySubMachines = [
+    { id: 7, machine_id: 1, name: 'Door Autoclave' },
+    { id: 9, machine_id: 1, name: 'Panel Kontrol' },
+    { id: 8, machine_id: 2, name: 'Nozzle Filling' }
+  ]
+
+  it('mengembalikan ID sub-mesin bila mesin hanya punya satu bagian', () => {
+    expect(resolveAutoSubMachineId(1, oneSubMachine)).toBe(7)
+    expect(resolveAutoSubMachineId('1', oneSubMachine)).toBe(7)
+  })
+
+  it('tidak memilih otomatis bila bagian mesin lebih dari satu', () => {
+    expect(resolveAutoSubMachineId(1, manySubMachines)).toBeNull()
+  })
+
+  it('mengabaikan sub-mesin milik mesin lain', () => {
+    expect(resolveAutoSubMachineId(2, manySubMachines)).toBe(8)
+    expect(resolveAutoSubMachineId(3, manySubMachines)).toBeNull()
+  })
+
+  it('mengembalikan null untuk mesin kosong/tidak valid', () => {
+    expect(resolveAutoSubMachineId(null, oneSubMachine)).toBeNull()
+    expect(resolveAutoSubMachineId(0, oneSubMachine)).toBeNull()
+    expect(resolveAutoSubMachineId('abc', oneSubMachine)).toBeNull()
+    expect(resolveAutoSubMachineId(1)).toBeNull()
+  })
+
+  it('tidak memilih otomatis bila sub-mesin belum termuat di master', () => {
+    expect(resolveAutoSubMachineId(1, [])).toBeNull()
   })
 })
 

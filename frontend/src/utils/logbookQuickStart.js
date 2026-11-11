@@ -174,6 +174,33 @@ export function resolveQuerySubMachine(rawSubMachineId, machineId, subMachines =
 }
 
 /**
+ * Auto-select sub-mesin saat teknisi memilih mesin dari dropdown.
+ *
+ * Mesin yang hanya punya SATU bagian (mis. "Autoclave 1" → hanya "Door Seal")
+ * tidak perlu dipilih ulang secara manual: begitu mesin dipilih, sub-mesin
+ * langsung terisi sehingga teknisi tidak bisa lupa mengisinya (sub-mesin wajib
+ * untuk kategori MACHINE_TROUBLE & PREVENTIVE_PM).
+ *
+ * > 1 sub-mesin → tetap `null` (teknisi wajib memilih bagian yang rusak).
+ * 0 sub-mesin   → `null` (mesin utama tanpa bagian spesifik).
+ *
+ * @param {number|null|undefined} machineId mesin yang baru dipilih
+ * @param {{ id: number, machine_id?: number|null }[]} subMachines daftar sub-mesin master
+ * @returns {number|null} ID sub-mesin tunggal tersebut, atau `null`
+ */
+export function resolveAutoSubMachineId(machineId, subMachines = []) {
+  const selectedMachineId = parseMachineId(machineId)
+  if (!selectedMachineId) return null
+
+  const list = Array.isArray(subMachines) ? subMachines : []
+  const candidates = list.filter(
+    (sub) => Number(sub?.machine_id) === selectedMachineId && parseMachineId(sub?.id)
+  )
+
+  return candidates.length === 1 ? parseMachineId(candidates[0].id) : null
+}
+
+/**
  * Bangun objek `location` untuk `router.push()` menuju form logbook yang
  * sudah terisi mesin dari Buku Pintar Mesin.
  *

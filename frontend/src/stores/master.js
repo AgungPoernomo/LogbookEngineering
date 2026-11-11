@@ -125,10 +125,17 @@ export const useMasterStore = defineStore('master', () => {
     return loadPromise.value
   }
 
-  // Force refresh untuk admin setelah CRUD
+  // Force refresh untuk admin setelah CRUD.
+  // Cache localStorage ikut dibuang agar tidak ada jalur (hydrate SWR) yang
+  // mengembalikan daftar mesin/sub-mesin lama setelah aksi Admin.
   function invalidate() {
     isLoaded.value = false
     lastFetchedAt.value = 0
+    try {
+      localStorage.removeItem(CACHE_KEY)
+    } catch (e) {
+      // noop — localStorage penuh / mode privat
+    }
   }
 
   // F1.2: bersihkan cache saat logout

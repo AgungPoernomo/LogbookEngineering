@@ -624,8 +624,10 @@ async function saveMachine() {
     } else {
       await masterStore.addItem('machines', machineForm.value)
     }
-    masterStore.invalidate()
-    await masterStore.fetchAll(true)
+    // `masterStore.addItem/updateItem` sudah memanggil `invalidate()` + `fetchAll(true)`
+    // setelah respons sukses → cache localStorage bersih & daftar mesin/sub-mesin
+    // segar dari API SEBELUM modal ditutup, sehingga form teknisi langsung melihat
+    // data baru tanpa hard refresh (tanpa fetch ganda di sini).
     isMachineModalOpen.value = false
     await alert.success('Berhasil', editingId.value ? 'Data mesin berhasil diperbarui.' : 'Mesin baru berhasil ditambahkan.')
   } catch (err) {
@@ -662,8 +664,8 @@ async function saveSubMachine() {
     } else {
       await masterStore.addItem('sub_machines', subMachineForm.value)
     }
-    masterStore.invalidate()
-    await masterStore.fetchAll(true)
+    // Store sudah invalidate + fetchAll(true) setelah respons sukses → sub-mesin
+    // baru langsung tersedia di dropdown Bagian Mesin form teknisi.
     isSubMachineModalOpen.value = false
     await alert.success('Berhasil', editingId.value ? 'Data sub-mesin berhasil diperbarui.' : 'Sub-mesin baru berhasil ditambahkan.')
   } catch (err) {
@@ -681,9 +683,8 @@ async function toggleActiveMachine(machine) {
   )
   if (!isConfirmed) return
   try {
+    // Store sudah invalidate + fetchAll(true) → status mesin langsung segar.
     await masterStore.toggleActive('machines', machine.id)
-    masterStore.invalidate()
-    await masterStore.fetchAll(true)
   } catch (err) {
     await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif mesin.')
   }
@@ -697,9 +698,8 @@ async function toggleActiveSubMachine(sub) {
   )
   if (!isConfirmed) return
   try {
+    // Store sudah invalidate + fetchAll(true) → status sub-mesin langsung segar.
     await masterStore.toggleActive('sub_machines', sub.id)
-    masterStore.invalidate()
-    await masterStore.fetchAll(true)
   } catch (err) {
     await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif sub-mesin.')
   }

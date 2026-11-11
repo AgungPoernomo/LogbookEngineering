@@ -34,6 +34,26 @@ const SAMPLE_MACHINE_LIMIT = 3;
 const PROMOTED_MACHINE_CRITICALITY = "B_ESSENTIAL";
 const PROMOTED_MACHINE_IS_UNMAPPED_OTHER = false;
 
+// Sub-mesin default yang dibuat otomatis bersama mesin baru.
+// Alasan: validasi logbook (Fase 2) mewajibkan `sub_machine_id` untuk kategori
+// MACHINE_TROUBLE. Tanpa sub-mesin, dropdown Sub-Mesin pada form Input Logbook
+// kosong sehingga teknisi tidak bisa menyimpan logbook ke mesin hasil promote.
+const PROMOTED_DEFAULT_SUB_MACHINE_NAME = "Bagian Utama";
+
+// Sumber Prisma client untuk handler di file ini. Default selalu singleton asli;
+// hanya di-override oleh test (`__setPrismaClientForTest`) agar payload transaksi
+// dapat diverifikasi tanpa koneksi database.
+let prismaClient = prisma;
+
+/**
+ * Override Prisma client KHUSUS untuk pengujian (dependency injection).
+ * Jangan dipakai di kode produksi. Kirim `null` untuk mengembalikan singleton.
+ * @param {object|null} client
+ */
+export function __setPrismaClientForTest(client = null) {
+  prismaClient = client || prisma;
+}
+
 /**
  * Kunci grouping: trim + case-insensitive.
  * Dipakai untuk GET (grouping) dan POST (relink) agar keduanya identik.
@@ -241,7 +261,7 @@ export async function getUnmappedAssets(req, res, next) {
     if (hasPlantFilter) where.plant_id = BigInt(String(plant_id));
 
     // Satu query saja (select minimal) → grouping di memori, tanpa N+1.
-    const rows = await prisma.logbook.findMany({
+    const rows = await prismaClient.logbook.findMany({
       where,
       select: {
         id: true,
@@ -279,7 +299,8 @@ export async function getUnmappedAssets(req, res, next) {
  * POST /api/v1/admin/unmapped-assets/promote
  *
  * Body: { note_text, plant_id, new_machine_name }
- * 1. Buat mesin baru di master data (criticality B_GENERAL, bukan OTHER legacy).
+ * 1. Buat mesin baru di master data (criticality B_ESSENTIAL, bukan OTHER legacy)
+ *    beserta 1 sub-mesin default "Bagian Utama" (nested write, atomik).
  * 2. Relink seluruh logbook dengan catatan tersebut → { machine_id, unmapped_asset_note: null }
  * 3. Catat user_activities: PROMOTE_UNMAPPED_ASSET
  */
@@ -326,7 +347,7 @@ export async function promoteUnmappedAsset(req, res, next) {
     }
 
     const plantIdBigInt = BigInt(plantIdRaw);
-    const plant = await prisma.plant.findUnique({
+    const plant = await prismaClient.plant.findUnique({
       where: { id: plantIdBigInt },
       select: { id: true, name: true },
     });
@@ -338,7 +359,7 @@ export async function promoteUnmappedAsset(req, res, next) {
     }
 
     // ── Cegah duplikat master mesin pada Line yang sama (409) ─────────
-    const duplicateMachine = await prisma.machine.findFirst({
+    const duplicateMachine = await prismaClient.machine.findFirst({
       where: { name: trimmedMachineName, plant_id: plantIdBigInt },
       select: { id: true, name: true },
     });
@@ -354,7 +375,7 @@ export async function promoteUnmappedAsset(req, res, next) {
     const tokenKeywords = tokenizeNote(trimmedNote);
     const newMachineNameLower = trimmedMachineName.toLowerCase();
 
-    const candidateRows = await prisma.logbook.findMany({
+    const candidateRows = await prismaClient.logbook.findMany({
       where: buildPromoteCandidateWhere(noteKey, tokenKeywords, plantIdBigInt),
       select: {
         id: true,
@@ -380,8 +401,8 @@ export async function promoteUnmappedAsset(req, res, next) {
 
     const matchedIds = matchedRows.map((row) => row.id);
 
-    // ── Transaksi atomik: mesin → relink logbook → audit trail ────────
-    const { createdMachine, affectedCount } = await prisma.$transaction(
+    // ── Transaksi atomik: mesin (+ sub-mesin default) → relink → audit ─
+    const { createdMachine, affectedCount } = await prismaClient.$transaction(
       async (tx) => {
         const machine = await tx.machine.create({
           data: {
@@ -389,6 +410,14 @@ export async function promoteUnmappedAsset(req, res, next) {
             plant_id: plantIdBigInt,
             criticality: PROMOTED_MACHINE_CRITICALITY,
             is_unmapped_other: PROMOTED_MACHINE_IS_UNMAPPED_OTHER,
+            // Nested write: 1 sub-mesin default agar dropdown Sub-Mesin pada form
+            // Input Logbook tidak kosong (validasi Fase 2 mewajibkan sub_machine_id).
+            subMachines: {
+              create: [{ name: PROMOTED_DEFAULT_SUB_MACHINE_NAME }],
+            },
+          },
+          include: {
+            subMachines: true, // verifikasi response & audit trail
           },
         });
 
@@ -411,6 +440,10 @@ export async function promoteUnmappedAsset(req, res, next) {
               plant_id: Number(plantIdBigInt),
               plant_name: plant.name,
               affected_logbooks_count: updateResult.count,
+              // Sub-mesin default ikut dicatat agar audit trail lengkap.
+              sub_machine_ids: (machine.subMachines || []).map((sm) =>
+                Number(sm.id),
+              ),
               // Sampel id agar audit trail tetap ringkas.
               logbook_ids_sample: matchedIds.slice(0, 50).map(Number),
             }),
@@ -434,6 +467,11 @@ export async function promoteUnmappedAsset(req, res, next) {
           plant_name: plant.name,
           criticality: createdMachine.criticality,
           is_unmapped_other: createdMachine.is_unmapped_other,
+          // Sub-mesin default hasil nested write (dipakai dropdown Input Logbook).
+          sub_machines: (createdMachine.subMachines || []).map((sm) => ({
+            id: Number(sm.id),
+            name: sm.name,
+          })),
         },
         affected_logbooks_count: affectedCount,
       },

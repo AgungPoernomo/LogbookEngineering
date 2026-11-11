@@ -314,11 +314,15 @@ async function submitPromote() {
       new_machine_name: machineName
     })
 
+    // Anti stale-data: mesin baru WAJIB langsung terlihat di form teknisi.
+    // Kosongkan cache master (localStorage SWR) lalu tarik ulang dari API
+    // SEBELUM modal ditutup. Kegagalan penyegaran TIDAK boleh menggagalkan aksi
+    // yang sudah sukses di server (cache tetap bersih → fetch berikutnya fresh).
+    masterStore.invalidate()
+    await masterStore.fetchAll(true).catch(() => {})
+
     isPromoteModalOpen.value = false
     selectedGroup.value = null
-
-    // Segerakan daftar mesin di store agar dropdown lain langsung memuat mesin baru.
-    masterStore.invalidate()
 
     await fetchAssets()
 

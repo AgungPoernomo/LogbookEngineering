@@ -1116,6 +1116,7 @@ import { toLocalDateString, parseLocalDate } from "../../utils/dateKeys";
 import { validateLogbookTimeRange } from "../../utils/timeValidation";
 import {
   isTechnicianRole,
+  resolveAutoSubMachineId,
   resolveQueryMachine,
   resolveQuerySubMachine,
   resolveQuickStartCategory,
@@ -1678,6 +1679,24 @@ const filteredSubMachines = computed(() => {
   );
 });
 
+/**
+ * Isi sub-mesin otomatis bila mesin yang dipilih hanya punya satu bagian.
+ * Dipakai agar teknisi tidak lupa memilih bagian mesin (sub-mesin wajib pada
+ * kategori MACHINE_TROUBLE & PREVENTIVE_PM). Mesin dengan >1 bagian tetap
+ * dibiarkan kosong karena teknisi harus memilih bagian yang benar-benar rusak.
+ *
+ * @returns {boolean} true bila sub-mesin berhasil dipilih otomatis
+ */
+function autoSelectSingleSubMachine() {
+  const autoId = resolveAutoSubMachineId(
+    form.machine_id,
+    filteredSubMachines.value,
+  );
+  if (!autoId) return false;
+  form.sub_machine_id = autoId;
+  return true;
+}
+
 function handleMachineChange() {
   form.sub_machine_id = null;
   // Memilih mesin dari master = aset SUDAH terdaftar → lepas mode input manual
@@ -1685,6 +1704,8 @@ function handleMachineChange() {
   if (isUnmappedAsset.value) resetUnmappedAsset();
   // Mesin dipilih manual → banner pre-fill tidak relevan lagi
   clearQuickStart();
+  // Mesin dengan satu-satunya bagian → sub-mesin langsung terisi
+  autoSelectSingleSubMachine();
   // Kalau user override manual, hapus query pre-fill dari URL
   if (route.query?.machine) {
     router.replace({ path: "/logbook/input" });
@@ -2100,9 +2121,13 @@ function handleLoadDraftToForm(draft) {
 }
 
 onMounted(async () => {
-  if (masterStore.plants.length === 0 || masterStore.machines.length === 0) {
-    await masterStore.fetchAll();
-  }
+  // F1.2 — Anti stale-data: master (mesin & sub-mesin) SELALU ditarik ulang dari
+  // API setiap kali form dibuka. Tanpa `force`, cache SWR 5 menit membuat mesin /
+  // sub-mesin yang baru ditambahkan Admin tidak muncul sampai hard refresh.
+  // `force = true` juga menahan kontrol sampai fetch selesai, sehingga logika
+  // pre-fill `quickStart.pendingMachineId` di bawah melihat daftar mesin terbaru.
+  masterStore.invalidate();
+  await masterStore.fetchAll(true);
 
   if (quickStart.pendingMachineId) {
     // Master mesin baru tersedia setelah fetch → terapkan pre-fill dari tautan.
@@ -2115,6 +2140,11 @@ onMounted(async () => {
     );
     quickStart.pendingMachineId = null;
     quickStart.pendingSubMachineId = null;
+  }
+
+  // Mesin dari tautan QR tanpa `?sub=` juga ikut auto-select bila hanya 1 bagian.
+  if (form.machine_id && !form.sub_machine_id && !quickStart.subMachine) {
+    autoSelectSingleSubMachine();
   }
   // Sengaja TIDAK ada auto-select mesin pertama: form harus kosong ("Pilih Mesin")
   // bila teknisi membuka /logbook/input tanpa `?machine=` (mis. dari tautan QR).
