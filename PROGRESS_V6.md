@@ -172,6 +172,13 @@
 - **Offline-First Logbook** — IndexedDB + background sync API. Teknisi bisa input 100% offline, sync otomatis saat online. Estimasi: 2-3 hari.
 - **Capacitor APK** (opsional) — Bungkus PWA jadi APK untuk distribusi via Play Store atau file manual. Estimasi: 2 hari.
 
+### 🔴 Prioritas Tinggi — SECURITY (v6.1)
+- **JWT Stale Claims**: Plant/role changes di DB tidak auto-refresh di JWT user. 
+  - Skenario: Admin ubah role SPV → Teknisi, user tetap punya akses SPV hingga 24 jam.
+  - Mitigasi v6.0: Workaround logout-login (manual).
+  - Fix v6.1: `GET /auth/me` refresh on app init + reduce JWT expiry to 2-4 jam.
+  - Estimasi: 4-6 jam.
+
 ### 🟡 Prioritas Sedang
 - **Dashboard Skeleton Proper** — TeknisiDashboard, SupervisorDashboard, AdminDashboard saat ini pakai teks "Memuat..." bukan skeleton. Ganti `animate-pulse`.
 - **Token Konsistensi** — Beberapa file masih pakai `amber-*`/`blue-*` (bukan token `text-warning`/`text-primary`). Technical debt, low priority.

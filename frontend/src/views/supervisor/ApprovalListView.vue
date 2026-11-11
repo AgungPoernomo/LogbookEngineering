@@ -365,7 +365,7 @@
           </div>
         </div>
 
-        <!-- Tabel Rincian Logbook Teknisi (Expandable Accordion) -->
+        <!-- Rincian Logbook Teknisi (Card List - Uraian langsung terbaca) -->
         <div
           v-if="isTechExpanded(tech.user_id)"
           class="border-t border-line bg-muted/20"
@@ -377,118 +377,187 @@
             <span class="text-ink-3">{{ tech.logs.length }} entri log</span>
           </div>
 
-          <div class="overflow-x-auto">
-            <table
-              class="w-full text-left text-xs border-collapse min-w-[700px]"
+          <div class="p-3 sm:p-4">
+            <!-- Kartu Logbook: gaya konsisten dengan halaman Riwayat Teknisi -->
+            <div
+              v-for="log in tech.logs"
+              :id="`approval-card-${log.id}`"
+              :key="log.id"
+              :class="[
+                'border rounded-xl p-3 sm:p-4 mb-3 last:mb-0 bg-surface hover:shadow-card transition-shadow',
+                log.status === LOG_STATUS.REJECTED
+                  ? 'border-danger/30'
+                  : 'border-line',
+              ]"
             >
-              <thead
-                class="bg-muted/50 text-[11px] font-semibold text-ink-3 border-b border-line"
+              <!-- Header: Tanggal & Shift (kiri) | Status (kanan) -->
+              <div
+                class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-line"
               >
-                <tr>
-                  <th class="px-4 py-2.5">Waktu & Shift</th>
-                  <th class="px-4 py-2.5">Mesin & Komponen</th>
-                  <th class="px-4 py-2.5">Durasi</th>
-                  <th class="px-4 py-2.5">Uraian Pekerjaan & Suku Cadang</th>
-                  <th class="px-4 py-2.5">Status</th>
-                  <th class="px-4 py-2.5 text-right">Rincian</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-line text-ink">
-                <template v-for="log in tech.logs" :key="log.id">
-                  <tr class="hover:bg-muted/30 transition-colors">
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <div class="font-semibold text-ink">
-                        {{ log.task_date }}
-                      </div>
-                      <div class="text-[11px] text-ink-2">
-                        {{ log.shift_name }}
-                      </div>
-                      <div class="text-[11px] font-mono text-ink-3">
-                        {{ log.start_time }} - {{ log.end_time }}
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="font-medium text-ink">
-                        {{ log.machine_name }}
-                      </div>
-                      <div class="text-[11px] text-ink-2">
-                        {{ log.sub_machine_name || "-" }}
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <span class="font-medium text-primary">{{
-                        formatDuration(log.duration_minutes)
-                      }}</span>
-                      <div class="text-[10px] text-ink-3 font-mono">
-                        ({{ log.duration_minutes }} mnt)
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 max-w-sm">
-                      <p class="text-ink-2 line-clamp-2 leading-relaxed">
-                        {{ log.activity_description }}
-                      </p>
-                      <div
-                        v-if="log.sparepart && log.sparepart !== '-'"
-                        class="text-[11px] text-primary mt-0.5 font-medium truncate"
-                      >
-                        Part: {{ log.sparepart }}
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap">
-                      <AppBadge :status="log.status" />
-                    </td>
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        class="h-7 px-2.5 rounded-md text-xs font-medium border border-line bg-surface text-ink hover:bg-muted transition"
-                        @click="activeLogDetail = log"
-                      >
-                        Detail
-                      </button>
-                    </td>
-                  </tr>
-                  <tr v-if="log.repeat_failure" class="bg-muted/10">
-                    <td colspan="6" class="px-4 pb-3 pt-0">
-                      <div
-                        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-3 py-2 text-xs bg-warning/10 text-warning border border-warning/20"
-                      >
-                        <div class="flex items-start gap-2 min-w-0">
-                          <span
-                            aria-hidden="true"
-                            class="font-semibold leading-4"
-                            >⚠️</span
-                          >
-                          <p class="leading-relaxed">
-                            <span class="font-semibold">Repeat Failure</span> —
-                            Mesin ini sudah
-                            <span class="font-semibold"
-                              >{{ log.repeat_failure.occurrence_count }}×</span
-                            >
-                            mengalami
-                            <span class="font-semibold"
-                              >{{ log.repeat_failure.failure_code }} ({{
-                                log.repeat_failure.failure_code_name
-                              }})</span
-                            >
-                            dalam {{ log.repeat_failure.window_days }} hari
-                            terakhir.
-                            <span class="text-ink-3"
-                              >Validasi teknis sebelum menyetujui.</span
-                            >
-                          </p>
-                        </div>
-                        <a
-                          :href="`/mesin/${log.repeat_failure.machine_id}`"
-                          class="shrink-0 font-medium text-primary hover:underline whitespace-nowrap"
-                        >
-                          Lihat Buku Pintar Mesin →
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+                <div class="flex items-center gap-2 min-w-0">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-primary-soft text-primary-text-on-soft text-[11px] font-semibold"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    {{ log.task_date }}
+                  </span>
+                  <span class="text-[11px] font-medium text-ink-2 shrink-0">{{
+                    log.shift_name
+                  }}</span>
+                  <span
+                    class="hidden sm:inline text-[11px] font-mono text-ink-3 truncate"
+                    >{{ log.start_time }} - {{ log.end_time }}</span
+                  >
+                </div>
+                <AppBadge :status="log.status" />
+              </div>
+
+              <!-- Body: Mesin & Sub-Mesin -->
+              <div class="flex items-start gap-1.5 text-[13px] leading-snug">
+                <svg
+                  class="w-3.5 h-3.5 mt-0.5 text-ink-3 shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                </svg>
+                <div class="min-w-0">
+                  <span class="font-bold text-ink">{{ log.machine_name }}</span>
+                  <span class="font-normal text-ink-2">
+                    / {{ log.sub_machine_name || "-" }}</span
+                  >
+                </div>
+              </div>
+
+              <!-- Highlight: Uraian Aktivitas (tampil penuh, tanpa line-clamp) -->
+              <div class="mt-2">
+                <span
+                  class="text-[10px] font-semibold text-ink-3 uppercase tracking-wide block mb-1"
+                  >Uraian Aktivitas</span
+                >
+                <p
+                  class="text-[13px] leading-relaxed text-ink whitespace-pre-wrap break-words"
+                >
+                  {{ log.activity_description }}
+                </p>
+              </div>
+
+              <!-- Catatan Pemeriksaan (jika ada, mis. hasil penolakan) -->
+              <div
+                v-if="log.approval_notes"
+                class="mt-2 p-2.5 rounded-md bg-status-rejected-bg border border-danger/20 text-status-rejected-fg text-[11px]"
+              >
+                <div class="font-semibold mb-0.5">Catatan Pemeriksaan:</div>
+                <div class="leading-relaxed whitespace-pre-wrap break-words">
+                  {{ log.approval_notes }}
+                </div>
+              </div>
+
+              <!-- Footer: Durasi, Suku Cadang & Aksi -->
+              <div
+                class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2.5 pt-2.5 border-t border-line"
+              >
+                <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm font-medium bg-muted text-ink-2"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    {{ formatDuration(log.duration_minutes) }} ({{
+                      log.duration_minutes
+                    }}
+                    mnt)
+                  </span>
+                  <span
+                    v-if="log.sparepart && log.sparepart !== '-'"
+                    class="inline-flex items-center px-2 py-0.5 rounded-sm font-medium bg-muted text-primary max-w-[16rem] truncate"
+                    :title="log.sparepart"
+                  >
+                    Part: {{ log.sparepart }}
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0 justify-end">
+                  <button
+                    type="button"
+                    class="h-7 px-2.5 rounded-md text-xs font-medium border border-line bg-surface text-ink hover:bg-muted transition"
+                    @click="activeLogDetail = log"
+                  >
+                    Detail
+                  </button>
+                </div>
+              </div>
+
+              <!-- Peringatan Repeat Failure (per kartu logbook) -->
+              <div
+                v-if="log.repeat_failure"
+                class="mt-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-3 py-2 text-xs bg-warning/10 text-warning border border-warning/20"
+              >
+                <div class="flex items-start gap-2 min-w-0">
+                  <span aria-hidden="true" class="font-semibold leading-4"
+                    >!</span
+                  >
+                  <p class="leading-relaxed">
+                    <span class="font-semibold">Repeat Failure</span> -
+                    Mesin ini sudah
+                    <span class="font-semibold"
+                      >{{ log.repeat_failure.occurrence_count }}x</span
+                    >
+                    mengalami
+                    <span class="font-semibold"
+                      >{{ log.repeat_failure.failure_code }} ({{
+                        log.repeat_failure.failure_code_name
+                      }})</span
+                    >
+                    dalam {{ log.repeat_failure.window_days }} hari terakhir.
+                    <span class="text-ink-3"
+                      >Validasi teknis sebelum menyetujui.</span
+                    >
+                  </p>
+                </div>
+                <a
+                  :href="`/mesin/${log.repeat_failure.machine_id}`"
+                  class="shrink-0 font-medium text-primary hover:underline whitespace-nowrap"
+                >
+                  Lihat Buku Pintar Mesin &rarr;
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -512,7 +581,7 @@
               <th class="px-4 py-3">Teknisi & Plant</th>
               <th class="px-4 py-3">Mesin & Bagian</th>
               <th class="px-4 py-3">Waktu & Durasi</th>
-              <th class="px-4 py-3">Uraian Pekerjaan</th>
+              <th class="px-4 py-3 w-[34%] min-w-[260px]">Uraian Pekerjaan</th>
               <th class="px-4 py-3">Status</th>
               <th class="px-4 py-3 text-right">Tindakan</th>
             </tr>
@@ -564,13 +633,15 @@
                   {{ formatDuration(log.duration_minutes) }}
                 </span>
               </td>
-              <td class="px-4 py-3 max-w-xs">
-                <p class="text-xs text-ink-2 line-clamp-2 leading-relaxed">
+              <td class="px-4 py-3 align-top">
+                <p
+                  class="text-xs text-ink leading-relaxed whitespace-pre-wrap break-words min-w-[260px]"
+                >
                   {{ log.activity_description }}
                 </p>
                 <div
                   v-if="log.sparepart && log.sparepart !== '-'"
-                  class="text-[11px] text-primary mt-1 font-medium truncate"
+                  class="text-[11px] text-primary mt-1 font-medium"
                 >
                   Part: {{ log.sparepart }}
                 </div>

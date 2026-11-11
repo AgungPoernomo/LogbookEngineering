@@ -139,72 +139,193 @@
         </div>
       </div>
 
-      <!-- Logs Table Card -->
-      <div class="bg-surface rounded-lg shadow-card border border-line overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-[13px] border-collapse min-w-[700px]">
-            <thead class="bg-muted/60 text-xs font-semibold text-ink-2 border-b border-line">
-              <tr>
-                <th class="px-4 py-3">Tanggal / Shift</th>
-                <th class="px-4 py-3">Mesin & Bagian Mesin</th>
-                <th class="px-4 py-3">Waktu & Durasi</th>
-                <th class="px-4 py-3">Suku Cadang</th>
-                <th class="px-4 py-3">Status</th>
-                <th class="px-4 py-3 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-line text-ink">
-              <tr v-if="filteredLogs.length === 0">
-                <td colspan="6" class="px-4 py-12 text-center text-ink-3 text-xs">
-                  Tidak ada data logbook yang cocok dengan filter saat ini.
-                </td>
-              </tr>
-              <tr
-                v-for="log in filteredLogs"
-                :key="log.id"
-                class="hover:bg-muted/40 transition-colors group"
+      <!-- Logs Card List (High Information Density) -->
+      <div>
+        <!-- Empty State -->
+        <div
+          v-if="filteredLogs.length === 0"
+          class="bg-surface rounded-xl shadow-card border border-line p-10 text-center"
+        >
+          <svg
+            class="w-10 h-10 mx-auto mb-2 text-ink-3/60"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.5"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <div class="text-sm font-semibold text-ink">Belum ada logbook</div>
+          <div class="text-xs text-ink-2 mt-0.5">
+            Tidak ada data logbook yang cocok dengan filter saat ini.
+          </div>
+        </div>
+
+        <!-- Kartu Logbook: data esensial langsung terbaca -->
+        <div
+          v-for="log in filteredLogs"
+          :id="`logbook-card-${log.id}`"
+          :key="log.id"
+          :class="[
+            'border rounded-xl p-3 sm:p-4 mb-3 bg-surface hover:shadow-card transition-shadow',
+            log.status === LOG_STATUS.REJECTED
+              ? 'border-danger/30'
+              : 'border-line',
+          ]"
+        >
+          <!-- Header: Tanggal & Shift (kiri) | Status & Reviewer (kanan) -->
+          <div
+            class="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2.5 border-b border-line"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-primary-soft text-primary-text-on-soft text-[11px] font-semibold"
               >
-                <td class="px-4 py-3 whitespace-nowrap">
-                  <div class="font-semibold text-ink">{{ log.task_date }}</div>
-                  <div class="text-xs text-ink-2">{{ log.shift_name }}</div>
-                  <div class="text-[11px] text-ink-3">{{ log.plant_name }}</div>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="font-medium text-ink">{{ log.machine_name }}</div>
-                  <div class="text-xs text-ink-2">{{ log.sub_machine_name }}</div>
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">
-                  <div class="text-xs font-mono text-ink">{{ log.start_time }} - {{ log.end_time }}</div>
-                  <span class="inline-block mt-0.5 px-2 py-0.5 rounded-sm text-[10px] font-medium bg-primary-soft text-primary-text-on-soft">
-                    {{ formatDuration(log.duration_minutes) }}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-ink-2 text-xs">
-                  {{ log.sparepart || '-' }}
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">
-                  <AppBadge :status="log.status" />
-                </td>
-                <td class="px-4 py-3 text-right whitespace-nowrap space-x-1.5">
-                  <button
-                    type="button"
-                    class="h-7 px-2.5 rounded border border-line bg-surface text-ink hover:bg-muted text-xs font-medium transition"
-                    @click="viewLog = log"
-                  >
-                    Detail
-                  </button>
-                  <button
-                    v-if="log.status === 'REJECTED' || log.status === 'DRAFT'"
-                    type="button"
-                    class="h-7 px-2.5 rounded bg-primary text-white hover:bg-blue-700 text-xs font-medium transition shadow-sm"
-                    @click="handleNavigateEdit(log.id)"
-                  >
-                    {{ log.status === 'REJECTED' ? 'Revisi' : 'Edit' }}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                <svg
+                  class="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                {{ log.task_date }}
+              </span>
+              <span class="text-[11px] font-medium text-ink-2 shrink-0">{{
+                log.shift_name
+              }}</span>
+              <span
+                class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-sm bg-muted text-[10px] font-medium text-ink-3 truncate max-w-[9rem]"
+                :title="log.plant_name"
+                >{{ log.plant_name }}</span
+              >
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+              <AppBadge :status="log.status" />
+              <span
+                v-if="getReviewerName(log)"
+                class="text-[11px] text-ink-3 max-w-[9rem] truncate"
+                :title="getReviewerName(log)"
+              >
+                {{ getReviewerName(log) }}
+              </span>
+            </div>
+          </div>
+          <!-- Body: Mesin & Sub-Mesin -->
+          <div class="flex items-start gap-1.5 text-[13px] leading-snug">
+            <svg
+              class="w-3.5 h-3.5 mt-0.5 text-ink-3 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+            </svg>
+            <div class="min-w-0">
+              <span class="font-bold text-ink">{{ log.machine_name }}</span>
+              <span class="font-normal text-ink-2">
+                / {{ log.sub_machine_name || "-" }}</span
+              >
+            </div>
+          </div>
+
+          <!-- Highlight: Uraian Aktivitas (tampil penuh, tanpa line-clamp) -->
+          <div class="mt-2">
+            <span
+              class="text-[10px] font-semibold text-ink-3 uppercase tracking-wide block mb-1"
+              >Uraian Aktivitas</span
+            >
+            <p
+              class="text-[13px] leading-relaxed text-ink whitespace-pre-wrap break-words"
+            >
+              {{ log.activity_description }}
+            </p>
+          </div>
+
+          <!-- Catatan Revisi (jika ditolak) -->
+          <div
+            v-if="log.status === LOG_STATUS.REJECTED && log.approval_notes"
+            class="mt-2 p-2.5 rounded-md bg-status-rejected-bg border border-danger/20 text-status-rejected-fg text-[11px]"
+          >
+            <div class="font-semibold mb-0.5">
+              Catatan Revisi dari {{ getReviewerName(log) || "Supervisor" }}:
+            </div>
+            <div class="leading-relaxed whitespace-pre-wrap break-words">
+              {{ log.approval_notes }}
+            </div>
+          </div>
+
+          <!-- Footer: Durasi, Suku Cadang & Aksi -->
+          <div
+            class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-2.5 pt-2.5 border-t border-line"
+          >
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <span
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm font-medium bg-muted text-ink-2"
+              >
+                <svg
+                  class="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                {{ log.start_time }} - {{ log.end_time }} ({{ formatDuration(log.duration_minutes) }})
+              </span>
+              <span
+                v-if="log.sparepart && log.sparepart !== '-'"
+                class="inline-flex items-center px-2 py-0.5 rounded-sm font-medium bg-muted text-primary max-w-[16rem] truncate"
+                :title="log.sparepart"
+              >
+                Part: {{ log.sparepart }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0 justify-end">
+              <button
+                type="button"
+                class="h-7 px-2.5 rounded-md border border-line bg-surface text-ink hover:bg-muted text-xs font-medium transition"
+                @click="viewLog = log"
+              >
+                Detail
+              </button>
+              <button
+                v-if="log.status === LOG_STATUS.REJECTED || log.status === LOG_STATUS.DRAFT"
+                type="button"
+                class="h-7 px-2.5 rounded-md bg-primary text-white hover:bg-blue-700 text-xs font-medium transition shadow-sm"
+                @click="handleNavigateEdit(log.id)"
+              >
+                {{ log.status === LOG_STATUS.REJECTED ? "Revisi" : "Edit" }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -353,10 +474,18 @@ const isFilterDrawerOpen = ref(false)
 const selectedLogbookForPopover = ref(null)
 const popoverAnchorRect = ref(null)
 
-// State Tabel Riwayat
+// State Daftar Riwayat (card list)
 const activeStatus = ref('ALL')
 const searchQuery = ref('')
 const viewLog = ref(null)
+
+// Nama Supervisor peninjau (approval terakhir) untuk header kartu
+function getReviewerName(log) {
+  if (!log) return ''
+  if (log.latest_approval?.supervisor_name) return log.latest_approval.supervisor_name
+  if (log.supervisor_name) return log.supervisor_name
+  return log.status === LOG_STATUS.PENDING ? 'Menunggu SPV' : ''
+}
 
 // Rentang Tanggal Kalender
 const startDateStr = computed(() => {
