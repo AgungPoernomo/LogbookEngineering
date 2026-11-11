@@ -185,6 +185,14 @@
 - **`hasLoadedOnce` Reset Logic** — Cek apakah reset saat ganti mesin di MachineHistoryView. Kalau tidak, layout shift saat navigasi.
 - **F5.1 `ASSIGN_TO_EXISTING`** — Promote aset ke mesin existing (bukan cuma create baru). User story: teknisi salah ketik nama mesin, padahal mesinnya sudah ada.
 
+### 🟡 Prioritas Sedang — Data Hygiene (v6.1)
+- **Restore mesin untuk logbook orphan**: 
+  - 1 logbook asli (ID 3330007, user 60081/Slamet, "Monitoring line 04 area kelas c dan f") — mesin hilang sebelum cleanup, `machine_id = null`
+  - 12 logbook testing (deskripsi "uji", user 60001/Fina) — orphan, kandidat hapus jika Fina konfirmasi testing
+  - Aksi: restore mesin via Prisma Studio atau script kecil, lalu re-link
+- **Audit nama mesin tidak wajar**: cek master machine untuk nama seperti jam ("8:57") atau typo lain
+- **Soft delete audit**: pertimbangkan soft delete untuk master data (bukan hard delete) demi audit trail
+
 ### 🟢 Prioritas Rendah
 - **F3.2 QR Quick-Start** — Menunggu stiker fisik QR Code dicetak.
 - **Performance Audit** — Endpoint `/reliability-analytics` response time jika data tumbuh.
