@@ -464,6 +464,32 @@
           <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
             Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.
           </p>
+
+          <!-- Aset belum terdaftar (D12) juga berlaku untuk kereta/tray -->
+          <div class="flex items-start gap-2 mt-3">
+            <input
+              id="unmapped-kereta"
+              v-model="isUnmappedAsset"
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary cursor-pointer shrink-0"
+            />
+            <label
+              for="unmapped-kereta"
+              class="text-sm font-medium text-ink cursor-pointer leading-tight"
+            >
+              Mesin / Bagian ini belum terdaftar (Input Manual)
+            </label>
+          </div>
+          <input
+            v-if="isUnmappedAsset"
+            id="form-unmapped-note-kereta"
+            v-model="unmappedAssetNote"
+            type="text"
+            required
+            maxlength="200"
+            placeholder="Contoh: Tray Autoclave Line 2 tipe baru (belum ada di master)"
+            class="mt-2 w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
+          />
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -474,21 +500,37 @@
               class="block text-xs font-semibold text-ink mb-1.5"
             >
               Peralatan Mesin
-              <span v-if="isMachineRequired" class="text-danger">*</span>
+              <span v-if="isMachineRequired && !isUnmappedAsset" class="text-danger"
+                >*</span
+              >
             </label>
+
+            <!-- Aset belum terdaftar (D12): lapor mesin/bagian yang belum ada di master -->
+            <div class="flex items-start gap-2 mb-2">
+              <input
+                id="unmapped"
+                v-model="isUnmappedAsset"
+                type="checkbox"
+                class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary cursor-pointer shrink-0"
+              />
+              <label
+                for="unmapped"
+                class="text-sm font-medium text-ink cursor-pointer leading-tight"
+              >
+                Mesin / Bagian ini belum terdaftar (Input Manual)
+              </label>
+            </div>
+
             <select
               id="form-machine"
               v-model="form.machine_id"
-              :required="isMachineRequired"
-              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer"
+              :required="isMachineRequired && !isUnmappedAsset"
+              :disabled="isUnmappedAsset"
+              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
               @change="handleMachineChange"
             >
               <option :value="null" disabled>
-                {{
-                  isMachineRequired
-                    ? "-- Pilih Mesin --"
-                    : "-- Tanpa Mesin Spesifik --"
-                }}
+                {{ machinePlaceholder }}
               </option>
               <option v-for="m in filteredMachines" :key="m.id" :value="m.id">
                 {{ m.name }}
@@ -506,19 +548,25 @@
               class="block text-xs font-semibold text-ink mb-1.5"
             >
               Bagian Mesin (Sub-Mesin)
-              <span v-if="isMachineRequired" class="text-danger">*</span>
+              <span
+                v-if="isMachineRequired && !isUnmappedAsset"
+                class="text-danger"
+                >*</span
+              >
             </label>
             <select
               id="form-submachine"
               v-model="form.sub_machine_id"
-              :disabled="!form.machine_id"
-              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!form.machine_id || isUnmappedAsset"
+              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
             >
               <option :value="null">
                 {{
-                  !form.machine_id
-                    ? "Pilih mesin terlebih dahulu"
-                    : "-- Tanpa Bagian Spesifik / Mesin Utama --"
+                  isUnmappedAsset
+                    ? "Mesin belum terdaftar — isi catatan aset di bawah"
+                    : !form.machine_id
+                      ? "Pilih mesin terlebih dahulu"
+                      : "-- Tanpa Bagian Spesifik / Mesin Utama --"
                 }}
               </option>
               <option
@@ -533,6 +581,35 @@
               Bagian komponen mesin yang mengalami kendala/perawatan.
             </p>
           </div>
+        </div>
+
+        <!-- Catatan Aset Belum Terdaftar (muncul saat checkbox dicentang) -->
+        <div
+          v-if="isUnmappedAsset"
+          class="rounded-lg border border-warning/30 bg-warning/5 p-3 space-y-2"
+        >
+          <label
+            for="form-unmapped-note"
+            class="block text-xs font-semibold text-ink"
+          >
+            Nama / Catatan Mesin atau Bagian Belum Terdaftar
+            <span class="text-danger">*</span>
+          </label>
+          <input
+            id="form-unmapped-note"
+            v-model="unmappedAssetNote"
+            type="text"
+            required
+            maxlength="200"
+            placeholder="Contoh: Mesin Filling Cair Line 3 (belum ada di master), atau Blower B3"
+            class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
+          />
+          <p class="text-[10px] text-ink-3 leading-relaxed">
+            Catatan ini tampil di
+            <span class="font-semibold text-ink-2">Radar Aset Belum Terdaftar</span>
+            Admin untuk dipromosikan menjadi mesin resmi. Mesin &amp; sub-mesin
+            tidak wajib dipilih selama catatan ini terisi.
+          </p>
         </div>
 
         <!-- Inputan Spesifikasi Part (Text) -->
@@ -922,6 +999,12 @@
                   • {{ draft.sub_machine_name }}
                 </span>
                 <span
+                  v-if="draft.unmapped_asset_note"
+                  class="text-ink-2"
+                >
+                  • {{ draft.unmapped_asset_note }}
+                </span>
+                <span
                   v-if="draft.sparepart && draft.sparepart !== '-'"
                   class="text-ink-3 text-[11px]"
                 >
@@ -1158,6 +1241,36 @@ const form = reactive({
 });
 
 // ========================================================
+// ASET BELUM TERDAFTAR (D12)
+// Teknisi dapat melaporkan mesin / bagian yang belum ada di master data
+// lewat `unmapped_asset_note`. Backend mengizinkan mesin & sub-mesin kosong
+// untuk kategori wajib-mesin selama catatan ini terisi (lihat
+// `backend/src/utils/reliability.js`).
+// ========================================================
+const isUnmappedAsset = ref(false);
+const unmappedAssetNote = ref("");
+
+const trimmedUnmappedNote = computed(() => unmappedAssetNote.value.trim());
+const hasUnmappedNote = computed(() => trimmedUnmappedNote.value.length > 0);
+
+/** Toggle "Mesin / Bagian ini belum terdaftar" — kosongkan pilihan mesin. */
+watch(isUnmappedAsset, (active) => {
+  if (active) {
+    form.machine_id = null;
+    form.sub_machine_id = null;
+    // Mesin manual → banner pre-fill dari tautan QR tidak lagi relevan
+    clearQuickStart();
+  } else {
+    unmappedAssetNote.value = "";
+  }
+});
+
+function resetUnmappedAsset() {
+  isUnmappedAsset.value = false;
+  unmappedAssetNote.value = "";
+}
+
+// ========================================================
 // TODO H1: PRE-FILL DARI BUKU PINTAR MESIN (`?machine=&sub=&task_type=`)
 // Flow "scan QR → Buku Pintar Mesin → Catat Logbook" harus langsung mengisi
 // mesin, sub-mesin, dan kategori. Logika parsing/otorisasi ada di
@@ -1187,7 +1300,8 @@ const filteredMachines = computed(() => {
 /**
  * Terapkan `?machine=&sub=&task_type=` ke form.
  *
- * - Mesin dari tautan MENANG atas preselect otomatis (mesin pertama Line).
+ * - Mesin dari tautan hanya diisi bila param `?machine=` valid; tanpa param,
+ *   form dibiarkan kosong ("Pilih Mesin").
  * - Bila mesin berada di Line lain / tidak dikenal, param diabaikan dan
  *   alasan disimpan agar bisa ditampilkan sebagai toast informatif (F3.3).
  * - Bila master mesin belum termuat, ID disimpan sebagai pending dan
@@ -1236,6 +1350,10 @@ function applyQuickStartQuery(query = {}, { silent = false } = {}) {
     form.downtime_minutes = 0;
     selectCategory(category);
   }
+
+  // Tautan QR menunjuk mesin yang TERDAFTAR pada master → mode input manual dilepas
+  // agar watcher `isUnmappedAsset` tidak mengosongkan mesin yang baru diisi.
+  resetUnmappedAsset();
 
   form.machine_id = result.machineId;
   quickStart.machine = true;
@@ -1384,6 +1502,12 @@ const isMachineRequired = computed(
     selectedCategory.value === "PREVENTIVE_PM",
 );
 
+/** Placeholder dropdown mesin — kosong secara default sampai teknisi memilih. */
+const machinePlaceholder = computed(() => {
+  if (isUnmappedAsset.value) return "-- Mesin tidak ada di master (lihat catatan) --";
+  return isMachineRequired.value ? "Pilih Mesin" : "-- Tanpa Mesin Spesifik --";
+});
+
 function selectCategory(category) {
   selectedCategory.value = category;
   quickActionTag.value = "";
@@ -1392,6 +1516,8 @@ function selectCategory(category) {
     form.machine_id = null;
     form.sub_machine_id = null;
     form.sparepart = "";
+    // Tugas non-mesin dilarang menyertakan aset (backend menolak mesin apapun)
+    resetUnmappedAsset();
   }
   if (category !== "MACHINE_TROUBLE") {
     form.is_downtime = false;
@@ -1554,6 +1680,9 @@ const filteredSubMachines = computed(() => {
 
 function handleMachineChange() {
   form.sub_machine_id = null;
+  // Memilih mesin dari master = aset SUDAH terdaftar → lepas mode input manual
+  // (catatan ikut dibersihkan agar tidak mengirim data ganda).
+  if (isUnmappedAsset.value) resetUnmappedAsset();
   // Mesin dipilih manual → banner pre-fill tidak relevan lagi
   clearQuickStart();
   // Kalau user override manual, hapus query pre-fill dari URL
@@ -1605,6 +1734,8 @@ function handleResetForm() {
   form.is_downtime = false;
   form.downtime_minutes = 0;
   form.unit_repaired_qty = null;
+  // D12: bersihkan penanda & catatan aset belum terdaftar
+  resetUnmappedAsset();
   // TODO H1: hentikan penanda pre-fill — teknisi meminta form kosong
   clearQuickStart();
   if (route.query?.machine || route.query?.task_type) {
@@ -1623,18 +1754,28 @@ async function handleSubmit(isSubmitForApproval) {
   }
 
   // F3.1: mesin & sub-mesin wajib hanya untuk kategori yang membutuhkannya (Bagian 4.3).
-  if (isMachineRequired.value && !form.machine_id) {
+  // D12: boleh dikosongkan bila teknisi mengisi catatan aset belum terdaftar.
+  if (isMachineRequired.value && !isUnmappedAsset.value && !form.machine_id) {
     await alert.error(
       "Data Belum Lengkap",
-      "Silakan pilih peralatan mesin yang ditangani.",
+      "Silakan pilih peralatan mesin yang ditangani, atau centang “Mesin / Bagian ini belum terdaftar” dan isi catatannya.",
     );
     return;
   }
 
-  if (isMachineRequired.value && !form.sub_machine_id) {
+  if (isMachineRequired.value && !isUnmappedAsset.value && !form.sub_machine_id) {
     await alert.error(
       "Data Belum Lengkap",
-      "Silakan pilih bagian mesin (sub-mesin) yang ditangani.",
+      "Silakan pilih bagian mesin (sub-mesin) yang ditangani, atau centang “Mesin / Bagian ini belum terdaftar” dan isi catatannya.",
+    );
+    return;
+  }
+
+  // D12: catatan aset belum terdaftar wajib berisi bila checkbox dicentang.
+  if (isUnmappedAsset.value && !hasUnmappedNote.value) {
+    await alert.error(
+      "Catatan Aset Belum Terdaftar",
+      "Tuliskan nama mesin atau bagian yang belum terdaftar agar Admin dapat mempromosikannya ke master data.",
     );
     return;
   }
@@ -1735,13 +1876,17 @@ async function handleSubmit(isSubmitForApproval) {
       machine_id: isNonMachineCategory.value ? null : form.machine_id,
       machine_name: isNonMachineCategory.value
         ? "Non-Mesin"
-        : selectedMachine?.name || "Mesin Pabrik",
+        : selectedMachine?.name ||
+          (hasUnmappedNote.value
+            ? trimmedUnmappedNote.value
+            : "Aset belum terdaftar"),
       sub_machine_id: isNonMachineCategory.value
         ? null
         : form.sub_machine_id || null,
       sub_machine_name: isNonMachineCategory.value
         ? "-"
-        : selectedSubMachine?.name || "-",
+        : selectedSubMachine?.name ||
+          (hasUnmappedNote.value ? "Bagian belum terdaftar" : "-"),
       sparepart: isNonMachineCategory.value
         ? null
         : form.sparepart?.trim() || null,
@@ -1760,6 +1905,10 @@ async function handleSubmit(isSubmitForApproval) {
           : 0,
       unit_repaired_qty: isKeretaCategory.value
         ? Number(form.unit_repaired_qty) || null
+        : null,
+      // D12: catatan aset belum terdaftar (dipromosikan Admin lewat Radar Aset)
+      unmapped_asset_note: hasUnmappedNote.value
+        ? trimmedUnmappedNote.value
         : null,
       is_submit: isSubmitForApproval,
       status: isSubmitForApproval ? LOG_STATUS.PENDING : LOG_STATUS.DRAFT,
@@ -1791,6 +1940,8 @@ async function handleSubmit(isSubmitForApproval) {
       form.is_downtime = false;
       form.downtime_minutes = 0;
       form.unit_repaired_qty = null;
+      // D12: lepas penanda aset belum terdaftar untuk input berikutnya
+      resetUnmappedAsset();
     }
 
     // Refresh daftar draft tersimpan
@@ -1931,6 +2082,14 @@ function handleLoadDraftToForm(draft) {
   form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";
   form.activity_description = draft.activity_description || "";
 
+  // D12: draft hasil laporan aset baru dikembalikan sebagai mode input manual
+  if (draft.unmapped_asset_note) {
+    isUnmappedAsset.value = true;
+    unmappedAssetNote.value = draft.unmapped_asset_note;
+  } else {
+    resetUnmappedAsset();
+  }
+
   // Fokuskan ke formulir utama di atas
   window.scrollTo({ top: 0, behavior: "smooth" });
   showToast(
@@ -1956,10 +2115,9 @@ onMounted(async () => {
     );
     quickStart.pendingMachineId = null;
     quickStart.pendingSubMachineId = null;
-  } else if (filteredMachines.value.length > 0 && !form.machine_id) {
-    // Preselect first machine if available (hanya bila tidak ada pre-fill)
-    form.machine_id = filteredMachines.value[0].id;
   }
+  // Sengaja TIDAK ada auto-select mesin pertama: form harus kosong ("Pilih Mesin")
+  // bila teknisi membuka /logbook/input tanpa `?machine=` (mis. dari tautan QR).
 
   // Muat daftar draft logbook tersimpan milik teknisi
   await fetchDraftLogs();

@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest'
 import {
   toMinutes,
   pxToMinutes,
+  minutesToPx,
+  readPxPerHour,
+  FALLBACK_PX_PER_HOUR,
   splitLogbookToSegments,
   layoutDaySegments,
   computeDaySummary
@@ -97,13 +100,58 @@ describe('calendarLayout & date utilities (Section 7.5)', () => {
     expect(c.columnIndex).toBe(0)
   })
 
+  // Kasus 5b: posisi blok pada grid compact 40px/jam
+  it('Kasus 5b: topPx/heightPx mengikuti token 40px pada layoutDaySegments', () => {
+    const seg = { logbookId: 'A', startMin: 480, endMin: 510 } // 08:00 - 08:30
+    const [laidOut] = layoutDaySegments([seg], 40)
+    expect(laidOut.topPx).toBe(320) // 8 jam * 40px
+    expect(laidOut.heightPx).toBe(22) // 20px terangkat ke tinggi minimum 22px
+
+    const longSeg = { logbookId: 'B', startMin: 480, endMin: 630 } // 08:00 - 10:30
+    const [longLaidOut] = layoutDaySegments([longSeg], 40)
+    expect(longLaidOut.topPx).toBe(320)
+    expect(longLaidOut.heightPx).toBe(100) // 2.5 jam * 40px
+  })
+
   // Kasus 6: pxToMinutes(0), (7), (8), (14), (1500) -> 0, 0, 15, 15, 1440
   it('Kasus 6: pxToMinutes melakukan snap 15 menit dengan tepat', () => {
+    // Diuji pada skala grid 60px/jam (kebalikan persis: 1 menit = 1px)
+    expect(pxToMinutes(0, 60)).toBe(0)
+    expect(pxToMinutes(7, 60)).toBe(0)
+    expect(pxToMinutes(8, 60)).toBe(15)
+    expect(pxToMinutes(14, 60)).toBe(15)
+    expect(pxToMinutes(1500, 60)).toBe(1440)
+
+    // Grid compact aktif (token 40px/jam): 1 menit = 2/3 px
     expect(pxToMinutes(0)).toBe(0)
-    expect(pxToMinutes(7)).toBe(0)
-    expect(pxToMinutes(8)).toBe(15)
-    expect(pxToMinutes(14)).toBe(15)
+    expect(pxToMinutes(4)).toBe(0) // 4px = 6 menit -> 0
+    expect(pxToMinutes(5)).toBe(15) // 5px = 7.5 menit -> 15
+    expect(pxToMinutes(10)).toBe(15) // 10px = 15 menit
+    expect(pxToMinutes(320)).toBe(480) // 320px = 8 jam (08:00)
     expect(pxToMinutes(1500)).toBe(1440)
+  })
+
+  // Kasus 6b: Konversi mengikuti token --planner-hour-h (fallback 40px), bukan hardcode 60px
+  it('Kasus 6b: tinggi 1 jam default mengikuti token 40px (bukan 60px)', () => {
+    expect(FALLBACK_PX_PER_HOUR).toBe(40)
+    expect(readPxPerHour()).toBe(40)
+    // 08:00 -> top 320px; durasi 30 menit -> height 20px
+    expect(minutesToPx(480)).toBe(320)
+    expect(minutesToPx(30)).toBe(20)
+    // 24 jam penuh = 960px, sama dengan h-[calc(var(--planner-hour-h)*24)] di DayColumn
+    expect(minutesToPx(1440)).toBe(960)
+    // Kebalikan: 320px -> 480 menit (08:00)
+    expect(pxToMinutes(320)).toBe(480)
+  })
+
+  // Kasus 6c: pxPerHour eksplisit tetap didukung (kompatibilitas & pengujian)
+  it('Kasus 6c: pxToMinutes dan minutesToPx menerima pxPerHour eksplisit', () => {
+    // Pada 60px/jam: 480px = 08:00, 7px snap ke 15 menit
+    expect(pxToMinutes(480, 60)).toBe(480)
+    expect(pxToMinutes(7, 60)).toBe(0)
+    expect(pxToMinutes(8, 60)).toBe(15)
+    expect(pxToMinutes(1500, 60)).toBe(1440)
+    expect(minutesToPx(480, 60)).toBe(480)
   })
 
   // Kasus 7: Awal minggu (Senin) untuk 2026-10-17 (Sabtu) -> 2026-10-12

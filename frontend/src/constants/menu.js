@@ -62,12 +62,17 @@ export const NAVIGATION_MENU = [
   },
 
   // Admin Menu
+  // `mobilePrimary: true` = item yang menempati slot utama Bottom Navbar mobile Admin:
+  // Dashboard → Pengguna → Audit → Lainnya (drawer) → Profil.
+  // Item admin lain (termasuk seluruh Master) masuk ke drawer "Lainnya"
+  // — lihat `getAdminMoreMenuItems()` pada utils/mobileNav.js.
   {
     name: 'Manajemen Akun',
     path: '/admin/users',
     icon: 'Users',
     section: 'Menu',
-    roles: [ROLES.ADMIN]
+    roles: [ROLES.ADMIN],
+    mobilePrimary: true
   },
   {
     name: 'Master Plant',
@@ -113,7 +118,8 @@ export const NAVIGATION_MENU = [
     path: '/admin/audit',
     icon: 'ScrollText',
     section: 'Menu',
-    roles: [ROLES.ADMIN]
+    roles: [ROLES.ADMIN],
+    mobilePrimary: true
   },
 
   // Akun Section
@@ -122,6 +128,8 @@ export const NAVIGATION_MENU = [
     path: '/profil',
     icon: 'UserCircle',
     section: 'Akun',
-    roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN]
+    roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN],
+    // Slot ke-5 Bottom Navbar mobile Admin (dan juga item utama mobile Teknisi/Supervisor).
+    mobilePrimary: true
   }
 ]

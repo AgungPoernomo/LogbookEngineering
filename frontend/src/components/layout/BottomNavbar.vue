@@ -4,12 +4,16 @@
     aria-label="Navigasi Bawah Perangkat Seluler dan Tablet"
   >
     <div class="flex items-center justify-around h-16 max-w-md sm:max-w-xl md:max-w-2xl mx-auto px-1.5 sm:px-4">
-      <RouterLink
+      <component
+        :is="item.isMoreButton ? 'button' : RouterLink"
         v-for="item in currentNavItems"
-        :key="item.path"
-        :to="item.path"
+        :key="item.isMoreButton ? '__more__' : item.path"
+        v-bind="item.isMoreButton
+          ? { type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': isMoreMenuOpen }
+          : { to: item.path }"
         class="group relative flex flex-col items-center justify-center flex-1 h-full py-1 text-center focus:outline-none select-none transition-transform active:scale-95"
         :aria-current="isItemActive(item) ? 'page' : undefined"
+        @click="item.isMoreButton ? toggleMoreMenu() : closeMoreMenu()"
       >
         <!-- Top Active Indicator Bar (Subtle) -->
         <span
@@ -54,16 +58,27 @@
         >
           {{ item.name }}
         </span>
-      </RouterLink>
+      </component>
     </div>
   </nav>
+
+  <!-- Bottom Sheet "Lainnya" (Khusus Admin, Mobile & Tablet) -->
+  <MoreMenuSheet
+    v-if="isAdmin"
+    :is-open="isMoreMenuOpen"
+    title="Menu Navigasi"
+    :sections="moreMenuSections"
+    @close="closeMoreMenu"
+  />
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useNotificationStore } from '../../stores/notification'
+import { getAdminMoreMenuItems, groupBySection } from '../../utils/mobileNav'
+import MoreMenuSheet from './MoreMenuSheet.vue'
 import {
   LayoutGrid,
   SquarePen,
@@ -72,13 +87,74 @@ import {
   FileBarChart,
   Users,
   Building2,
+  Cpu,
+  Layers,
+  LineChart,
+  Radar,
+  Wrench,
   ScrollText,
-  UserCircle
+  UserCircle,
+  MoreHorizontal
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const authStore = useAuthStore()
 const notifStore = useNotificationStore()
+
+const isAdmin = computed(() => authStore.isAdmin)
+const isMoreMenuOpen = ref(false)
+
+// Peta ikon string (constants/menu.js) → komponen lucide.
+// Selaras dengan iconMap pada Sidebar.vue agar drawer "Lainnya" konsisten.
+const iconMap = {
+  LayoutGrid,
+  SquarePen,
+  ClipboardList,
+  ClipboardCheck,
+  FileBarChart,
+  Users,
+  Database: Building2,
+  Building2,
+  Cpu,
+  Layers,
+  LineChart,
+  Radar,
+  Wrench,
+  ScrollText,
+  UserCircle
+}
+
+function getIcon(name) {
+  return iconMap[name] || LayoutGrid
+}
+
+function toggleMoreMenu() {
+  isMoreMenuOpen.value = !isMoreMenuOpen.value
+}
+
+function closeMoreMenu() {
+  isMoreMenuOpen.value = false
+}
+
+// Tutup drawer otomatis saat pengguna berpindah halaman.
+watch(() => route.path, closeMoreMenu)
+
+// Item menu Admin untuk drawer "Lainnya" — di luar 4 slot utama (sumber: constants/menu.js).
+const adminMobileMenuItems = computed(() => {
+  return getAdminMoreMenuItems().map(item => ({
+    ...item,
+    icon: getIcon(item.icon)
+  }))
+})
+
+// Daftar menu drawer dikelompokkan per section (urutan mengikuti Sidebar desktop).
+const moreMenuSections = computed(() => groupBySection(adminMobileMenuItems.value))
+
+// Path yang tercakup tombol "Lainnya" → dipakai agar tombol tetap ter-highlight
+// saat pengguna berada di halaman yang hanya bisa diakses via drawer.
+const adminMoreActivePrefixes = computed(() => {
+  return adminMobileMenuItems.value.map(item => item.activePrefixes?.[0] || item.path)
+})
 
 // Daftar Item Navigasi Bawah per Peran (Mobile & Tablet)
 const currentNavItems = computed(() => {
@@ -162,16 +238,18 @@ const currentNavItems = computed(() => {
         activePrefixes: ['/admin/users']
       },
       {
-        name: 'Master',
-        path: '/admin/plants',
-        icon: Building2,
-        activePrefixes: ['/admin/plants', '/admin/machines', '/admin/groups', '/admin/master']
-      },
-      {
         name: 'Audit',
         path: '/admin/audit',
         icon: ScrollText,
         activePrefixes: ['/admin/audit']
+      },
+      {
+        // Slot ke-4 Admin: membuka bottom sheet berisi menu Master, Analitik
+        // Keandalan, dan Radar Aset (tidak lagi punya slot utama sendiri).
+        name: 'Lainnya',
+        icon: MoreHorizontal,
+        isMoreButton: true,
+        activePrefixes: adminMoreActivePrefixes.value
       },
       {
         name: 'Profil',
@@ -200,6 +278,9 @@ const currentNavItems = computed(() => {
 })
 
 function isItemActive(item) {
+  // Tombol "Lainnya" aktif bila halaman saat ini berada di salah satu menu
+  // drawer (Master dkk). Menu slot utama (Dashboard, Pengguna, Audit, Profil)
+  // sudah dikecualikan dari drawer sehingga tidak ada tumpang tindih.
   if (item.activePrefixes) {
     return item.activePrefixes.some(prefix => route.path.startsWith(prefix))
   }
