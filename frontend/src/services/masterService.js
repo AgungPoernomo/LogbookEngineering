@@ -64,9 +64,12 @@ export const masterService = {
 
   // FASE 4.1a — Master kode kerusakan ISO 14224 (dropdown "Kode Kerusakan").
   // Default backend hanya mengembalikan kode AKTIF.
-  async getFailureCodes({ includeInactive = false } = {}) {
+  // Halaman Admin Master Failure Code mengirim `include_inactive: true`.
+  async getFailureCodes({ includeInactive = false, category = null, search = '' } = {}) {
     const params = {}
     if (includeInactive) params.include_inactive = true
+    if (category) params.category = category
+    if (search) params.search = search
     return await api.get('/master/failure-codes', params)
   },
 

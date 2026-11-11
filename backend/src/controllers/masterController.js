@@ -166,13 +166,157 @@ async function findDuplicatePartCode(client, partCode, excludeId = null) {
   return client.sparepart.findFirst({ where, select: { id: true, part_code: true } })
 }
 
+// ============================================================================
+// FASE 5 — Master Kode Kerusakan (ISO 14224) — CRUD Admin
+// Helper murni (tanpa database) agar kontrak validasi & mapping dapat diuji.
+// ============================================================================
+
+/** Kategori kode kerusakan (selaras komentar kolom `failure_codes.category`). */
+export const FAILURE_CODE_CATEGORIES = [
+  'MECHANICAL',
+  'ELECTRICAL',
+  'INSTRUMENTATION',
+  'UTILITY',
+  'PROCESS'
+]
+
+/**
+ * Validasi & normalisasi payload kode kerusakan.
+ * Mengembalikan { errors, data }. `data` hanya berisi field yang dikirim
+ * (partial update) agar PUT tidak menghapus kolom yang tidak disertakan.
+ *
+ * Aturan:
+ * - code wajib (create), maks 30 karakter, disimpan huruf besar (unik).
+ * - category wajib, enum FAILURE_CODE_CATEGORIES.
+ * - name wajib, maks 150 karakter.
+ * - description opsional (null bila kosong).
+ * - is_active boolean opsional (soft delete / aktifkan kembali).
+ */
+export function buildFailureCodePayload(body = {}, { partial = false } = {}) {
+  const errors = []
+  const data = {}
+  const has = (key) => Object.prototype.hasOwnProperty.call(body, key)
+  // Saat partial update hanya field yang benar-benar dikirim yang diproses;
+  // saat create, field wajib tetap divalidasi walau tidak dikirim.
+  const includes = (key) => (partial ? has(key) : true)
+
+  // ── code (wajib saat create, unik, uppercase) ──
+  if (includes('code')) {
+    const code = optionalText(body.code)
+    if (!code) {
+      errors.push('Kode kerusakan wajib diisi.')
+    } else if (code.length > 30) {
+      errors.push('Kode kerusakan maksimal 30 karakter.')
+    } else {
+      // Taksonomi ISO 14224 memakai huruf besar (MECH-01, ELEC-01, …);
+      // dinormalisasi agar cek duplikat case-insensitive konsisten.
+      data.code = code.toUpperCase()
+    }
+  }
+
+  // ── category (wajib saat create, enum) ──
+  if (includes('category')) {
+    const category = optionalText(body.category)
+    if (!category) {
+      errors.push('Kategori kerusakan wajib dipilih.')
+    } else if (!FAILURE_CODE_CATEGORIES.includes(category)) {
+      errors.push(
+        `Kategori '${category}' tidak valid. Gunakan ${FAILURE_CODE_CATEGORIES.join(', ')}.`
+      )
+    } else {
+      data.category = category
+    }
+  }
+
+  // ── name (wajib saat create) ──
+  if (includes('name')) {
+    const name = optionalText(body.name)
+    if (!name) {
+      errors.push('Nama kerusakan wajib diisi.')
+    } else if (name.length > 150) {
+      errors.push('Nama kerusakan maksimal 150 karakter.')
+    } else {
+      data.name = name
+    }
+  }
+
+  // ── description (opsional) ──
+  if (has('description')) {
+    data.description = optionalText(body.description)
+  }
+
+  // ── is_active (opsional, untuk soft delete / re-aktifkan) ──
+  if (has('is_active')) {
+    if (typeof body.is_active === 'boolean') {
+      data.is_active = body.is_active
+    } else {
+      const normalized = String(body.is_active).toLowerCase().trim()
+      if (['true', '1', 'aktif'].includes(normalized)) data.is_active = true
+      else if (['false', '0', 'nonaktif'].includes(normalized)) data.is_active = false
+      else errors.push('Status aktif tidak valid (gunakan true/false).')
+    }
+  }
+
+  return { errors, data }
+}
+
+/**
+ * Cek duplikat `code` tanpa bergantung pada collation database
+ * (TiDB/MySQL umumnya case-insensitive, tapi normalisasi uppercase memastikan
+ * perilaku sama di semua lingkungan).
+ */
+async function findDuplicateFailureCode(client, code, excludeId = null) {
+  if (!code) return null
+  const where = { code: { equals: code } }
+  if (excludeId !== null) where.id = { not: BigInt(excludeId) }
+  return client.failureCode.findFirst({ where, select: { id: true, code: true } })
+}
+
+/**
+ * `true` bila segmen URL `:type` menunjuk ke master kode kerusakan
+ * (mendukung `failure-codes` dan alias `failure_codes`).
+ */
+export function isFailureCodeType(type) {
+  const normalized = String(type ?? '').toLowerCase()
+  return normalized === 'failure-codes' || normalized === 'failure_codes'
+}
+
+/**
+ * WHERE klausa daftar kode kerusakan:
+ * - category (enum) bila dikirim & valid → 1 query terindeks.
+ * - search → OR pada code / name (substring).
+ * - include_inactive=true → tampilkan semua (halaman Admin Master Failure Code);
+ *   selain itu HANYA kode aktif (dropdown form teknisi).
+ */
+export function buildFailureCodeWhere({ category, search, include_inactive } = {}) {
+  const where = {}
+  const normalizedCategory = optionalText(category)
+  if (normalizedCategory && FAILURE_CODE_CATEGORIES.includes(normalizedCategory)) {
+    where.category = normalizedCategory
+  }
+
+  const keyword = optionalText(search)
+  if (keyword) {
+    where.OR = [
+      { code: { contains: keyword } },
+      { name: { contains: keyword } }
+    ]
+  }
+
+  const includeInactive = ['true', '1'].includes(String(include_inactive ?? '').toLowerCase())
+  if (!includeInactive) where.is_active = true
+
+  return where
+}
+
 /**
  * Mapping respons master kode kerusakan (ISO 14224).
  * Prisma mengembalikan `id` sebagai BigInt → ubah ke Number agar JSON-safe
  * dan cocok dengan `:value` dropdown (`v-model` mengirim Number).
  * `description` kosong dinormalkan menjadi null.
+ * `is_active` dibutuhkan kolom Status pada halaman Master Failure Code Admin.
  *
- * @param {{ id: bigint|number, code: string, name: string, category: string, description?: string|null }} row
+ * @param {{ id: bigint|number, code: string, name: string, category: string, description?: string|null, is_active?: boolean|null }} row
  */
 export function mapFailureCode(row = {}) {
   return {
@@ -180,7 +324,8 @@ export function mapFailureCode(row = {}) {
     code: row.code,
     name: row.name,
     category: row.category,
-    description: optionalText(row.description)
+    description: optionalText(row.description),
+    is_active: row.is_active !== false
   }
 }
 
@@ -309,10 +454,11 @@ export async function getMasterData(req, res, next) {
 
       // FASE 4.1a — Master Kode Kerusakan (ISO 14224) untuk dropdown form teknisi.
       // Default hanya kode AKTIF; `?include_inactive=true` untuk halaman admin.
+      // `?category=` & `?search=` opsional (halaman Master Failure Code Admin).
       // Urut `code` agar taksonomi (MECH-01, ELEC-01, …) tampil konsisten di dropdown.
       case 'failure-codes':
       case 'failure_codes': {
-        const where = req.query.include_inactive === 'true' ? {} : { is_active: true }
+        const where = buildFailureCodeWhere(req.query)
         const failureCodes = await prisma.failureCode.findMany({
           where,
           orderBy: [{ code: 'asc' }, { id: 'asc' }]
@@ -453,17 +599,47 @@ export async function createMasterData(req, res, next) {
         break
       }
 
+      // FASE 5 — Tambah kode kerusakan (ISO 14224).
+      case 'failure-codes':
+      case 'failure_codes': {
+        const { errors, data } = buildFailureCodePayload(body)
+        if (errors.length > 0) {
+          return errorResponse(res, { message: errors[0], errors, statusCode: 400 })
+        }
+
+        const duplicate = await findDuplicateFailureCode(prisma, data.code)
+        if (duplicate) {
+          return errorResponse(res, {
+            message: `Kode kerusakan "${data.code}" sudah terdaftar. Gunakan kode lain (contoh: MECH-02).`,
+            statusCode: 409
+          })
+        }
+
+        created = await prisma.failureCode.create({
+          data: {
+            code: data.code,
+            category: data.category,
+            name: data.name,
+            description: data.description ?? null,
+            is_active: data.is_active ?? true
+          }
+        })
+        break
+      }
+
       default:
         return errorResponse(res, { message: `Tipe '${type}' tidak didukung.`, statusCode: 400 })
     }
 
-    await logActivity(req.user.id, `CREATE_MASTER_${type.toUpperCase()}`, `Tambah data master ${type}: ${body.name || body.part_name}`)
+    await logActivity(req.user.id, `CREATE_MASTER_${type.toUpperCase()}`, `Tambah data master ${type}: ${body.name || body.part_name || body.code}`)
 
     return successResponse(res, {
       message: `Master data ${type} berhasil ditambahkan.`,
       data: type.toLowerCase() === 'spareparts'
         ? mapSparepart(created)
-        : { ...created, id: Number(created.id) },
+        : (isFailureCodeType(type)
+          ? mapFailureCode(created)
+          : { ...created, id: Number(created.id) }),
       statusCode: 201
     })
   } catch (err) {
@@ -563,6 +739,46 @@ export async function updateMasterData(req, res, next) {
         break
       }
 
+      // FASE 5 — Update kode kerusakan (partial) + toggle is_active.
+      // `code` boleh diubah; duplikat dicek terhadap baris LAIN (termasuk yang
+      // nonaktif, karena kolom `code` tetap @unique di database).
+      case 'failure-codes':
+      case 'failure_codes': {
+        const targetId = BigInt(id)
+        const { errors, data } = buildFailureCodePayload(body, { partial: true })
+        if (errors.length > 0) {
+          return errorResponse(res, { message: errors[0], errors, statusCode: 400 })
+        }
+
+        const existing = await prisma.failureCode.findUnique({
+          where: { id: targetId },
+          select: { id: true, code: true, is_active: true }
+        })
+        if (!existing) {
+          return errorResponse(res, { message: 'Kode kerusakan tidak ditemukan.', statusCode: 404 })
+        }
+
+        if (data.code && data.code !== existing.code) {
+          const duplicate = await findDuplicateFailureCode(prisma, data.code, targetId)
+          if (duplicate) {
+            return errorResponse(res, {
+              message: `Kode kerusakan "${data.code}" sudah terdaftar pada data lain. Gunakan kode berbeda.`,
+              statusCode: 409
+            })
+          }
+        }
+
+        if (Object.keys(data).length === 0) {
+          return errorResponse(res, { message: 'Tidak ada perubahan data yang dikirim.', statusCode: 400 })
+        }
+
+        updated = await prisma.failureCode.update({
+          where: { id: targetId },
+          data
+        })
+        break
+      }
+
       default:
         return errorResponse(res, { message: `Tipe '${type}' tidak didukung.`, statusCode: 400 })
     }
@@ -573,7 +789,9 @@ export async function updateMasterData(req, res, next) {
       message: `Master data ${type} berhasil diperbarui.`,
       data: type.toLowerCase() === 'spareparts'
         ? mapSparepart(updated)
-        : { ...updated, id: Number(updated.id) }
+        : (isFailureCodeType(type)
+          ? mapFailureCode(updated)
+          : { ...updated, id: Number(updated.id) })
     })
   } catch (err) {
     next(err)
@@ -636,6 +854,44 @@ export async function deleteMasterData(req, res, next) {
         return successResponse(res, {
           message: `Sparepart "${updated.part_name}" berhasil dinonaktifkan.`,
           data: mapSparepart(updated)
+        })
+      }
+
+      // FASE 5 — Soft delete kode kerusakan: JANGAN hapus baris karena
+      // `logbooks.failure_code_id` masih mereferensikan kode ini (histori logbook,
+      // Pareto kerusakan, & repeat failure). Kode nonaktif tidak muncul di
+      // dropdown form teknisi (GET default hanya `is_active: true`).
+      case 'failure-codes':
+      case 'failure_codes': {
+        const existing = await prisma.failureCode.findUnique({
+          where: { id: targetId },
+          select: { id: true, code: true, name: true, category: true, description: true, is_active: true }
+        })
+        if (!existing) {
+          return errorResponse(res, { message: 'Kode kerusakan tidak ditemukan.', statusCode: 404 })
+        }
+
+        if (existing.is_active === false) {
+          return successResponse(res, {
+            message: `Kode kerusakan #${id} sudah berstatus nonaktif.`,
+            data: mapFailureCode(existing)
+          })
+        }
+
+        const updated = await prisma.failureCode.update({
+          where: { id: targetId },
+          data: { is_active: false }
+        })
+
+        await logActivity(
+          req.user.id,
+          `DELETE_MASTER_${type.toUpperCase()}`,
+          `Nonaktifkan (soft delete) master ${type} #${id}: ${updated.code}`
+        )
+
+        return successResponse(res, {
+          message: `Kode kerusakan "${updated.code}" berhasil dinonaktifkan.`,
+          data: mapFailureCode(updated)
         })
       }
 

@@ -105,6 +105,16 @@ export const NAVIGATION_MENU = [
     activeMatchPrefixes: ['/admin/spareparts']
   },
   {
+    // FASE 5 — Master Failure Code (taksonomi kerusakan ISO 14224).
+    // Kode kerusakan yang muncul di dropdown form teknisi + acuan Pareto/repeat failure.
+    name: 'Master Failure Code',
+    path: '/admin/failure-codes',
+    icon: 'ShieldAlert',
+    section: 'Menu',
+    roles: [ROLES.ADMIN],
+    activeMatchPrefixes: ['/admin/failure-codes']
+  },
+  {
     // FASE 5.1 — Radar aset/mesin yang dilaporkan teknisi tapi belum ada di master data.
     name: 'Radar Aset',
     path: '/admin/unmapped-assets',

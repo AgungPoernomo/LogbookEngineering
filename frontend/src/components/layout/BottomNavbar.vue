@@ -92,6 +92,7 @@ import {
   LineChart,
   Radar,
   Wrench,
+  ShieldAlert,
   ScrollText,
   UserCircle,
   MoreHorizontal
@@ -120,6 +121,8 @@ const iconMap = {
   LineChart,
   Radar,
   Wrench,
+  // FASE 5 — Master Failure Code.
+  ShieldAlert,
   ScrollText,
   UserCircle
 }

@@ -41,6 +41,10 @@ export const useMasterStore = defineStore('master', () => {
   // FASE 5.2 — Katalog sparepart. Tidak ikut `getAllMaster()` (dipakai dropdown
   // form) agar payload master tetap ringan; di-fetch terpisah oleh halaman admin.
   const spareparts = ref([])
+  // FASE 5 — Daftar kode kerusakan SEMUA status untuk halaman Admin
+  // (state terpisah dari `failureCodes` yang dipakai dropdown teknisi).
+  const adminFailureCodes = ref([])
+  const isLoadingFailureCodes = ref(false)
 
   // ── Cache state ──
   const isLoaded = ref(false)
@@ -160,6 +164,7 @@ export const useMasterStore = defineStore('master', () => {
     roles.value = []
     failureCodes.value = []
     spareparts.value = []
+    adminFailureCodes.value = []
     isLoaded.value = false
     lastFetchedAt.value = 0
     isOffline.value = false
@@ -242,6 +247,66 @@ export const useMasterStore = defineStore('master', () => {
     return res
   }
 
+  // ── FASE 5 — Master Failure Code (halaman Admin) ──
+  // Review: `failureCodes` dipakai dropdown form teknisi (hanya kode AKTIF, dari
+  // `fetchAll`). Bila halaman admin menimpanya dengan data "include_inactive",
+  // dropdown teknisi bisa menampilkan kode nonaktif dari cache. Karena itu
+  // daftar admin disimpan di state TERPISAH (`adminFailureCodes`, dideklarasi di
+  // awal store) dan `failureCodes` hanya disegarkan ulang (aktif saja).
+  async function fetchFailureCodes(params = {}) {
+    isLoadingFailureCodes.value = true
+    try {
+      const data = await masterService.getFailureCodes({ includeInactive: true, ...params })
+      adminFailureCodes.value = Array.isArray(data) ? data : []
+      return adminFailureCodes.value
+    } catch (err) {
+      console.warn('Gagal memuat master failure code:', err)
+      throw err
+    } finally {
+      isLoadingFailureCodes.value = false
+    }
+  }
+
+  async function addFailureCode(payload) {
+    const res = await masterService.addItem('failure-codes', payload)
+    await refreshAfterFailureCodeMutation()
+    return res
+  }
+
+  async function updateFailureCode(id, payload) {
+    const res = await masterService.updateItem('failure-codes', id, payload)
+    await refreshAfterFailureCodeMutation()
+    return res
+  }
+
+  // Soft delete: backend mengubah `is_active` menjadi false (logbook mereferensikan kode ini).
+  async function deactivateFailureCode(id) {
+    const res = await masterService.deleteItem('failure-codes', id)
+    await refreshAfterFailureCodeMutation()
+    return res
+  }
+
+  // Toggle Aktif ⇄ Nonaktif (satu aksi untuk kedua arah).
+  async function toggleFailureCode(id, isActive) {
+    if (isActive === false) return await deactivateFailureCode(id)
+    return await updateFailureCode(id, { is_active: true })
+  }
+
+  // Setelah CRUD: buang cache lalu muat ulang
+  // - `adminFailureCodes` (semua status) untuk tabel admin
+  // - `failureCodes` (aktif saja) untuk dropdown form teknisi
+  async function refreshAfterFailureCodeMutation() {
+    invalidate()
+    await fetchAll(true)
+    if (isLoadingFailureCodes.value || adminFailureCodes.value.length > 0) {
+      try {
+        await fetchFailureCodes()
+      } catch (e) {
+        // Halaman admin akan memuat ulang sendiri & menampilkan pesan error.
+      }
+    }
+  }
+
   return {
     plants,
     shifts,
@@ -267,6 +332,14 @@ export const useMasterStore = defineStore('master', () => {
     fetchSpareparts,
     addSparepart,
     updateSparepart,
-    deactivateSparepart
+    deactivateSparepart,
+    // FASE 5 — Master Failure Code (Admin)
+    adminFailureCodes,
+    isLoadingFailureCodes,
+    fetchFailureCodes,
+    addFailureCode,
+    updateFailureCode,
+    deactivateFailureCode,
+    toggleFailureCode
   }
 })

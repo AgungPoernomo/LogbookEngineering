@@ -185,6 +185,7 @@ import {
   LineChart,
   Radar,
   Wrench,
+  ShieldAlert,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -218,6 +219,8 @@ const iconMap = {
   Radar,
   // FASE 5.2 — ikon Master Sparepart.
   Wrench,
+  // FASE 5 — ikon Master Failure Code.
+  ShieldAlert,
   ScrollText,
   UserCircle
 }

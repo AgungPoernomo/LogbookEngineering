@@ -97,6 +97,14 @@ const routes = [
     meta: { roles: [ROLES.ADMIN], title: 'Master Sparepart' }
   },
   {
+    // FASE 5 — Master Failure Code (taksonomi kerusakan ISO 14224).
+    // CRUD Admin: tambah/edit kode, toggle aktif/nonaktif (soft delete).
+    path: '/admin/failure-codes',
+    name: 'admin-failure-codes',
+    component: () => import('../views/admin/MasterFailureCodeView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Master Failure Code' }
+  },
+  {
     // FASE 5.1 — Radar Aset Belum Terdaftar (promote `unmapped_asset_note` → master mesin).
     path: '/admin/unmapped-assets',
     name: 'admin-unmapped-assets',
