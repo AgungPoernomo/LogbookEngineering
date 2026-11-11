@@ -1,8 +1,41 @@
 import { addDays } from './dateKeys'
 import { LOG_STATUS } from '../constants/logStatus'
 
-export const PX_PER_HOUR = 60
+/**
+ * Fallback tinggi 1 jam (px) bila CSS variable `--planner-hour-h` tidak terbaca.
+ * Nilai ini WAJIB sama dengan token di `assets/tokens.css`.
+ */
+export const FALLBACK_PX_PER_HOUR = 40
 export const SNAP = 15
+
+/**
+ * Tinggi minimum blok logbook (px) agar tetap dapat diklik/dibaca.
+ * Selaras dengan token `--planner-event-min-h: 22px`.
+ */
+export const MIN_EVENT_HEIGHT_PX = 22
+
+/**
+ * Baca tinggi 1 jam (px) dari CSS variable `--planner-hour-h` pada elemen yang diberikan
+ * (default: <html>). Satu-satunya sumber kebenaran konversi menit <-> piksel.
+ * @param {HTMLElement|null} el
+ * @returns {number}
+ */
+export function readPxPerHour(el = null) {
+  if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+    return FALLBACK_PX_PER_HOUR
+  }
+  const target = el || document.documentElement
+  if (!target) return FALLBACK_PX_PER_HOUR
+  const raw = window.getComputedStyle(target).getPropertyValue('--planner-hour-h')
+  const parsed = parseFloat(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : FALLBACK_PX_PER_HOUR
+}
+
+/**
+ * Tinggi 1 jam (px) default. Dipertahankan sebagai konstanta agar impor lama tetap valid;
+ * nilainya mengikuti token `--planner-hour-h` (40px), bukan lagi hardcode 60px.
+ */
+export const PX_PER_HOUR = FALLBACK_PX_PER_HOUR
 
 /**
  * Convert 'HH:mm' string to minutes from 00:00
@@ -28,19 +61,32 @@ export const minutesToHhmm = (totalMinutes) => {
 }
 
 /**
- * Snap Y pixel position to minutes in 15-minute intervals
- * @param {number} y
+ * Piksel per menit berdasarkan tinggi 1 jam.
+ * @param {number} pxPerHour
  * @returns {number}
  */
-export const pxToMinutes = (y) =>
-  Math.min(1440, Math.max(0, Math.round(((y / PX_PER_HOUR) * 60) / SNAP) * SNAP))
+const pxPerMinute = (pxPerHour) => pxPerHour / 60
+
+/**
+ * Snap Y pixel position to minutes in 15-minute intervals
+ * @param {number} y - offset piksel dari atas kolom hari (00:00)
+ * @param {number} [pxPerHour] - tinggi 1 jam; default `readPxPerHour()` (token --planner-hour-h)
+ * @returns {number}
+ */
+export const pxToMinutes = (y, pxPerHour = readPxPerHour()) =>
+  Math.min(
+    1440,
+    Math.max(0, Math.round(y / pxPerMinute(pxPerHour) / SNAP) * SNAP)
+  )
 
 /**
  * Convert minutes to pixel height/offset
- * @param {number} min
+ * @param {number} min - menit sejak 00:00
+ * @param {number} [pxPerHour] - tinggi 1 jam; default `readPxPerHour()` (token --planner-hour-h)
  * @returns {number}
  */
-export const minutesToPx = (min) => (min / 60) * PX_PER_HOUR
+export const minutesToPx = (min, pxPerHour = readPxPerHour()) =>
+  min * pxPerMinute(pxPerHour)
 
 /**
  * Split a logbook into 1 or 2 visual segments depending on midnight crossing
@@ -94,9 +140,10 @@ export function splitLogbookToSegments(lb) {
 /**
  * Overlapping column layout algorithm for segments within one DayColumn (Section 7.3)
  * @param {Array} segments - segments belonging to one day
+ * @param {number} [pxPerHour] - tinggi 1 jam; default `readPxPerHour()` (token --planner-hour-h)
  * @returns {Array} segments with visual layout coordinates (top, height, left, width, columnIndex, totalColumns)
  */
-export function layoutDaySegments(segments) {
+export function layoutDaySegments(segments, pxPerHour = readPxPerHour()) {
   if (!segments || segments.length === 0) return []
 
   // 1. Sort by startMin asc, then endMin desc
@@ -155,8 +202,11 @@ export function layoutDaySegments(segments) {
 
     for (const seg of cluster) {
       seg.totalColumns = totalColumns
-      seg.topPx = minutesToPx(seg.startMin)
-      seg.heightPx = Math.max(22, minutesToPx(seg.endMin - seg.startMin))
+      seg.topPx = minutesToPx(seg.startMin, pxPerHour)
+      seg.heightPx = Math.max(
+        MIN_EVENT_HEIGHT_PX,
+        minutesToPx(seg.endMin - seg.startMin, pxPerHour)
+      )
       seg.leftPercent = (seg.columnIndex / totalColumns) * 100
       seg.widthPercent = 100 / totalColumns
       positionedSegments.push(seg)

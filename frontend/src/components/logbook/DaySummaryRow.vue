@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-start border-b border-line bg-surface shrink-0 min-h-[30px] py-1.5">
+  <div class="flex items-start border-b border-line bg-surface shrink-0 min-h-[26px] py-1">
     <!-- Kolom Kosong di Kiri (menyamakan lebar TimeAxis) -->
     <div class="w-12 sm:w-16 shrink-0 border-r border-line" aria-hidden="true" />
 

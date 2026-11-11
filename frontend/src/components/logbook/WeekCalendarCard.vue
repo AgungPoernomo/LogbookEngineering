@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex-1 min-w-0 bg-surface rounded-lg shadow-card border border-line flex flex-col overflow-hidden h-[calc(100vh-70px-32px)] min-h-[520px]"
+    class="h-full flex-1 min-w-0 min-h-0 bg-surface rounded-lg shadow-card border border-line flex flex-col overflow-hidden"
   >
     <!-- Toolbar -->
     <CalendarToolbar
@@ -12,16 +12,16 @@
       @create="$emit('create')"
     />
 
-    <!-- Header Hari (Lengket) -->
+    <!-- Header Hari (Lengket: selalu di atas area scroll) -->
     <WeekHeader :days="days" />
 
-    <!-- Baris Ringkasan Harian (Lengket) -->
+    <!-- Baris Ringkasan Harian (Lengket: selalu di atas area scroll) -->
     <DaySummaryRow
       :days="days"
       @open-edit="$emit('openEdit', $event)"
     />
 
-    <!-- Grid Waktu 24 Jam (Area Scroll) -->
+    <!-- Grid Waktu 24 Jam (mengisi sisa tinggi card & scroll internal) -->
     <TimeGrid
       :days="days"
       :loading="loading"

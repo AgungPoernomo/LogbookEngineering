@@ -1,7 +1,7 @@
 <template>
   <div
     ref="scrollContainerRef"
-    class="flex-1 overflow-y-auto min-h-0 relative bg-surface select-none"
+    class="flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative bg-surface select-none overscroll-contain"
     role="grid"
     :aria-label="ariaLabel"
   >
@@ -91,19 +91,33 @@ defineEmits(['create-slot', 'click-block'])
 
 const scrollContainerRef = ref(null)
 
+const DEFAULT_SCROLL_VIEW_OFFSET = 180 // px ruang konteks di atas indikator waktu sekarang
+const DEFAULT_SCROLL_HOUR = 6 // jatuh ke 06:00 bila hari ini tidak ada di rentang
+
+function getHourHeightPx() {
+  const el = scrollContainerRef.value
+  if (!el) return 0
+  const raw = getComputedStyle(el).getPropertyValue('--planner-hour-h')
+  const parsed = parseFloat(raw)
+  // Fallback ke 40px (nilai token) bila CSS variable tidak terbaca
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 40
+}
+
 function scrollToInitialPosition() {
   if (!scrollContainerRef.value) return
+  const hourHeight = getHourHeightPx()
 
   if (props.hasToday) {
     const d = new Date()
     const nowMinutes = d.getHours() * 60 + d.getMinutes()
-    const nowPx = (nowMinutes / 60) * 60
+    const nowPx = (nowMinutes / 60) * hourHeight
     // Scroll so current time is ~ 1/3 from top
-    const targetScroll = Math.max(0, nowPx - 180)
-    scrollContainerRef.value.scrollTop = targetScroll
+    scrollContainerRef.value.scrollTop = Math.max(
+      0,
+      nowPx - DEFAULT_SCROLL_VIEW_OFFSET
+    )
   } else {
-    // Scroll to 06:00 (6 * 60 = 360px)
-    scrollContainerRef.value.scrollTop = 360
+    scrollContainerRef.value.scrollTop = DEFAULT_SCROLL_HOUR * hourHeight
   }
 }
 
