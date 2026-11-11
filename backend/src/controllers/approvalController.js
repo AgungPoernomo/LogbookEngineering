@@ -5,6 +5,10 @@ import {
   sendNotification,
   sendBulkNotifications,
 } from "../services/mailerService.js";
+import {
+  REPEAT_FAILURE_WINDOW_DAYS,
+  buildRepeatFailureMap,
+} from "../utils/repeatFailure.js";
 
 export async function processApproval(req, res, next) {
   try {
@@ -396,16 +400,6 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
     });
 
     // ---- Fase 4.1a: deteksi repeat failure (SATU query tambahan, tanpa N+1) ----
-    const REPEAT_WINDOW_DAYS = 30;
-    const pairKey = (machineId, failureCodeId) =>
-      `${machineId}:${failureCodeId}`;
-    const toDateStr = (d) => d.toISOString().slice(0, 10);
-    const shiftDays = (dateStr, days) => {
-      const d = new Date(`${dateStr}T00:00:00Z`);
-      d.setUTCDate(d.getUTCDate() + days);
-      return toDateStr(d);
-    };
-
     const keyedLogs = pendingLogbooks.filter(
       (l) => l.machine_id && l.failure_code_id,
     );
@@ -434,38 +428,19 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
         },
       });
 
-      // Kelompokkan kandidat Y per pasangan mesin + kode kerusakan
-      const relatedByPair = new Map();
-      for (const r of relatedLogs) {
-        const k = pairKey(r.machine_id, r.failure_code_id);
-        if (!relatedByPair.has(k)) relatedByPair.set(k, []);
-        relatedByPair.get(k).push(r);
-      }
+      const failureCodeById = new Map(
+        keyedLogs
+          .filter((l) => l.failureCode)
+          .map((l) => [
+            Number(l.failure_code_id),
+            { code: l.failureCode.code, name: l.failureCode.name },
+          ]),
+      );
 
-      for (const log of keyedLogs) {
-        const windowStart = shiftDays(log.task_date, -REPEAT_WINDOW_DAYS);
-        const matches = (
-          relatedByPair.get(pairKey(log.machine_id, log.failure_code_id)) || []
-        ).filter(
-          (y) =>
-            y.id !== log.id &&
-            y.task_date &&
-            y.task_date >= windowStart &&
-            y.task_date <= log.task_date,
-        );
-
-        // Total kejadian = Y dalam window + X sendiri (inklusif)
-        const totalOccurrences = matches.length + 1;
-        if (totalOccurrences >= 2) {
-          repeatInfoByLogId.set(Number(log.id), {
-            occurrence_count: totalOccurrences,
-            window_days: REPEAT_WINDOW_DAYS,
-            machine_id: Number(log.machine_id),
-            failure_code_id: Number(log.failure_code_id),
-            failure_code: log.failureCode?.code || `#${log.failure_code_id}`,
-            failure_code_name: log.failureCode?.name || "-",
-          });
-        }
+      for (const [logId, info] of buildRepeatFailureMap(relatedLogs, {
+        failureCodeById,
+      })) {
+        repeatInfoByLogId.set(logId, info);
       }
     }
     // ---- end Fase 4.1a ----
@@ -509,6 +484,7 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
         task_date: log.task_date,
         shift_name: log.shift?.name || "-",
         machine_name: log.machine?.name || "-",
+        machine_id: log.machine_id ? Number(log.machine_id) : null,
         sub_machine_name: log.subMachine?.name || "-",
         start_time: log.start_time,
         end_time: log.end_time,
@@ -516,18 +492,49 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
         activity_description: log.activity_description,
         sparepart: log.sparepart,
         status: log.status,
-        // Fase 4.1a: null jika logbook ini bukan bagian pola kerusakan berulang
+        // Fase 4.1a: kode kerusakan supaya label badge bisa tampil di kartu UI
+        failure_code_id: log.failure_code_id ? Number(log.failure_code_id) : null,
+        failure_code: log.failureCode
+          ? {
+              id: Number(log.failureCode.id),
+              code: log.failureCode.code,
+              name: log.failureCode.name,
+            }
+          : null,
+        // Fase 4.1a: flag eksplisit untuk banner + detail kejadian
+        is_repeat_failure: Boolean(repeatFailure),
+        repeat_failure_count: repeatFailure?.occurrence_count || 0,
+        // Detail lengkap (null jika logbook ini bukan bagian pola kerusakan berulang)
         repeat_failure: repeatFailure,
         created_at: log.created_at,
       });
     }
 
-    const result = Array.from(technicianMap.values()).map((tech) => ({
-      ...tech,
-      machines: Array.from(tech.machines),
-      shifts: Array.from(tech.shifts),
-      dates: Array.from(tech.dates).sort().reverse(),
-    }));
+    const result = Array.from(technicianMap.values()).map((tech) => {
+      const repeatFailures = tech.logs
+        .filter((l) => l.is_repeat_failure)
+        .map((l) => ({
+          logbook_id: l.id,
+          machine_id: l.machine_id,
+          machine_name: l.machine_name,
+          task_date: l.task_date,
+          failure_code: l.repeat_failure?.failure_code || l.failure_code?.code || null,
+          failure_code_name:
+            l.repeat_failure?.failure_code_name || l.failure_code?.name || null,
+          occurrence_count: l.repeat_failure_count,
+        }));
+
+      return {
+        ...tech,
+        machines: Array.from(tech.machines),
+        shifts: Array.from(tech.shifts),
+        dates: Array.from(tech.dates).sort().reverse(),
+        // Fase 4.1a: ringkasan pola di level teknisi
+        is_repeat_failure: repeatFailures.length > 0,
+        repeat_failure_window_days: REPEAT_FAILURE_WINDOW_DAYS,
+        repeat_failures: repeatFailures,
+      };
+    });
 
     return successResponse(res, {
       message: "Daftar approval per teknisi berhasil diambil.",

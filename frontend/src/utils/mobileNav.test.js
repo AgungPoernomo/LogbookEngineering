@@ -27,6 +27,7 @@ const EXPECTED_MORE_PATHS = [
   '/admin/machines', // Master Mesin
   '/admin/groups', // Master Group
   '/admin/spareparts', // Master Sparepart
+  '/admin/failure-codes', // Master Failure Code
   '/admin/unmapped-assets' // Radar Aset
 ]
 
@@ -63,7 +64,7 @@ describe('getAdminMoreMenuItems', () => {
     expect(paths).toEqual(EXPECTED_MORE_PATHS)
   })
 
-  it('memuat seluruh Master (Plant, Mesin, Group, Sparepart)', () => {
+  it('memuat seluruh Master (Plant, Mesin, Group, Sparepart, Failure Code)', () => {
     const names = getAdminMoreMenuItems().map(item => item.name)
 
     expect(names).toEqual(
@@ -71,7 +72,8 @@ describe('getAdminMoreMenuItems', () => {
         'Master Plant',
         'Master Mesin',
         'Master Group',
-        'Master Sparepart'
+        'Master Sparepart',
+        'Master Failure Code'
       ])
     )
   })
@@ -94,6 +96,19 @@ describe('getAdminMoreMenuItems', () => {
       name: 'Master Sparepart',
       icon: 'Wrench',
       activePrefixes: ['/admin/spareparts']
+    })
+  })
+
+  it('mendaftarkan Master Failure Code di drawer dengan ikon ShieldAlert', () => {
+    const failureCode = getAdminMoreMenuItems().find(
+      item => item.path === '/admin/failure-codes'
+    )
+
+    expect(failureCode).toMatchObject({
+      name: 'Master Failure Code',
+      icon: 'ShieldAlert',
+      section: 'Menu',
+      activePrefixes: ['/admin/failure-codes']
     })
   })
 

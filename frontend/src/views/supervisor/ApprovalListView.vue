@@ -390,6 +390,23 @@
             <span class="text-ink-3">{{ tech.logs.length }} entri log</span>
           </div>
 
+          <!-- Banner Repeat Failure (level teknisi, tepat di atas daftar logbook) -->
+          <div
+            v-if="repeatingTechIds.has(tech.user_id)"
+            class="mx-3 sm:mx-4 mt-3 flex items-start gap-2 rounded-md px-3 py-2 text-xs bg-warning/10 text-warning border border-warning/30"
+            role="alert"
+          >
+            <span aria-hidden="true" class="font-bold leading-4">!</span>
+            <p class="leading-relaxed">
+              <span class="font-semibold"
+                >&#9888;&#65039; Repeat Failure terdeteksi</span
+              >
+              &mdash; ada logbook dengan mesin dan kode kerusakan yang sama pada
+              pengajuan teknisi ini. Validasi teknis dan riwayat perbaikan
+              sebelum menyetujui.
+            </p>
+          </div>
+
           <div class="p-3 sm:p-4">
             <!-- Kartu Logbook: gaya konsisten dengan halaman Riwayat Teknisi -->
             <div
@@ -466,6 +483,42 @@
                 </div>
               </div>
 
+              <!-- Kode Kerusakan (Fase 4.1a) -->
+              <div v-if="failureCodeLabel(log)" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-muted text-ink-2 text-[11px] font-medium max-w-[20rem]"
+                  :title="failureCodeLabel(log)"
+                >
+                  <svg
+                    class="w-3 h-3 text-ink-3 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"
+                    />
+                  </svg>
+                  <span class="truncate">
+                    <span class="text-ink-3">Kode:</span>
+                    <span class="font-semibold text-ink">{{
+                      failureCodeLabel(log)
+                    }}</span>
+                  </span>
+                </span>
+                <span
+                  v-if="isRepeatFailureLog(log, tech.logs)"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm bg-warning/10 text-warning border border-warning/30 text-[11px] font-semibold"
+                >
+                  <span aria-hidden="true">&#9888;&#65039;</span>
+                  Repeat
+                  {{ repeatFailureOf(log, tech.logs)?.occurrence_count }}x
+                </span>
+              </div>
+
               <!-- Highlight: Uraian Aktivitas (tampil penuh, tanpa line-clamp) -->
               <div class="mt-2">
                 <span
@@ -538,7 +591,7 @@
 
               <!-- Peringatan Repeat Failure (per kartu logbook) -->
               <div
-                v-if="log.repeat_failure"
+                v-if="isRepeatFailureLog(log, tech.logs)"
                 class="mt-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md px-3 py-2 text-xs bg-warning/10 text-warning border border-warning/20"
               >
                 <div class="flex items-start gap-2 min-w-0">
@@ -549,22 +602,30 @@
                     <span class="font-semibold">Repeat Failure</span> -
                     Mesin ini sudah
                     <span class="font-semibold"
-                      >{{ log.repeat_failure.occurrence_count }}x</span
+                      >{{
+                        repeatFailureOf(log, tech.logs)?.occurrence_count
+                      }}x</span
                     >
                     mengalami
                     <span class="font-semibold"
-                      >{{ log.repeat_failure.failure_code }} ({{
-                        log.repeat_failure.failure_code_name
+                      >{{
+                        repeatFailureOf(log, tech.logs)?.failure_code
+                      }}
+                      ({{
+                        repeatFailureOf(log, tech.logs)?.failure_code_name
                       }})</span
                     >
-                    dalam {{ log.repeat_failure.window_days }} hari terakhir.
+                    dalam
+                    {{ repeatFailureOf(log, tech.logs)?.window_days }} hari
+                    terakhir.
                     <span class="text-ink-3"
                       >Validasi teknis sebelum menyetujui.</span
                     >
                   </p>
                 </div>
                 <a
-                  :href="`/mesin/${log.repeat_failure.machine_id}`"
+                  v-if="repeatFailureOf(log, tech.logs)?.machine_id"
+                  :href="`/mesin/${repeatFailureOf(log, tech.logs)?.machine_id}`"
                   class="shrink-0 font-medium text-primary hover:underline whitespace-nowrap"
                 >
                   Lihat Buku Pintar Mesin &rarr;
@@ -632,6 +693,24 @@
               <td class="px-4 py-3">
                 <div class="font-medium text-ink">{{ log.machine_name }}</div>
                 <div class="text-xs text-ink-2">{{ log.sub_machine_name }}</div>
+                <div
+                  v-if="failureCodeLabel(log)"
+                  class="mt-1 flex flex-wrap items-center gap-1"
+                >
+                  <span
+                    class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-muted text-ink-2 text-[10px] font-semibold"
+                    :title="failureCodeLabel(log)"
+                  >
+                    {{ failureCodeLabel(log) }}
+                  </span>
+                  <span
+                    v-if="isRepeatFailureLog(log)"
+                    class="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-warning/10 text-warning border border-warning/30 text-[10px] font-semibold"
+                    title="Repeat failure terdeteksi"
+                  >
+                    &#9888;&#65039; Repeat
+                  </span>
+                </div>
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
                 <div class="text-xs text-ink font-medium">
@@ -798,6 +877,34 @@
           </div>
         </div>
 
+        <div
+          v-if="failureCodeLabel(activeLogDetail)"
+          class="p-2.5 bg-muted rounded-md"
+        >
+          <span class="text-ink-3 block text-[10px] uppercase font-semibold"
+            >KODE KERUSAKAN</span
+          >
+          <span class="font-semibold text-ink">{{
+            failureCodeLabel(activeLogDetail)
+          }}</span>
+        </div>
+
+        <div
+          v-if="isRepeatFailureLog(activeLogDetail)"
+          class="p-2.5 rounded-md bg-warning/10 border border-warning/30 text-warning text-[11px] leading-relaxed"
+        >
+          <div class="font-semibold mb-0.5">
+            &#9888;&#65039; Repeat Failure terdeteksi
+          </div>
+          <div>
+            Mesin ini sudah
+            {{ repeatFailureOf(activeLogDetail)?.occurrence_count }}x mengalami
+            {{ repeatFailureOf(activeLogDetail)?.failure_code }}
+            ({{ repeatFailureOf(activeLogDetail)?.failure_code_name }}) dalam
+            {{ repeatFailureOf(activeLogDetail)?.window_days }} hari terakhir.
+          </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-2 text-ink">
           <div class="p-2.5 bg-muted rounded-md">
             <span class="text-ink-3 block text-[10px] uppercase font-semibold"
@@ -888,6 +995,10 @@ import {
   countTechniciansForTab,
   getReviewableLogs,
 } from "../../utils/approvalFilter";
+import {
+  formatFailureCodeLabel,
+  resolveRepeatFailure,
+} from "../../utils/repeatFailure";
 import { formatDuration } from "../../utils/duration";
 import { alert } from "../../utils/alert";
 import { Inbox } from "lucide-vue-next";
@@ -1042,6 +1153,35 @@ const pendingLogCount = computed(() => {
   return logbookStore.logbooks.filter((l) => l.status === LOG_STATUS.PENDING)
     .length;
 });
+
+// ---------------------------------------------------------------------
+// Fase 4.1a: Repeat Failure (banner kuning) & Kode Kerusakan
+// Backend (GET /logbooks) mengirim `is_repeat_failure` + detail
+// `repeat_failure`. Bila flag belum tersedia, dihitung ulang dari logbook
+// saudara di kartu teknisi yang sama (aturan identik: machine_id +
+// failure_code_id sama, >= 2 kejadian dalam 30 hari).
+// ---------------------------------------------------------------------
+const repeatingTechIds = computed(() => {
+  const ids = new Set();
+  for (const tech of filteredTechnicians.value) {
+    if (tech.logs.some((log) => resolveRepeatFailure(log, tech.logs))) {
+      ids.add(tech.user_id);
+    }
+  }
+  return ids;
+});
+
+function isRepeatFailureLog(log, siblingLogs = []) {
+  return Boolean(resolveRepeatFailure(log, siblingLogs));
+}
+
+function repeatFailureOf(log, siblingLogs = []) {
+  return resolveRepeatFailure(log, siblingLogs);
+}
+
+function failureCodeLabel(log) {
+  return formatFailureCodeLabel(log);
+}
 
 function getCount(status) {
   // Angka badge tab dihitung dari logbook nyata per status,

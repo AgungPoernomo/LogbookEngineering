@@ -10,6 +10,10 @@ import {
   normalizeMachineEndStatus,
   resolveSparepartInput
 } from '../utils/reliability.js'
+import {
+  REPEAT_FAILURE_WINDOW_DAYS,
+  buildRepeatFailureMap
+} from '../utils/repeatFailure.js'
 
 export async function getLogbooks(req, res, next) {
   try {
@@ -126,58 +130,100 @@ export async function getLogbooks(req, res, next) {
       })
     ])
 
-    const formattedLogbooks = logbooks.map(l => ({
-      id: Number(l.id),
-      user_id: Number(l.user_id),
-      user_name: l.user?.full_name,
-      user_nik: l.user?.nik,
-      user_group: l.user?.group?.name || '-',
-      plant_id: Number(l.plant_id),
-      plant_name: l.plant?.name,
-      shift_id: Number(l.shift_id),
-      shift_name: l.shift?.name,
-      machine_id: l.machine_id ? Number(l.machine_id) : null,
-      machine_name: l.machine?.name,
-      sub_machine_id: l.sub_machine_id ? Number(l.sub_machine_id) : null,
-      sub_machine_name: l.subMachine?.name || '-',
-      task_date: l.task_date,
-      start_time: l.start_time,
-      end_time: l.end_time,
-      duration_minutes: l.duration_minutes,
-      sparepart: l.sparepart || '-',
-      activity_description: l.activity_description,
-      status: l.status,
-      // ---- v6 Reliability fields (Bagian 4.1) ----
-      activity_category: l.activity_category,
-      quick_action_tag: l.quick_action_tag,
-      machine_end_status: l.machine_end_status,
-      maintenance_type: l.maintenance_type,
-      is_downtime: l.is_downtime,
-      downtime_minutes: l.downtime_minutes,
-      unit_repaired_qty: l.unit_repaired_qty,
-      has_sparepart: l.has_sparepart,
-      unmapped_asset_note: l.unmapped_asset_note,
-      failure_code_id: l.failure_code_id ? Number(l.failure_code_id) : null,
-      failure_code: l.failureCode
-        ? { id: Number(l.failureCode.id), code: l.failureCode.code, name: l.failureCode.name }
-        : null,
-      spareparts: (l.sparepartUsages || []).map(s => ({
-        id: Number(s.id),
-        sparepart_id: Number(s.sparepart_id),
-        part_code: s.sparepart?.part_code,
-        part_name: s.sparepart?.part_name,
-        qty_used: Number(s.qty_used),
-        unit: s.sparepart?.unit
-      })),
-      created_at: l.created_at,
-      latest_approval: l.approvals[0] ? {
-        id: Number(l.approvals[0].id),
-        status: l.approvals[0].status,
-        notes: l.approvals[0].notes,
-        supervisor_name: l.approvals[0].supervisor?.full_name,
-        reviewed_at: l.approvals[0].reviewed_at
-      } : null
-    }))
+    // ---- Fase 4.1a: deteksi repeat failure untuk daftar logbook ----
+    // Halaman /approval (SPV) memakai endpoint ini (bukan /approvals/technicians),
+    // sehingga flag repeat failure harus ikut dikirim di sini.
+    // Satu query tambahan (tanpa N+1) + dihitung di memori oleh util bersama.
+    let repeatInfoByLogId = new Map()
+    const keyedLogbooks = logbooks.filter(l => l.machine_id && l.failure_code_id)
+    if (keyedLogbooks.length > 0) {
+      const relatedWhere = {
+        machine_id: { in: [...new Set(keyedLogbooks.map(l => l.machine_id))] },
+        failure_code_id: { in: [...new Set(keyedLogbooks.map(l => l.failure_code_id))] },
+        status: { in: ['PENDING', 'APPROVED'] },
+        // Konsisten dengan scope RBAC di atas: pola dihitung dalam plant yang sama
+        plant_id: { in: [...new Set(keyedLogbooks.map(l => l.plant_id))] }
+      }
+
+      const relatedLogs = await prisma.logbook.findMany({
+        where: relatedWhere,
+        select: { id: true, machine_id: true, failure_code_id: true, task_date: true }
+      })
+
+      const failureCodeById = new Map(
+        keyedLogbooks
+          .filter(l => l.failureCode)
+          .map(l => [
+            Number(l.failure_code_id),
+            { code: l.failureCode.code, name: l.failureCode.name }
+          ])
+      )
+
+      repeatInfoByLogId = buildRepeatFailureMap(relatedLogs, { failureCodeById })
+    }
+    // ---- end Fase 4.1a ----
+
+    const formattedLogbooks = logbooks.map(l => {
+      // Fase 4.1a: detail pola kerusakan berulang (null bila bukan bagian pola)
+      const repeatFailure = repeatInfoByLogId.get(Number(l.id)) || null
+
+      return {
+        id: Number(l.id),
+        user_id: Number(l.user_id),
+        user_name: l.user?.full_name,
+        user_nik: l.user?.nik,
+        user_group: l.user?.group?.name || '-',
+        plant_id: Number(l.plant_id),
+        plant_name: l.plant?.name,
+        shift_id: Number(l.shift_id),
+        shift_name: l.shift?.name,
+        machine_id: l.machine_id ? Number(l.machine_id) : null,
+        machine_name: l.machine?.name,
+        sub_machine_id: l.sub_machine_id ? Number(l.sub_machine_id) : null,
+        sub_machine_name: l.subMachine?.name || '-',
+        task_date: l.task_date,
+        start_time: l.start_time,
+        end_time: l.end_time,
+        duration_minutes: l.duration_minutes,
+        sparepart: l.sparepart || '-',
+        activity_description: l.activity_description,
+        status: l.status,
+        // ---- v6 Reliability fields (Bagian 4.1) ----
+        activity_category: l.activity_category,
+        quick_action_tag: l.quick_action_tag,
+        machine_end_status: l.machine_end_status,
+        maintenance_type: l.maintenance_type,
+        is_downtime: l.is_downtime,
+        downtime_minutes: l.downtime_minutes,
+        unit_repaired_qty: l.unit_repaired_qty,
+        has_sparepart: l.has_sparepart,
+        unmapped_asset_note: l.unmapped_asset_note,
+        failure_code_id: l.failure_code_id ? Number(l.failure_code_id) : null,
+        failure_code: l.failureCode
+          ? { id: Number(l.failureCode.id), code: l.failureCode.code, name: l.failureCode.name }
+          : null,
+        // ---- Fase 4.1a: repeat failure (banner kuning di halaman approval) ----
+        is_repeat_failure: Boolean(repeatFailure),
+        repeat_failure_count: repeatFailure?.occurrence_count || 0,
+        repeat_failure: repeatFailure,
+        spareparts: (l.sparepartUsages || []).map(s => ({
+          id: Number(s.id),
+          sparepart_id: Number(s.sparepart_id),
+          part_code: s.sparepart?.part_code,
+          part_name: s.sparepart?.part_name,
+          qty_used: Number(s.qty_used),
+          unit: s.sparepart?.unit
+        })),
+        created_at: l.created_at,
+        latest_approval: l.approvals[0] ? {
+          id: Number(l.approvals[0].id),
+          status: l.approvals[0].status,
+          notes: l.approvals[0].notes,
+          supervisor_name: l.approvals[0].supervisor?.full_name,
+          reviewed_at: l.approvals[0].reviewed_at
+        } : null
+      }
+    })
 
     return successResponse(res, {
       message: 'Daftar logbook berhasil diambil.',
