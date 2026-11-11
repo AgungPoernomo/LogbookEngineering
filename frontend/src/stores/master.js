@@ -35,6 +35,9 @@ export const useMasterStore = defineStore('master', () => {
   const subMachines = ref([])
   const workGroups = ref([])
   const roles = ref([])
+  // FASE 4.1a — Master kode kerusakan ISO 14224 (dropdown "Kode Kerusakan").
+  // Ikut `getAllMaster()` karena dipakai form logbook teknisi.
+  const failureCodes = ref([])
   // FASE 5.2 — Katalog sparepart. Tidak ikut `getAllMaster()` (dipakai dropdown
   // form) agar payload master tetap ringan; di-fetch terpisah oleh halaman admin.
   const spareparts = ref([])
@@ -56,6 +59,9 @@ export const useMasterStore = defineStore('master', () => {
     const groups = data.work_groups || data.workGroups || []
     if (Array.isArray(groups) && groups.length > 0) workGroups.value = groups
     if (Array.isArray(data.roles) && data.roles.length > 0) roles.value = data.roles
+    // FASE 4.1a — respons bisa `failure_codes` (snake) atau `failureCodes` (camel)
+    const codes = data.failure_codes || data.failureCodes || []
+    if (Array.isArray(codes) && codes.length > 0) failureCodes.value = codes
   }
 
   function hydrateFromCache() {
@@ -95,7 +101,8 @@ export const useMasterStore = defineStore('master', () => {
             machines: machines.value,
             sub_machines: subMachines.value,
             work_groups: workGroups.value,
-            roles: roles.value
+            roles: roles.value,
+            failure_codes: failureCodes.value
           })
           isOffline.value = false
         } else if (plants.value.length > 0 || machines.value.length > 0 || shifts.value.length > 0) {
@@ -151,6 +158,7 @@ export const useMasterStore = defineStore('master', () => {
     subMachines.value = []
     workGroups.value = []
     roles.value = []
+    failureCodes.value = []
     spareparts.value = []
     isLoaded.value = false
     lastFetchedAt.value = 0
@@ -241,6 +249,7 @@ export const useMasterStore = defineStore('master', () => {
     subMachines,
     workGroups,
     roles,
+    failureCodes,
     spareparts,
     isLoaded,
     lastFetchedAt,

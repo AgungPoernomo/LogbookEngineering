@@ -3,13 +3,14 @@ import api from './api'
 export const masterService = {
   async getAllMaster() {
     try {
-      const [plants, shifts, machines, subMachines, workGroups, roles] = await Promise.all([
+      const [plants, shifts, machines, subMachines, workGroups, roles, failureCodes] = await Promise.all([
         this.getPlants().catch(() => []),
         this.getShifts().catch(() => []),
         this.getMachines().catch(() => []),
         this.getSubMachines().catch(() => []),
         this.getWorkGroups().catch(() => []),
-        this.getRoles().catch(() => [])
+        this.getRoles().catch(() => []),
+        this.getFailureCodes().catch(() => [])
       ])
 
       return {
@@ -18,7 +19,8 @@ export const masterService = {
         machines,
         sub_machines: subMachines,
         work_groups: workGroups,
-        roles
+        roles,
+        failure_codes: failureCodes
       }
     } catch (err) {
       console.error('Gagal mengambil seluruh master data:', err)
@@ -28,7 +30,8 @@ export const masterService = {
         machines: [],
         sub_machines: [],
         work_groups: [],
-        roles: []
+        roles: [],
+        failure_codes: []
       }
     }
   },
@@ -57,6 +60,14 @@ export const masterService = {
 
   async getRoles() {
     return await api.get('/master/roles')
+  },
+
+  // FASE 4.1a — Master kode kerusakan ISO 14224 (dropdown "Kode Kerusakan").
+  // Default backend hanya mengembalikan kode AKTIF.
+  async getFailureCodes({ includeInactive = false } = {}) {
+    const params = {}
+    if (includeInactive) params.include_inactive = true
+    return await api.get('/master/failure-codes', params)
   },
 
   // FASE 5.2 — Katalog sparepart & bahan habis pakai.

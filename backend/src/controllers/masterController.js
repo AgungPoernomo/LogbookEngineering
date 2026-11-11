@@ -166,6 +166,24 @@ async function findDuplicatePartCode(client, partCode, excludeId = null) {
   return client.sparepart.findFirst({ where, select: { id: true, part_code: true } })
 }
 
+/**
+ * Mapping respons master kode kerusakan (ISO 14224).
+ * Prisma mengembalikan `id` sebagai BigInt → ubah ke Number agar JSON-safe
+ * dan cocok dengan `:value` dropdown (`v-model` mengirim Number).
+ * `description` kosong dinormalkan menjadi null.
+ *
+ * @param {{ id: bigint|number, code: string, name: string, category: string, description?: string|null }} row
+ */
+export function mapFailureCode(row = {}) {
+  return {
+    id: Number(row.id),
+    code: row.code,
+    name: row.name,
+    category: row.category,
+    description: optionalText(row.description)
+  }
+}
+
 export async function getMasterData(req, res, next) {
   try {
     const { type } = req.params
@@ -287,6 +305,19 @@ export async function getMasterData(req, res, next) {
           description: r.description
         }))
         return successResponse(res, { data })
+      }
+
+      // FASE 4.1a — Master Kode Kerusakan (ISO 14224) untuk dropdown form teknisi.
+      // Default hanya kode AKTIF; `?include_inactive=true` untuk halaman admin.
+      // Urut `code` agar taksonomi (MECH-01, ELEC-01, …) tampil konsisten di dropdown.
+      case 'failure-codes':
+      case 'failure_codes': {
+        const where = req.query.include_inactive === 'true' ? {} : { is_active: true }
+        const failureCodes = await prisma.failureCode.findMany({
+          where,
+          orderBy: [{ code: 'asc' }, { id: 'asc' }]
+        })
+        return successResponse(res, { data: failureCodes.map(mapFailureCode) })
       }
 
       // FASE 5.2 — Katalog sparepart & bahan habis pakai (F5.3).

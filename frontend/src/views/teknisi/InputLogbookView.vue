@@ -633,6 +633,57 @@
           </p>
         </div>
 
+        <!-- ======================================================== -->
+        <!-- FASE 4.1a: KODE KERUSAKAN (ISO 14224)                    -->
+        <!-- Wajib untuk Perbaikan Mesin / Rawat Rutin → memicu        -->
+        <!-- deteksi "Repeat Failure" di approval Supervisor.         -->
+        <!-- ======================================================== -->
+        <div v-if="isFailureCodeVisible">
+          <label
+            for="form-failure-code"
+            class="block text-xs font-semibold text-ink mb-1.5"
+          >
+            Kode Kerusakan
+            <span class="text-danger">*</span>
+            <span class="text-[10px] font-medium text-ink-3 ml-1"
+              >(wajib diisi untuk Perbaikan Mesin)</span
+            >
+          </label>
+          <select
+            id="form-failure-code"
+            v-model="form.failure_code_id"
+            :required="isFailureCodeRequired && !isUnmappedAsset"
+            :disabled="isUnmappedAsset"
+            class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
+          >
+            <option :value="null">
+              {{
+                isUnmappedAsset
+                  ? "-- Kode kerusakan tidak tersedia untuk aset belum terdaftar --"
+                  : "-- Pilih Kode Kerusakan --"
+              }}
+            </option>
+            <option
+              v-for="fc in masterStore.failureCodes"
+              :key="fc.id"
+              :value="fc.id"
+            >
+              {{ fc.code }} — {{ fc.name }}
+            </option>
+          </select>
+          <p
+            v-if="masterStore.failureCodes.length === 0"
+            class="text-[10px] text-warning mt-1"
+          >
+            Master kode kerusakan belum termuat. Periksa koneksi lalu muat ulang
+            halaman.
+          </p>
+          <p v-else class="hidden sm:block text-[10px] text-ink-3 mt-1">
+            Pilih jenis kerusakan sesuai taksonomi ISO 14224 agar riwayat
+            keandalan mesin tercatat (memicu deteksi kerusakan berulang).
+          </p>
+        </div>
+
         <!-- MACHINE_TROUBLE: kondisi akhir mesin + toggle downtime -->
         <div
           v-if="isMachineTroubleCategory"
@@ -1010,6 +1061,13 @@
                 >
                   (Part: {{ draft.sparepart }})
                 </span>
+                <!-- FASE 4.1a: kode kerusakan tersimpan pada draft -->
+                <span
+                  v-if="draft.failure_code || draft.failure_code_id"
+                  class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-ink-2 border border-line"
+                >
+                  {{ draft.failure_code?.code || `Kode #${draft.failure_code_id}` }}
+                </span>
               </div>
 
               <p
@@ -1230,6 +1288,8 @@ const form = reactive({
   shift_id: 1,
   machine_id: null,
   sub_machine_id: null,
+  // FASE 4.1a: kode kerusakan ISO 14224 (wajib untuk Perbaikan Mesin / Rawat Rutin)
+  failure_code_id: null,
   sparepart: "",
   activity_description: "",
   start_time: route.query.time || "08:00",
@@ -1503,6 +1563,25 @@ const isMachineRequired = computed(
     selectedCategory.value === "PREVENTIVE_PM",
 );
 
+// FASE 4.1a: dropdown Kode Kerusakan hanya untuk kategori perawatan mesin.
+// `MACHINE_TROUBLE` diwajibkan agar fitur "Repeat Failure" (Fase 4.1a)
+// selalu punya data `failure_code_id`. `PREVENTIVE_PM` opsional karena
+// pekerjaan preventif tidak selalu berasal dari kerusakan.
+const isFailureCodeVisible = computed(() => isMachineRequired.value);
+const isFailureCodeRequired = computed(
+  () => selectedCategory.value === "MACHINE_TROUBLE",
+);
+
+/** Kode kerusakan yang dikirim ke payload (hanya kategori perawatan mesin). */
+const selectedFailureCode = computed(() => {
+  if (!isFailureCodeVisible.value) return null;
+  return (
+    masterStore.failureCodes.find(
+      (fc) => fc.id === Number(form.failure_code_id),
+    ) || null
+  );
+});
+
 /** Placeholder dropdown mesin — kosong secara default sampai teknisi memilih. */
 const machinePlaceholder = computed(() => {
   if (isUnmappedAsset.value) return "-- Mesin tidak ada di master (lihat catatan) --";
@@ -1527,6 +1606,10 @@ function selectCategory(category) {
   }
   if (category !== "KERETA_TRAY_REPAIR") {
     form.unit_repaired_qty = null;
+  }
+  // FASE 4.1a: kode kerusakan hanya relevan untuk kategori perawatan mesin
+  if (category !== "MACHINE_TROUBLE" && category !== "PREVENTIVE_PM") {
+    form.failure_code_id = null;
   }
 }
 
@@ -1744,6 +1827,7 @@ function handleResetForm() {
   form.shift_id = 1;
   form.machine_id = null;
   form.sub_machine_id = null;
+  form.failure_code_id = null;
   form.sparepart = "";
   form.activity_description = "";
   form.start_time = "08:00";
@@ -1797,6 +1881,17 @@ async function handleSubmit(isSubmitForApproval) {
     await alert.error(
       "Catatan Aset Belum Terdaftar",
       "Tuliskan nama mesin atau bagian yang belum terdaftar agar Admin dapat mempromosikannya ke master data.",
+    );
+    return;
+  }
+
+  // FASE 4.1a: kode kerusakan wajib untuk Perbaikan Mesin (mesin terdaftar)
+  // agar deteksi "Repeat Failure" di approval Supervisor dapat berjalan.
+  // Aset belum terdaftar (D12) dikecualikan karena tidak ada mesin pada master.
+  if (isFailureCodeRequired.value && !isUnmappedAsset.value && !form.failure_code_id) {
+    await alert.error(
+      "Kode Kerusakan Belum Dipilih",
+      "Pilih kode kerusakan (ISO 14224) yang paling sesuai agar riwayat keandalan mesin tercatat.",
     );
     return;
   }
@@ -1911,6 +2006,11 @@ async function handleSubmit(isSubmitForApproval) {
       sparepart: isNonMachineCategory.value
         ? null
         : form.sparepart?.trim() || null,
+      // FASE 4.1a: kode kerusakan ISO 14224 (hanya kategori perawatan mesin)
+      failure_code_id: selectedFailureCode.value
+        ? selectedFailureCode.value.id
+        : null,
+      failure_code: selectedFailureCode.value || null,
       activity_description: form.activity_description.trim(),
       start_time: form.start_time,
       end_time: form.end_time,
@@ -1955,6 +2055,7 @@ async function handleSubmit(isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
       form.activity_description = "";
       form.sparepart = "";
+      form.failure_code_id = null;
       // F3.1: bersihkan chip & field adaptif untuk input berikutnya
       quickActionTag.value = "";
       form.machine_end_status = "NORMAL_RESOLVED";
@@ -2100,6 +2201,12 @@ function handleLoadDraftToForm(draft) {
   clearQuickStart();
   form.machine_id = draft.machine_id;
   form.sub_machine_id = draft.sub_machine_id || null;
+  // FASE 4.1a: kembalikan kategori (agar dropdown kode kerusakan tampil) &
+  // kode kerusakan yang tersimpan pada draft.
+  if (draft.activity_category) {
+    selectedCategory.value = draft.activity_category;
+  }
+  form.failure_code_id = draft.failure_code_id || null;
   form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";
   form.activity_description = draft.activity_description || "";
 
