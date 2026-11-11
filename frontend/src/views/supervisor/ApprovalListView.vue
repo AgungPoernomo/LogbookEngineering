@@ -231,31 +231,31 @@
               >
                 <div class="flex items-center gap-1">
                   <span class="font-semibold text-ink"
-                    >{{ tech.logs.length }} Logbook</span
+                    >{{ tech.visibleLogCount }} Logbook</span
                   >
                   <span
-                    v-if="tech.pendingCount > 0"
+                    v-if="tech.reviewableCount > 0"
                     class="text-status-pending-fg font-semibold"
                   >
-                    ({{ tech.pendingCount }} diajukan)
+                    ({{ tech.reviewableCount }} diajukan)
                   </span>
                 </div>
                 <span>•</span>
                 <div>
                   Total Durasi:
                   <span class="font-semibold text-primary">{{
-                    formatDuration(tech.totalDurationMinutes)
+                    formatDuration(tech.visibleDurationMinutes)
                   }}</span>
                 </div>
-                <span v-if="tech.machines.length > 0">•</span>
+                <span v-if="tech.visibleMachines.length > 0">•</span>
                 <div
-                  v-if="tech.machines.length > 0"
+                  v-if="tech.visibleMachines.length > 0"
                   class="truncate max-w-xs text-ink-3"
                 >
-                  Mesin: {{ tech.machines.slice(0, 2).join(", ")
+                  Mesin: {{ tech.visibleMachines.slice(0, 2).join(", ")
                   }}{{
-                    tech.machines.length > 2
-                      ? " +" + (tech.machines.length - 2)
+                    tech.visibleMachines.length > 2
+                      ? " +" + (tech.visibleMachines.length - 2)
                       : ""
                   }}
                 </div>
@@ -267,9 +267,10 @@
           <div
             class="flex flex-wrap items-center gap-2 shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-line"
           >
-            <!-- Tombol Setujui Semua Logbook Milik Teknisi Ini -->
+            <!-- Tombol Setujui Semua Logbook Milik Teknisi Ini
+                 Hanya mengirim logbook PENDING yang lolos filter tab aktif -->
             <button
-              v-if="tech.pendingCount > 0"
+              v-if="tech.reviewableCount > 0"
               type="button"
               :disabled="actionLoading"
               class="h-8 px-4 rounded-md text-xs font-semibold bg-success hover:bg-emerald-600 active:bg-emerald-700 text-white shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
@@ -288,12 +289,12 @@
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              <span>Setujui Semua Log ({{ tech.pendingCount }})</span>
+              <span>Setujui Semua Log ({{ tech.reviewableCount }})</span>
             </button>
 
             <!-- Tombol Tolak Seluruh Pengajuan Teknisi Ini -->
             <button
-              v-if="tech.pendingCount > 0"
+              v-if="tech.reviewableCount > 0"
               type="button"
               :disabled="actionLoading"
               class="h-8 px-3 rounded-md text-xs font-medium bg-status-rejected-bg text-status-rejected-fg hover:bg-danger/10 border border-danger/20 transition flex items-center gap-1 disabled:opacity-50"
@@ -315,9 +316,9 @@
               <span>Tolak dengan Catatan</span>
             </button>
 
-            <!-- Status Lencana Jika Sudah Diproses -->
+            <!-- Status Lencana Jika Kartu Tidak Punya Logbook PENDING pada tab aktif -->
             <div
-              v-else
+              v-else-if="canBulkReview()"
               class="flex items-center gap-1.5 px-3 py-1 rounded-md bg-muted text-xs font-medium text-ink-2"
             >
               <span
@@ -373,7 +374,19 @@
           <div
             class="px-4 py-2 bg-muted/40 border-b border-line flex items-center justify-between text-xs text-ink-2 font-medium"
           >
-            <span>Daftar Logbook yang diajukan oleh {{ tech.user_name }}:</span>
+            <span
+              >Daftar Logbook
+              {{
+                selectedFilter === LOG_STATUS.PENDING
+                  ? "yang menunggu persetujuan"
+                  : selectedFilter === LOG_STATUS.APPROVED
+                    ? "yang sudah disetujui"
+                    : selectedFilter === LOG_STATUS.REJECTED
+                      ? "yang ditolak"
+                      : ""
+              }}
+              dari {{ tech.user_name }}:</span
+            >
             <span class="text-ink-3">{{ tech.logs.length }} entri log</span>
           </div>
 
@@ -869,6 +882,12 @@ import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../../stores/auth";
 import { useLogbookStore } from "../../stores/logbook";
 import { LOG_STATUS } from "../../constants/logStatus";
+import {
+  buildTechnicianCards,
+  canBulkReview as utilCanBulkReview,
+  countTechniciansForTab,
+  getReviewableLogs,
+} from "../../utils/approvalFilter";
 import { formatDuration } from "../../utils/duration";
 import { alert } from "../../utils/alert";
 import { Inbox } from "lucide-vue-next";
@@ -958,18 +977,24 @@ const allTechniciansGrouped = computed(() => {
   return Array.from(map.values());
 });
 
-// Teknisi Terfilter
-const filteredTechnicians = computed(() => {
-  let list = allTechniciansGrouped.value;
+// ---------------------------------------------------------------------
+// Sinkronisasi Tab Aktif <-> Rincian Logbook Kartu Teknisi
+// Logika filter dipisah ke src/utils/approvalFilter.js agar dapat diuji:
+// tab PENDING -> hanya logbook PENDING, APPROVED/REJECTED -> sesuai status,
+// tab ALL -> seluruh logbook. Kartu tanpa logbook pada tab aktif dihilangkan.
+// ---------------------------------------------------------------------
 
-  // Filter berdasarkan status
-  if (selectedFilter.value === LOG_STATUS.PENDING) {
-    list = list.filter((t) => t.pendingCount > 0);
-  } else if (selectedFilter.value === LOG_STATUS.APPROVED) {
-    list = list.filter((t) => t.approvedCount > 0 && t.pendingCount === 0);
-  } else if (selectedFilter.value === LOG_STATUS.REJECTED) {
-    list = list.filter((t) => t.rejectedCount > 0 && t.pendingCount === 0);
-  }
+// Apakah ada tombol aksi bulk (Setujui / Tolak) pada kartu teknisi
+function canBulkReview() {
+  return utilCanBulkReview(selectedFilter.value);
+}
+
+// Teknisi Terfilter + Logbook di dalam kartu ikut difilter sesuai tab aktif
+const filteredTechnicians = computed(() => {
+  let list = buildTechnicianCards(
+    allTechniciansGrouped.value,
+    selectedFilter.value,
+  );
 
   // Filter pencarian
   if (searchQuery.value.trim()) {
@@ -1019,18 +1044,9 @@ const pendingLogCount = computed(() => {
 });
 
 function getCount(status) {
-  if (status === "ALL") return allTechniciansGrouped.value.length;
-  if (status === LOG_STATUS.PENDING)
-    return allTechniciansGrouped.value.filter((t) => t.pendingCount > 0).length;
-  if (status === LOG_STATUS.APPROVED)
-    return allTechniciansGrouped.value.filter(
-      (t) => t.approvedCount > 0 && t.pendingCount === 0,
-    ).length;
-  if (status === LOG_STATUS.REJECTED)
-    return allTechniciansGrouped.value.filter(
-      (t) => t.rejectedCount > 0 && t.pendingCount === 0,
-    ).length;
-  return 0;
+  // Angka badge tab dihitung dari logbook nyata per status,
+  // sehingga selalu konsisten dengan kartu yang dirender (tidak ada kartu kosong).
+  return countTechniciansForTab(allTechniciansGrouped.value, status);
 }
 
 function isTechExpanded(userId) {
@@ -1045,10 +1061,17 @@ function toggleTechDetails(userId) {
 // Persetujuan Per Teknisi (Menyetujui semua log pending milik teknisi tersebut)
 async function approveTechnician(tech) {
   if (!tech.user_id) return;
+
+  // Hanya logbook PENDING yang lolos filter tab aktif yang boleh diproses.
+  // Logbook yang sudah APPROVED / REJECTED tidak akan ikut terkirim.
+  const pendingLogs = getReviewableLogs(tech.logs, selectedFilter.value);
+  const pendingCount = pendingLogs.length;
+  if (pendingCount === 0) return;
+
   // F1.3: konfirmasi persetujuan via SweetAlert2
   const ok = await alert.confirm(
     "Setujui Seluruh Logbook Teknisi?",
-    `Seluruh ${tech.pendingCount} logbook PENDING milik ${tech.user_name} akan disetujui sekaligus.`,
+    `Seluruh ${pendingCount} logbook PENDING milik ${tech.user_name} akan disetujui sekaligus.`,
     "Ya, setujui",
   );
   if (!ok) return;
@@ -1058,9 +1081,10 @@ async function approveTechnician(tech) {
       tech.user_id,
       "Disetujui per teknisi sesuai SOP pemeliharaan.",
     );
+    const processedCount = res?.data?.processed_count ?? pendingCount;
     showToast(
       "Approval Berhasil Disimpan",
-      `Seluruh logbook (${tech.pendingCount} entri) milik Teknisi ${tech.user_name} otomatis disetujui dan tersimpan ke database.`,
+      `Seluruh logbook (${processedCount} entri) milik Teknisi ${tech.user_name} otomatis disetujui dan tersimpan ke database.`,
     );
   } catch (err) {
     showToast(
@@ -1074,12 +1098,29 @@ async function approveTechnician(tech) {
 }
 
 function openRejectModal(tech) {
-  rejectTarget.value = tech;
+  // Snapshot hanya logbook PENDING pada tab & pencarian aktif,
+  // agar bulk reject tidak menyentuh logbook yang sudah diproses.
+  const pendingLogs = getReviewableLogs(tech.logs, selectedFilter.value);
+  if (pendingLogs.length === 0) return;
+
+  rejectTarget.value = {
+    ...tech,
+    logs: pendingLogs,
+    reviewableLogs: pendingLogs,
+    reviewableCount: pendingLogs.length,
+    pendingCount: pendingLogs.length,
+  };
   rejectionReason.value = "";
 }
 
 async function submitRejection() {
   if (!rejectTarget.value) return;
+
+  const pendingCount = rejectTarget.value.pendingCount || 0;
+  if (pendingCount === 0) {
+    rejectTarget.value = null;
+    return;
+  }
 
   // Validasi catatan penolakan (F1.3: SweetAlert, bukan banner inline)
   if (!rejectionReason.value.trim()) {
@@ -1093,7 +1134,7 @@ async function submitRejection() {
   // F1.3: konfirmasi sebelum menolak pengajuan
   const isConfirmed = await alert.confirm(
     "Tolak Pengajuan Logbook Teknisi?",
-    `Seluruh logbook PENDING milik ${rejectTarget.value.user_name} akan dikembalikan ke status DITOLAK.`,
+    `Seluruh ${pendingCount} logbook PENDING milik ${rejectTarget.value.user_name} akan dikembalikan ke status DITOLAK.`,
     "Ya, tolak",
   );
   if (!isConfirmed) return;
