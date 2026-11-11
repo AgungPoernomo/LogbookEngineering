@@ -22,6 +22,7 @@ const ADMIN_BOTTOM_SLOT_PATHS = [
 ]
 
 const EXPECTED_MORE_PATHS = [
+  '/supervisor/teknisi', // Aktivitas Teknisi
   '/supervisor/reliability', // Analitik Keandalan
   '/admin/plants', // Master Plant
   '/admin/machines', // Master Mesin
@@ -109,6 +110,19 @@ describe('getAdminMoreMenuItems', () => {
       icon: 'ShieldAlert',
       section: 'Menu',
       activePrefixes: ['/admin/failure-codes']
+    })
+  })
+
+  it('mendaftarkan Aktivitas Teknisi di drawer agar Admin bisa memonitor teknisi', () => {
+    const aktivitas = getAdminMoreMenuItems().find(
+      item => item.path === '/supervisor/teknisi'
+    )
+
+    expect(aktivitas).toMatchObject({
+      name: 'Aktivitas Teknisi',
+      icon: 'Users',
+      section: 'Menu',
+      activePrefixes: ['/supervisor/teknisi']
     })
   })
 

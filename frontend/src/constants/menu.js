@@ -37,11 +37,13 @@ export const NAVIGATION_MENU = [
     activeMatchPrefixes: ['/approval']
   },
   {
+    // Monitoring aktivitas & frekuensi logbook teknisi.
+    // Supervisor → teknisi plant-nya; Admin → seluruh plant (bisa difilter per plant).
     name: 'Aktivitas Teknisi',
     path: '/supervisor/teknisi',
     icon: 'Users',
     section: 'Menu',
-    roles: [ROLES.SUPERVISOR],
+    roles: [ROLES.SUPERVISOR, ROLES.ADMIN],
     activeMatchPrefixes: ['/supervisor/teknisi']
   },
   {

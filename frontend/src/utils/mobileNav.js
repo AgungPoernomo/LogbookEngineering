@@ -17,10 +17,11 @@ export const ADMIN_MOBILE_PRIMARY_PATHS = [
 /**
  * Daftar menu yang ditampilkan pada drawer "Lainnya" mobile Admin.
  * Urutan mengikuti NAVIGATION_MENU (sama seperti Sidebar desktop):
- * Analitik Keandalan, lalu seluruh Master (Plant, Mesin, Group, Sparepart,
- * Failure Code), dan Radar Aset.
+ * Aktivitas Teknisi, Analitik Keandalan, lalu seluruh Master (Plant, Mesin,
+ * Group, Sparepart, Failure Code), dan Radar Aset.
  */
 const ADMIN_MORE_MENU_PATHS = [
+  '/supervisor/teknisi',
   '/supervisor/reliability',
   '/admin/plants',
   '/admin/machines',

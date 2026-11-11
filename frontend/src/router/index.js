@@ -44,6 +44,8 @@ const routes = [
     meta: { roles: [ROLES.SUPERVISOR], title: 'Approval Logbook' }
   },
   {
+    // Monitoring aktivitas & frekuensi logbook teknisi.
+    // Supervisor: terkunci ke plant-nya (backend). Admin: seluruh plant / bisa filter plant.
     path: '/supervisor/teknisi',
     name: 'supervisor-teknisi',
     component: () => import('../views/supervisor/TeknisiActivityView.vue'),
