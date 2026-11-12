@@ -1,7 +1,7 @@
 <template>
   <div
     ref="scrollContainerRef"
-    class="flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative bg-surface select-none overscroll-contain"
+    class="time-grid-scroll flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative bg-surface select-none overscroll-y-auto"
     role="grid"
     :aria-label="ariaLabel"
   >
@@ -136,3 +136,22 @@ watch(
   }
 )
 </script>
+
+<style>
+/*
+ * Perilaku sentuh area grid waktu (mobile).
+ * `touch-action: pan-y` -> gestur vertikal milik container scroll internal (00:00-23:00),
+ *   gestur horizontal tidak diklaim sehingga pinch-zoom tetap berjalan.
+ * `overscroll-behavior-y: auto` -> saat grid mentok di atas/bawah, sisa momentum
+ *   dilempar (scroll chaining) ke halaman induk. Nilai `contain` sengaja dihindari
+ *   karena memutus chaining tersebut.
+ * Catatan: tidak di-`scoped` agar `touch-action` tidak menimpa `touch-action: none`
+ * dari browser pada children (child tidak menang atas scroll container tanpa scoped).
+ */
+.time-grid-scroll {
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
+  /* Cegah browser menyesuaikan scrollTop secara otomatis saat grid berubah. */
+  overflow-anchor: none;
+}
+</style>

@@ -66,6 +66,7 @@ Upgrade besar dari v4.8 (**Supervisor-Oriented**) menjadi **Teknisi-Oriented & R
 - **Logika `isDirectTeam` salah** — SPV melihat seluruh teknisi pabrik sebagai "Tim Saya". Fix: OR (`||`) → **AND** (`&&`) untuk `group_id` + `plant_id`. Contoh: SPV Group 30001 Line 1 sekarang hanya melihat 11 teknisi (bukan 35).
 
 **UI/UX (Fase 6 Sesi 4):**
+- **Scroll page terkunci saat jari menyentuh kalender mingguan** (`/logbook/riwayat`, mobile). Container scroll internal `TimeGrid.vue` memakai `overscroll-contain` sehingga *scroll chaining* ke halaman induk terputus. Fix: hapus `overscroll-contain` → `overscroll-y-auto` + `touch-action: pan-y` (class `.time-grid-scroll`) agar scroll internal jam 00:00–23:00 tetap normal dan momentum dilempar ke page saat mentok atas/bawah. Layout, tinggi, dan logika planner tidak berubah.
 - **"Disetujui oleh" kosong** di modal riwayat setelah logbook di-approve. Fix: `viewLog.supervisor_name` → `viewLog.latest_approval?.supervisor_name`.
 - **Tabel riwayat kurang detail** — Uraian Aktivitas harus klik modal dulu. Fix: redesign **Card-Based List** (Uraian langsung tampil).
 - **Kalender mingguan tidak seimbang** dengan sidebar & posisi log melenceng dari jenjang jam. Fix: `items-stretch` + dynamic `--planner-hour-h` via `getComputedStyle` (bukan hardcode `60px`).
