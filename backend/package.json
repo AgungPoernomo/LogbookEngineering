@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed.js",
     "test": "node --test test/",
+    "test:v6": "node --test test/masterFailureCode.test.js test/repeatFailure.test.js test/supervisorTeamOverview.test.js test/adminUnmappedAsset.test.js test/masterSparepart.test.js test/machineQr.test.js",
     "postinstall": "prisma generate"
   },
   "prisma": {
