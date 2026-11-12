@@ -76,11 +76,13 @@ export const masterService = {
   // FASE 5.2 — Katalog sparepart & bahan habis pakai.
   // Default backend hanya mengembalikan part AKTIF (untuk dropdown form teknisi).
   // Halaman admin mengirim `include_inactive: true` agar part nonaktif tetap terlihat.
-  async getSpareparts({ itemType = null, search = '', includeInactive = false } = {}) {
+  // `limit` opsional dipakai dropdown form teknisi (daftar awal sebelum mengetik).
+  async getSpareparts({ itemType = null, search = '', includeInactive = false, limit = null } = {}) {
     const params = {}
     if (itemType) params.item_type = itemType
     if (search) params.search = search
     if (includeInactive) params.include_inactive = true
+    if (limit) params.limit = limit
     return await api.get('/master/spareparts', params)
   },
 

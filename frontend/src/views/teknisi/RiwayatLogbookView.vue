@@ -305,10 +305,27 @@
               />
             </svg>
             <div class="min-w-0">
-              <span class="font-bold text-ink">{{ log.machine_name }}</span>
-              <span class="font-normal text-ink-2">
-                / {{ log.sub_machine_name || "-" }}</span
-              >
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="font-bold text-ink">{{ log.machine_name }}</span>
+                <span class="font-normal text-ink-2">
+                  / {{ log.sub_machine_name || "-" }}</span
+                >
+                <!-- Jenis Pekerjaan (activity_category) — gaya netral, kontras dengan chip aksi cepat -->
+                <span
+                  class="inline-flex items-center bg-muted text-ink-2 border border-line px-2 py-0.5 rounded text-[10px] font-medium"
+                  :title="`Jenis Pekerjaan: ${getActivityCategoryLabel(log.activity_category)}`"
+                >
+                  {{ getActivityCategoryLabel(log.activity_category) }}
+                </span>
+                <!-- F3.1 / v6: chip aksi cepat (quick_action_tag) -->
+                <span
+                  v-if="log.quick_action_tag"
+                  class="inline-flex items-center bg-primary-soft text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-medium"
+                  :title="log.quick_action_tag"
+                >
+                  {{ log.quick_action_tag }}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -369,6 +386,20 @@
                 :title="log.sparepart"
               >
                 Part: {{ log.sparepart }}
+              </span>
+              <!-- FASE 5.2 / v6: sparepart katalog (array) -->
+              <span
+                v-for="(sp, spIdx) in log.spareparts || []"
+                :key="`${log.id}-sp-${spIdx}`"
+                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm font-medium bg-muted text-primary max-w-[16rem]"
+                :title="`${sp.part_name || sp.part_code || 'Part'} — ${sp.qty_used} ${sp.unit || ''}`"
+              >
+                <span class="truncate">{{
+                  sp.part_name || sp.part_code || "Part"
+                }}</span>
+                <span class="font-mono text-[10px] shrink-0"
+                  >{{ sp.qty_used }}{{ sp.unit ? ` ${sp.unit}` : "" }}</span
+                >
               </span>
             </div>
 
@@ -481,12 +512,53 @@
           </div>
         </div>
 
+        <!-- Jenis Pekerjaan (activity_category) -->
+        <div class="p-2.5 bg-muted rounded-md">
+          <span class="text-ink-3 block text-[10px] uppercase font-semibold"
+            >JENIS PEKERJAAN</span
+          >
+          <span
+            class="inline-flex items-center bg-surface text-ink-2 border border-line px-2 py-0.5 rounded text-[10px] font-medium mt-0.5"
+          >
+            {{ getActivityCategoryLabel(viewLog.activity_category) }}
+          </span>
+        </div>
+
+        <!-- F3.1 / v6: chip aksi cepat (quick_action_tag) -->
+        <div v-if="viewLog.quick_action_tag" class="p-2.5 bg-muted rounded-md">
+          <span class="text-ink-3 block text-[10px] uppercase font-semibold"
+            >AKSI CEPAT</span
+          >
+          <span
+            class="inline-flex items-center bg-primary-soft text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-medium mt-0.5"
+          >
+            {{ viewLog.quick_action_tag }}
+          </span>
+        </div>
+
         <div class="p-2.5 bg-muted rounded-md">
           <span
             class="text-ink-3 block text-[10px] uppercase font-semibold mb-0.5"
             >SUKU CADANG</span
           >
-          <span class="text-ink font-medium">{{
+          <ul
+            v-if="viewLog.spareparts && viewLog.spareparts.length"
+            class="space-y-1"
+          >
+            <li
+              v-for="(sp, spIdx) in viewLog.spareparts"
+              :key="`detail-sp-${spIdx}`"
+              class="flex items-center justify-between gap-2 text-ink"
+            >
+              <span class="font-medium truncate">{{
+                sp.part_name || sp.part_code || "Part"
+              }}</span>
+              <span class="font-mono text-[11px] text-ink-2 shrink-0"
+                >{{ sp.qty_used }}{{ sp.unit ? ` ${sp.unit}` : "" }}</span
+              >
+            </li>
+          </ul>
+          <span v-else class="text-ink font-medium">{{
             viewLog.sparepart || "-"
           }}</span>
         </div>
@@ -526,6 +598,7 @@ import { useLogbookStore } from "../../stores/logbook";
 import { logbookService } from "../../services/logbookService";
 import { LOG_STATUS } from "../../constants/logStatus";
 import { formatDuration } from "../../utils/duration";
+import { getActivityCategoryLabel } from "../../utils/categoryLabel";
 import {
   toLocalDateString,
   addDays,

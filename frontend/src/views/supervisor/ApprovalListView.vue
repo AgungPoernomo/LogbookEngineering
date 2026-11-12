@@ -476,10 +476,29 @@
                   />
                 </svg>
                 <div class="min-w-0">
-                  <span class="font-bold text-ink">{{ log.machine_name }}</span>
-                  <span class="font-normal text-ink-2">
-                    / {{ log.sub_machine_name || "-" }}</span
-                  >
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="font-bold text-ink">{{
+                      log.machine_name
+                    }}</span>
+                    <span class="font-normal text-ink-2">
+                      / {{ log.sub_machine_name || "-" }}</span
+                    >
+                    <!-- Jenis Pekerjaan (activity_category) — gaya netral -->
+                    <span
+                      class="inline-flex items-center bg-muted text-ink-2 border border-line px-2 py-0.5 rounded text-[10px] font-medium"
+                      :title="`Jenis Pekerjaan: ${getActivityCategoryLabel(log.activity_category)}`"
+                    >
+                      {{ getActivityCategoryLabel(log.activity_category) }}
+                    </span>
+                    <!-- F3.1 / v6: chip aksi cepat (quick_action_tag) -->
+                    <span
+                      v-if="log.quick_action_tag"
+                      class="inline-flex items-center bg-primary-soft text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-medium"
+                      :title="log.quick_action_tag"
+                    >
+                      {{ log.quick_action_tag }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -575,6 +594,20 @@
                     :title="log.sparepart"
                   >
                     Part: {{ log.sparepart }}
+                  </span>
+                  <!-- FASE 5.2 / v6: sparepart katalog (array) -->
+                  <span
+                    v-for="(sp, spIdx) in log.spareparts || []"
+                    :key="`${log.id}-sp-${spIdx}`"
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm font-medium bg-muted text-primary max-w-[16rem]"
+                    :title="`${sp.part_name || sp.part_code || 'Part'} — ${sp.qty_used} ${sp.unit || ''}`"
+                  >
+                    <span class="truncate">{{
+                      sp.part_name || sp.part_code || "Part"
+                    }}</span>
+                    <span class="font-mono text-[10px] shrink-0"
+                      >{{ sp.qty_used }}{{ sp.unit ? ` ${sp.unit}` : "" }}</span
+                    >
                   </span>
                 </div>
 
@@ -693,6 +726,23 @@
               <td class="px-4 py-3">
                 <div class="font-medium text-ink">{{ log.machine_name }}</div>
                 <div class="text-xs text-ink-2">{{ log.sub_machine_name }}</div>
+                <!-- Jenis Pekerjaan (activity_category) & chip aksi cepat -->
+                <div class="mt-1 flex flex-wrap items-center gap-1">
+                  <span
+                    class="inline-flex items-center bg-muted text-ink-2 border border-line px-2 py-0.5 rounded text-[10px] font-medium"
+                    :title="`Jenis Pekerjaan: ${getActivityCategoryLabel(log.activity_category)}`"
+                  >
+                    {{ getActivityCategoryLabel(log.activity_category) }}
+                  </span>
+                  <!-- F3.1 / v6: chip aksi cepat (quick_action_tag) -->
+                  <span
+                    v-if="log.quick_action_tag"
+                    class="inline-flex items-center bg-primary-soft text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-medium"
+                    :title="log.quick_action_tag"
+                  >
+                    {{ log.quick_action_tag }}
+                  </span>
+                </div>
                 <div
                   v-if="failureCodeLabel(log)"
                   class="mt-1 flex flex-wrap items-center gap-1"
@@ -736,6 +786,22 @@
                   class="text-[11px] text-primary mt-1 font-medium"
                 >
                   Part: {{ log.sparepart }}
+                </div>
+                <!-- FASE 5.2 / v6: sparepart katalog (array) -->
+                <div
+                  v-if="log.spareparts && log.spareparts.length"
+                  class="flex flex-wrap items-center gap-1 mt-1"
+                >
+                  <span
+                    v-for="(sp, spIdx) in log.spareparts"
+                    :key="`${log.id}-row-sp-${spIdx}`"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-medium bg-muted text-primary border border-line"
+                  >
+                    {{ sp.part_name || sp.part_code || "Part" }}
+                    <span class="font-mono"
+                      >{{ sp.qty_used }}{{ sp.unit ? ` ${sp.unit}` : "" }}</span
+                    >
+                  </span>
                 </div>
               </td>
               <td class="px-4 py-3 whitespace-nowrap">
@@ -877,6 +943,33 @@
           </div>
         </div>
 
+        <!-- Jenis Pekerjaan (activity_category) -->
+        <div class="p-2.5 bg-muted rounded-md">
+          <span class="text-ink-3 block text-[10px] uppercase font-semibold"
+            >JENIS PEKERJAAN</span
+          >
+          <span
+            class="inline-flex items-center bg-surface text-ink-2 border border-line px-2 py-0.5 rounded text-[10px] font-medium mt-0.5"
+          >
+            {{ getActivityCategoryLabel(activeLogDetail.activity_category) }}
+          </span>
+        </div>
+
+        <!-- F3.1 / v6: chip aksi cepat (quick_action_tag) -->
+        <div
+          v-if="activeLogDetail.quick_action_tag"
+          class="p-2.5 bg-muted rounded-md"
+        >
+          <span class="text-ink-3 block text-[10px] uppercase font-semibold"
+            >AKSI CEPAT</span
+          >
+          <span
+            class="inline-flex items-center bg-primary-soft text-primary border border-primary/20 px-2 py-0.5 rounded text-[10px] font-medium mt-0.5"
+          >
+            {{ activeLogDetail.quick_action_tag }}
+          </span>
+        </div>
+
         <div
           v-if="failureCodeLabel(activeLogDetail)"
           class="p-2.5 bg-muted rounded-md"
@@ -937,7 +1030,26 @@
             class="text-ink-3 block text-[10px] uppercase font-semibold mb-0.5"
             >SUKU CADANG (SPAREPART)</span
           >
-          <span class="text-ink font-medium">{{
+          <ul
+            v-if="
+              activeLogDetail.spareparts && activeLogDetail.spareparts.length
+            "
+            class="space-y-1"
+          >
+            <li
+              v-for="(sp, spIdx) in activeLogDetail.spareparts"
+              :key="`detail-sp-${spIdx}`"
+              class="flex items-center justify-between gap-2 text-ink"
+            >
+              <span class="font-medium truncate">{{
+                sp.part_name || sp.part_code || "Part"
+              }}</span>
+              <span class="font-mono text-[11px] text-ink-2 shrink-0"
+                >{{ sp.qty_used }}{{ sp.unit ? ` ${sp.unit}` : "" }}</span
+              >
+            </li>
+          </ul>
+          <span v-else class="text-ink font-medium">{{
             activeLogDetail.sparepart || "-"
           }}</span>
         </div>
@@ -1000,6 +1112,7 @@ import {
   resolveRepeatFailure,
 } from "../../utils/repeatFailure";
 import { formatDuration } from "../../utils/duration";
+import { getActivityCategoryLabel } from "../../utils/categoryLabel";
 import { alert } from "../../utils/alert";
 import { Inbox } from "lucide-vue-next";
 import AppBadge from "../../components/common/AppBadge.vue";

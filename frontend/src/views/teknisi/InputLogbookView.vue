@@ -115,23 +115,34 @@
           </button>
         </div>
 
-        <!-- Chip Cepat (Quick Action Tag) sesuai kategori terpilih -->
-        <div v-if="categoryConfig.chips.length" class="pt-1">
+        <!-- Chip Cepat (Quick Action Tag) sesuai kategori terpilih
+             Q5: chip diperbesar + label tegas agar teknisi tidak lupa memilih -->
+        <div
+          v-if="categoryConfig.chips.length"
+          class="pt-1"
+          role="group"
+          aria-labelledby="quick-action-tag-label"
+        >
           <div
-            class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider mb-1.5"
+            id="quick-action-tag-label"
+            :class="[
+              'text-xs uppercase font-bold tracking-wider mb-2',
+              quickActionTag ? 'text-ink' : 'text-danger',
+            ]"
           >
-            Chip Cepat — wajib pilih satu
+            Pilih Aksi Cepat (Wajib) <span aria-hidden="true">*</span>
           </div>
           <div class="flex flex-wrap gap-2">
             <button
               v-for="chip in categoryConfig.chips"
               :key="chip"
               type="button"
+              :aria-pressed="quickActionTag === chip"
               :class="[
-                'inline-flex items-center h-8 px-3 rounded-full border text-xs font-medium transition',
+                'inline-flex items-center justify-center min-h-11 py-2.5 px-4 rounded-lg text-xs sm:text-sm leading-snug text-center transition min-w-0 max-w-full break-words',
                 quickActionTag === chip
-                  ? 'bg-primary text-white border-primary shadow-sm'
-                  : 'bg-surface text-ink-2 border-line hover:border-primary hover:text-primary',
+                  ? 'border-2 border-primary bg-primary text-white shadow-sm font-semibold'
+                  : 'border-2 border-dashed border-line hover:border-primary bg-muted text-ink-2',
               ]"
               @click="quickActionTag = chip"
             >
@@ -612,24 +623,18 @@
           </p>
         </div>
 
-        <!-- Inputan Spesifikasi Part (Text) -->
-        <div>
-          <label
-            for="form-sparepart"
-            class="block text-xs font-semibold text-ink mb-1.5"
+        <!-- FASE 5.2 / v6: Sparepart dari katalog (multi-baris + qty) -->
+        <div v-if="!isNonMachineCategory && selectedCategory">
+          <label class="block text-xs font-semibold text-ink mb-1.5"
+            >Sparepart / Suku Cadang</label
           >
-            Spesifikasi Part / Suku Cadang Terpasang
-          </label>
-          <input
-            id="form-sparepart"
-            v-model="form.sparepart"
-            type="text"
-            placeholder="Contoh: Bearing SKF 6204-2Z, Seal O-Ring Silikon Ø25mm, Selang Pneumatik 6mm..."
-            class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
+          <SparepartMultiSelect
+            v-model="form.sparepart_items"
+            :disabled="submitting"
           />
-          <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
-            Tuliskan spesifikasi part, ukuran, nomor seri, atau material jika
-            ada penggantian.
+          <p class="text-[10px] text-ink-3 mt-1">
+            Pilih dari katalog. Part yang belum terdaftar bisa dicatat pada
+            Uraian Pekerjaan di bagian bawah.
           </p>
         </div>
 
@@ -1061,6 +1066,13 @@
                 >
                   (Part: {{ draft.sparepart }})
                 </span>
+                <!-- FASE 5.2 / v6: draft dengan sparepart katalog -->
+                <span
+                  v-if="draft.spareparts && draft.spareparts.length"
+                  class="text-ink-3 text-[11px]"
+                >
+                  ({{ draft.spareparts.length }} part katalog)
+                </span>
                 <!-- FASE 4.1a: kode kerusakan tersimpan pada draft -->
                 <span
                   v-if="draft.failure_code || draft.failure_code_id"
@@ -1180,6 +1192,10 @@ import {
   resolveQuickStartCategory,
 } from "../../utils/logbookQuickStart";
 import { alert } from "../../utils/alert";
+import {
+  mapDraftSpareparts,
+  toSparepartPayload,
+} from "../../utils/sparepartItems";
 
 import {
   Server,
@@ -1200,6 +1216,7 @@ import {
   Edit3,
 } from "lucide-vue-next";
 import Toast from "../../components/common/Toast.vue";
+import SparepartMultiSelect from "../../components/logbook/SparepartMultiSelect.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -1291,6 +1308,8 @@ const form = reactive({
   // FASE 4.1a: kode kerusakan ISO 14224 (wajib untuk Perbaikan Mesin / Rawat Rutin)
   failure_code_id: null,
   sparepart: "",
+  // FASE 5.2 / v6: sparepart dari katalog → [{ sparepart_id, qty_used, part_name, part_code, unit }]
+  sparepart_items: [],
   activity_description: "",
   start_time: route.query.time || "08:00",
   end_time: "10:00",
@@ -1596,6 +1615,7 @@ function selectCategory(category) {
     form.machine_id = null;
     form.sub_machine_id = null;
     form.sparepart = "";
+    form.sparepart_items = [];
     // Tugas non-mesin dilarang menyertakan aset (backend menolak mesin apapun)
     resetUnmappedAsset();
   }
@@ -1829,6 +1849,7 @@ function handleResetForm() {
   form.sub_machine_id = null;
   form.failure_code_id = null;
   form.sparepart = "";
+  form.sparepart_items = [];
   form.activity_description = "";
   form.start_time = "08:00";
   form.end_time = "10:00";
@@ -1981,6 +2002,12 @@ async function handleSubmit(isSubmitForApproval) {
       (s) => s.id === form.sub_machine_id,
     );
 
+    // FASE 5.2 / v6: hanya item valid (qty > 0) yang dikirim; kategori
+    // non-mesin dilarang menyertakan sparepart (divalidasi backend).
+    const sparepartItemsPayload = isNonMachineCategory.value
+      ? []
+      : toSparepartPayload(form.sparepart_items);
+
     const payload = {
       task_date: form.task_date,
       plant_id: lockedPlantId.value,
@@ -2006,6 +2033,9 @@ async function handleSubmit(isSubmitForApproval) {
       sparepart: isNonMachineCategory.value
         ? null
         : form.sparepart?.trim() || null,
+      // FASE 5.2 / v6: sparepart katalog (array) → tersimpan di logbook_spareparts
+      has_sparepart: sparepartItemsPayload.length > 0,
+      sparepart_items: sparepartItemsPayload,
       // FASE 4.1a: kode kerusakan ISO 14224 (hanya kategori perawatan mesin)
       failure_code_id: selectedFailureCode.value
         ? selectedFailureCode.value.id
@@ -2055,6 +2085,7 @@ async function handleSubmit(isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
       form.activity_description = "";
       form.sparepart = "";
+      form.sparepart_items = [];
       form.failure_code_id = null;
       // F3.1: bersihkan chip & field adaptif untuk input berikutnya
       quickActionTag.value = "";
@@ -2208,6 +2239,8 @@ function handleLoadDraftToForm(draft) {
   }
   form.failure_code_id = draft.failure_code_id || null;
   form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";
+  // FASE 5.2 / v6: draft menyimpan item katalog → kembalikan ke picker (qty + cache nama part)
+  form.sparepart_items = mapDraftSpareparts(draft.spareparts);
   form.activity_description = draft.activity_description || "";
 
   // D12: draft hasil laporan aset baru dikembalikan sebagai mode input manual

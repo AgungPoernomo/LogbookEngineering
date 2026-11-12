@@ -115,6 +115,27 @@ export const logbookService = {
       status: isSubmit ? 'PENDING' : (payload.status || 'DRAFT')
     }
 
+    // F3.1 / v6 (Bagian 4.1): field reliability hanya diteruskan bila dikirim caller.
+    // Tanpa ini, edit draft (kategori, chip, status akhir, downtime, sparepart_items)
+    // akan terbuang dan backend menganggap update sebagai payload legacy.
+    const v6Fields = [
+      'activity_category',
+      'quick_action_tag',
+      'machine_end_status',
+      'maintenance_type',
+      'failure_code_id',
+      'root_cause_notes',
+      'is_downtime',
+      'downtime_minutes',
+      'unit_repaired_qty',
+      'has_sparepart',
+      'unmapped_asset_note',
+      'sparepart_items'
+    ]
+    v6Fields.forEach((key) => {
+      if (payload[key] !== undefined) body[key] = payload[key]
+    })
+
     return await api.put(`/logbooks/${id}`, body)
   },
 
