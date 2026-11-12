@@ -5,14 +5,13 @@
 | Item | Keterangan |
 |---|---|
 | **Nama Proyek** | Engineer Logbook Satoria |
-| **Status** | Produksi & Stabil (Upgrade v6.0 - Teknisi-Oriented) |
+| **Status** | ✅ **v6.0 LIVE di Production** (12 November 2026) — Teknisi-Oriented & Reliability |
+| **URL Production** | **Frontend:** https://satoria-log-aktivitas-me.vercel.app · **Backend:** https://logbook-pharma-backend.vercel.app |
 | **Frontend** | Vue.js 3 + Tailwind CSS |
 | **Backend** | Node.js Express + Prisma ORM |
-| **Database** | TiDB (SQL, kompatibel MySQL) |
-| **Deployment** | Vercel |
-| **Repositori** | GitHub (private) |
-| **IDE** | Antigravity IDE |
-| **Versi Dokumen** | 6.0 |
+| **Database** | TiDB Cloud (SQL, kompatibel MySQL) — Production |
+| **Deployment** | Vercel (Auto-Deploy dari `main` + GitHub Actions CI 5/5 hijau) |
+| **Test Status** | Backend **248/248** · Frontend **121/121** · RBAC **11/11** |
 
 ---
 
@@ -207,9 +206,12 @@ Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses
 | **Master Plant** | Kelola data referensi unit fasilitas dan plant operasional Satoria Group (`/admin/plants`) | Wajib |
 | **Master Machine** | Kelola data registrasi mesin utama (termasuk **kritikalitas aset** A/B/C) dan komponen sub-mesin per plant (`/admin/machines`) | Wajib |
 | **Master Group** | Kelola pengaturan jadwal shift kerja operasional serta grup/departemen spesialisasi engineering (`/admin/groups`) | Wajib |
-| **Master Failure Code & Sparepart** | Referensi 12 kode kerusakan ISO 14224 dan katalog sparepart (fast-moving & consumable) yang dipakai form teknisi | Wajib (Fase 5) |
+| **Master Sparepart** | Katalog sparepart (fast-moving & consumable) yang dipakai form teknisi (`/admin/spareparts`). CRUD + soft delete + filter tipe (MACHINE_PART / CONSUMABLE_WORKSHOP) | Wajib (Fase 5) |
+| **Master Failure Code** | Kelola 12 kode kerusakan ISO 14224 via `/admin/failure-codes` — CRUD lengkap, filter kategori, proteksi duplikat kode (case-insensitive), soft delete (`is_active=false`). Sebelumnya hanya di-seed DB, kini bisa dikelola Admin tanpa sentuh database | Wajib (Fase 5) |
 | **Audit Trail** | Melihat log aktivitas pengguna (`user_activities`) untuk penelusuran aksi sensitif | Wajib |
 | **Pengaturan Sistem** | Konfigurasi operasional dan pengaturan notifikasi email | Wajib |
+
+> **Catatan v6.0:** Master Failure Code sempat terlewat di Fase 5 (hanya di-seed DB). Ditambahkan di akhir Sesi 4 setelah audit menemukan dropdown "Kode Kerusakan" tidak ada di form teknisi. State store terpisah: `failureCodes` (dropdown teknisi, hanya `is_active=true`) vs `adminFailureCodes` (tabel admin, semua status).
 
 ---
 
@@ -304,7 +306,12 @@ flowchart LR
   - **Fase 3.1:** Form Input Cepat 5 Tombol Besar (adaptif per kategori) pada `InputLogbookView.vue`.
   - **Fase 3.3:** Papan Serah-Terima Shift (`HandoverBoard.vue` + `GET /api/v1/handover`), menggantikan slot Leaderboard di Dashboard Teknisi.
   - **Fase 3.4:** Buku Pintar Mesin (`MachineHistoryView.vue` + `GET /api/v1/machines/:id/history`), dapat dibuka dari kartu mesin di dashboard (`/mesin/:id`).
-- **Fokus Operasional Saat Ini:** Penyelesaian lanjutan *Upgrade v6.0* — Fase 4 (Supervisor: validasi teknis, Pareto bad actor, KPI MTTR/MTBF, skill matrix) dan Fase 5 (Admin: radar aset belum terdaftar, master sparepart, generator QR mesin), tanpa mengorbankan pengujian otorisasi RBAC, CI otomatis, monitoring Sentry, dan cadangan TiDB Cloud.
+- **Tahap 3 — Upgrade v6.0 SELESAI & DEPLOYED (12 November 2026):**
+  - **Fase 4 (Supervisor):** ✅ Selesai — Banner Repeat Failure, Antrean Handover (`SupervisorHandoverQueue.vue`), KPI MTTR/MTBF/Availability, Pareto Bad Actor, **Peta Keahlian & Kontak** (rename dari Skill Matrix, urutan abjad + email kontak — P1-compliant).
+  - **Fase 5 (Admin):** ✅ Selesai — Radar Aset, Master Sparepart, QR Generator (single + batch A4), **Master Failure Code (CRUD)**, auto-create sub-mesin default ("Bagian Utama") saat promote.
+  - **Fase 6 (Hardening):** ✅ Selesai — E2E Test 4 skenario PASS, **15 bug kritis ditemukan & diperbaiki**, UI redesign (Card-Based List, Calendar dynamic sizing, Bottom Navbar restructure), cache SWR fix, RBAC audit 11/11.
+  - **Fase 7 (Release):** ✅ Deploy Vercel — Frontend & Backend live, CI GitHub Actions 5/5 hijau, database cleanup 44 akun dummy secara *surgical* (data asli aman).
+- **Fokus Operasional Saat Ini:** v6.0 stabil di production. **Backlog v6.1:** PWA + Offline-first (request SPV mekanik), **JWT Stale Claims fix (SECURITY)**, dashboard skeleton proper, backfill sub-mesin mesin lama, performance audit halaman Admin.
 
 ---
 
@@ -633,6 +640,7 @@ erDiagram
 | `/supervisor/teknisi` | Aktivitas & Frekuensi Logbook Teknisi Tim | Supervisor |
 | `/laporan` | Ekspor Laporan Tim (PDF / Excel) | Supervisor |
 | `/supervisor/reliability` | **Analitik Keandalan** (Pareto Bad Actor & Skill Matrix) | Supervisor, Admin |
+| `/supervisor/teknisi` | Aktivitas & Frekuensi Logbook Teknisi Tim | Supervisor, **Admin (v6.0)** |
 | `/admin/users` | Manajemen Akun Pengguna | Admin |
 | `/admin/plants` | Master Plant (Manajemen Fasilitas & Pabrik) | Admin |
 | `/admin/machines` | Master Machine (Mesin Utama & Sub-Mesin) | Admin |
@@ -640,6 +648,7 @@ erDiagram
 | `/admin/master` | *Redirect ke `/admin/plants` (Kompatibilitas)* | Admin |
 | `/admin/unmapped-assets` | **Radar Aset Belum Terdaftar** | Admin |
 | `/admin/spareparts` | Master Sparepart (CRUD) | Admin |
+| `/admin/failure-codes` | **Master Failure Code** (CRUD kode kerusakan ISO 14224) | Admin |
 | `/admin/machines/qr-print?plant_id=X` | Batch Print QR per Line | Admin |
 | `/admin/audit` | Audit Trail Activity Logs | Admin |
 | `/profil` | Pengaturan Profil Pribadi & Kata Sandi | Semua |
@@ -862,9 +871,17 @@ Daftar menu per peran (rute mengikuti Bagian 10; WAJIB disimpan di `constants/me
 | Supervisor | Menu | Approval Logbook | `/approval` | `ClipboardCheck` |
 | Supervisor | Menu | Laporan Tim | `/laporan` | `FileBarChart` |
 | Admin | Menu | Manajemen Akun | `/admin/users` | `Users` |
-| Admin | Menu | Master Data | `/admin/master` | `Database` |
+| Admin | Menu | Master Plant | `/admin/plants` | `Building2` |
+| Admin | Menu | Master Mesin | `/admin/machines` | `Cpu` |
+| Admin | Menu | Master Group | `/admin/groups` | `Layers` |
+| Admin | Menu | Master Sparepart | `/admin/spareparts` | `Package` |
+| Admin | Menu | Master Failure Code | `/admin/failure-codes` | `ShieldAlert` |
+| Admin | Menu | Radar Aset | `/admin/unmapped-assets` | `Radar` |
+| Supervisor, Admin | Menu | Aktivitas Teknisi | `/supervisor/teknisi` | `Users` |
 | Admin | Menu | Audit Trail | `/admin/audit` | `ScrollText` |
 | Semua | Akun | Profil | `/profil` | `UserCircle` |
+
+> **Catatan v6.0 (Mobile):** Pada tampilan < `lg` (smartphone & tablet), menu Admin dikelompokkan menjadi **5 item Bottom Navbar**: `Dashboard` → `Pengguna` → `Audit` → **`Lainnya`** → `Profil`. Semua menu master (Plant, Mesin, Group, Sparepart, Failure Code, Radar Aset) dan Aktivitas Teknisi diakses via tombol **"Lainnya"** yang membuka `MoreMenuSheet.vue` (bottom sheet). Menu "Master" tidak lagi tampil di Bottom Navbar karena sudah terwakili di drawer "Lainnya".
 
 - Rute `/logbook/edit/:id` mengaktifkan menu "Riwayat Logbook"; rute `/approval/detail/:id` mengaktifkan menu "Approval Logbook".
 - Tidak ada submenu (tidak ada chevron-down pada item menu).
@@ -1256,11 +1273,15 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 - [ ] **Fase 3.2 (Quick-start & QR)**: *Ditunda* menunggu stiker fisik QR Code dicetak.
 - [x] **Fase 3.3 (Handover Board)**: `HandoverBoard.vue` + `GET /api/v1/handover` — dedup log terbaru per mesin/sub-mesin, filter `WAITING_SPAREPART`/`TEMPORARY_FIX`, urut kritikalitas. Menggantikan slot Leaderboard di Dashboard Teknisi.
 - [x] **Fase 3.4 (Machine History)**: `MachineHistoryView.vue` + `GET /api/v1/machines/:id/history` — timeline berhalaman, statistik downtime (dasar MTTR/MTBF), top failure code & top sparepart; kartu mesin di dashboard kini menuju `/mesin/:id`.
-- [x] **Fase 4 (Supervisor)**: Approval sebagai validasi teknis (banner *repeat failure*), antrean tindak lanjut dari Handover Board, KPI keandalan (MTTR/MTBF/Availability/Planned Ratio/Repeat Failure Rate), Pareto bad actor, dan reframing `/supervisor/teknisi` + skill matrix.
-- [ ] **Fase 5 (Admin)**: Radar aset belum terdaftar, master sparepart lengkap, dan generator QR mesin.
-- [ ] **Fase 6–7 (Hardening & Fitur Tertunda)**: Test tambahan (token expired → 401, injeksi input), dokumentasi, serta fitur yang sebelumnya BLOCKED.
+- [x] **Fase 4 (Supervisor)**: ✅ Selesai — Approval sebagai validasi teknis (banner *repeat failure* via shared helper `repeatFailure.js`), antrean tindak lanjut dari Handover Board, KPI keandalan (MTTR/MTBF/Availability), Pareto bad actor, Peta Keahlian & Kontak (P1-compliant).
+- [x] **Fase 5 (Admin)**: ✅ Selesai — Radar aset + auto-create sub-mesin default, Master Sparepart (CRUD), QR Generator (single + batch A4) + cache buster, **Master Failure Code (CRUD)**.
+- [x] **Fase 6 (Hardening)**: ✅ Selesai — E2E Test 4 skenario PASS, **15 bug kritis fix** (card-based list, calendar dynamic sizing, bottom navbar restructure, cache SWR invalidate, approval filter sync, repeat failure banner, `isDirectTeam` AND logic, pagination aktivitas teknisi, QR cache buster, softened dashboard colors). RBAC audit 11/11. Test final: Backend **248/248**, Frontend **121/121**.
+- [x] **Fase 7 (Release)**: ✅ Deploy Vercel (12 Nov 2026) — Frontend & Backend live, CI GitHub Actions **5/5 hijau**, database cleanup 44 akun dummy + mesin testing (surgical).
+- [x] **Fase 8 (Post-Release Handover)**: ✅ Update dokumentasi (PROGRESS_V6, CHANGELOG, README), ⚠️ handover Vercel ke akun perusahaan (PENDING), backup database baseline.
 
 **Aturan kerja v6.0:** jangan mengubah skema database lagi tanpa persetujuan (Fase 2 sudah selesai), ikuti daftar file LOCKED, dan jalankan `npm test` backend + `npm test` & `npm run build` frontend di setiap akhir fase.
+
+**Status v6.0:** ✅ **SELESAI & DEPLOYED**. Branch `feat/v6-reliability` sudah di-merge ke `main`. Untuk v6.1, buat branch baru (`feat/v6.1-pwa`).
 
 ### Akun Dummy Resmi Sistem
 
@@ -1306,6 +1327,9 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 | POST | `/api/v1/logbooks/:id/approval` | Action Approve / Reject Logbook (wajib catatan bila ditolak) | Supervisor, Admin |
 | GET | `/api/v1/logbooks/:id/approvals` | Riwayat Persetujuan Logbook | Terotentikasi (Semua Peran) |
 | GET | `/api/v1/master/:type` | Ambil Data Master (`plants`, `shifts`, `machines`, `sub-machines`, `groups`, `roles`, **`failure-codes`**, **`spareparts`**) | Terotentikasi (Semua Peran) |
+| POST | `/api/v1/master/failure-codes` | Tambah kode kerusakan baru (validasi: `code` unik case-insensitive → 409, `category` enum valid, `name` wajib) | Admin |
+| PUT | `/api/v1/master/failure-codes/:id` | Update kode kerusakan (partial update, `code` duplikat ditolak) | Admin |
+| DELETE | `/api/v1/master/failure-codes/:id` | Soft delete (`is_active = false`) — logbook lama tetap aman | Admin |
 | GET | `/api/v1/supervisor/reliability-analytics` | **Analitik Keandalan**: Pareto Mesin, Pareto Failure Code, Skill Matrix (query: `plant_id`, `year_month`) | Supervisor, Admin |
 | POST | `/api/v1/master/:type` | Tambah Data Master Baru | Admin |
 | PUT | `/api/v1/master/:type/:id` | Perbarui Data Master | Admin |
@@ -1318,6 +1342,7 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 | GET | `/api/v1/machines/:id/qr-data` | Info mesin untuk modal QR (JSON) | Admin |
 | GET | `/api/v1/machines/qr-batch?plant_id=X` | Data batch QR per Line (max 200) | Admin |
 | GET | `/api/v1/master/spareparts` | Katalog sparepart (difilter `?item_type=` & `?search=`) | Semua role terotentikasi |
+| GET | `/api/v1/master/failure-codes` | Daftar kode kerusakan (query: `?category=`, `?search=`, `?include_inactive=`) | Semua role terotentikasi (dropdown teknisi filter `is_active=true`) |
 | POST/PUT/DELETE | `/api/v1/master/spareparts` | CRUD sparepart (soft delete) | Admin |
 | GET | `/api/v1/users` | Daftar Pengguna (Admin: semua; **Supervisor/Teknisi: mode read-only, difilter ketat berdasarkan `plant_id` JWT**) | Admin, Supervisor, Teknisi (read-only) |
 | POST | `/api/v1/users` | Tambah Akun Pengguna Baru | Admin |
@@ -1390,7 +1415,7 @@ Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-O
 ### 15.2 Otomasi CI (GitHub Actions)
 
 Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan dieksekusi otomatis pada setiap `push` dan `pull request`:
-- **Backend Job**: Melakukan instalasi dependensi, `npx prisma generate`, dan menjalankan seluruh pengujian otomatis `npm test` (31 skenario uji mencakup utilitas, JWT, autentikasi, avatar, zona waktu WIB, dan matriks otorisasi RBAC).
+- **Backend Job**: Melakukan instalasi dependensi, `npx prisma generate`, dan menjalankan seluruh pengujian otomatis `npm test` (lihat §18.1 untuk rincian suite — total 248 test backend per v6.0).
 - **Frontend Job**: Melakukan instalasi dependensi, pengujian unit Vitest `npm test` (kalkulasi kalender layout), dan build bundler produksi Vite `npm run build`.
 - Menjamin tidak ada kode yang mengalami regresi atau galat sintaks/tipe data yang dapat masuk ke repositori utama tanpa terverifikasi.
 
@@ -1418,7 +1443,9 @@ Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan 
 
 ### 18.1 Automated Testing Suite
 
-1. **Backend Test Suite (Node.js Test Runner - 31 Skenario Lulus 100%)**:
+Total test suite v6.0 (final, 12 November 2026): **Backend 248/248 lulus · Frontend 121/121 lulus**. Angka ini adalah acuan resmi rilis v6.0 dan wajib hijau sebelum merge ke `main`. Rinciannya terbagi menjadi 3 kelompok:
+
+1. **Backend Test Suite — Base Foundation** (bagian dari total 248/248):
    - `test/authorization.test.js` (**Pengujian Otorisasi RBAC & Isolasi Data**):
      - Membuktikan Teknisi A ditolak (HTTP 403) saat mencoba membuka (`GET`), mengedit (`PUT`), atau menghapus (`DELETE`) logbook milik Teknisi B.
      - Membuktikan Teknisi B (pemilik sah), Supervisor, dan Admin diizinkan membuka detail logbook (HTTP 200).
@@ -1432,32 +1459,44 @@ Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan 
    - `test/api.test.js` (**Endpoint Dasar & Keamanan**):
      - Health check, 401 unauthenticated, 400 validation, dan 404 routing.
 
-2. **Frontend Test Suite (Vitest & Vite Build - 9 Skenario Lulus 100%)**:
+2. **Frontend Test Suite — Base Foundation** (bagian dari total 121/121):
    - `src/utils/calendarLayout.test.js`: Validasi clustering kalender mingguan, snapping grid 15 menit, penanggalan WIB, dan segmentasi event lintas hari.
    - `npm run build`: Kompilasi produksi Vite bebas galat dengan dynamic code splitting (81.6 kB bundle).
 
-3. **v6.0 Reliability Test Suite (Tambahan Upgrade v6.0 — Status: Backend 59/59 & Frontend 14/14 Lulus)**:
+3. **v6.0 Test Suite (Final — Status: Backend 248/248 & Frontend 121/121 Lulus)**:
    - `test/reliability.test.js` (**Fase 2 — Aturan Keandalan Mesin**):
      - `deriveMaintenanceType` (Bagian 4.2): `MACHINE_TROUBLE` + downtime → `BREAKDOWN`, tanpa downtime → `CORRECTIVE`; `PREVENTIVE_PM` + "Cek Rutin" → `INSPECTION`, chip lain → `PREVENTIVE`; `KERETA_TRAY_REPAIR`/`FABRICATION_PROJECT`/`SUPPORT_NON_MACHINE` → `NULL`.
      - `normalizeMachineEndStatus` (Bagian 4.3): `PREVENTIVE_PM` selalu dipaksa `NORMAL_RESOLVED`.
      - `validateActivityCategory`: validasi field wajib/dilarang per kategori (mesin dilarang untuk `SUPPORT_NON_MACHINE`, `unit_repaired_qty` wajib ≥ 1 untuk `KERETA_TRAY_REPAIR`, dll).
    - `test/validation.test.js` (**Fase 1 — Hotfix Black Box**): BUG-003 (`08:00→07:00` ditolak pada shift siang, sah pada shift malam), BUG-004 (durasi 0 ditolak), format jam tidak valid, BUG-009 (validasi email ketat), BUG-012 (batas 1000 karakter).
-   - `src/utils/timeValidation.test.js` (**Fase 1 — Validasi Waktu Sisi Klien**): 5 skenario paralel dengan aturan backend agar pesan error FE & BE konsisten.
-   - **Perintah menjalankan (v6.0)**:
-     ```bash
-     # Backend — seluruh suite (termasuk reliability.test.js)
-     cd backend && npm test          # node --test "test/**/*.test.js"
+   - `test/masterFailureCode.test.js` (**Fase 5 — Master Failure Code CRUD**): validasi payload create/update, proteksi duplikat kode (case-insensitive → 409), soft delete, filter kategori, `mapFailureCode` (BigInt → Number).
+   - `test/repeatFailure.test.js` (**Fase 4.1a — Shared Helper `repeatFailure.js`**): `detectRepeatFailures` — grouping `machine_id` + `failure_code_id`, window 30 hari, status PENDING/APPROVED, penandaan semua log dalam pola repeat (bukan hanya yang terbaru).
+   - `test/supervisorTeamOverview.test.js` (**Fase 4.1b — Logika `isDirectTeam` AND**): SPV Group 30001 Line 1 hanya melihat 11 teknisi (bukan 35 seluruh pabrik), verifikasi `group_id` DAN `plant_id` keduanya harus cocok. Regresi dari bug OR (`||`) → AND (`&&`).
+   - `test/adminUnmappedAsset.test.js` (**Fase 5.1 — Radar Aset**): grouping `unmapped_asset_note`, promote transaction, **auto-create sub-mesin default** ("Bagian Utama") — 11 test + 13 test regresi sub-mesin.
+   - `test/masterSparepart.test.js` (**Fase 5.2 — Master Sparepart**): `buildSparepartPayload`, `buildSparepartWhere`, `mapSparepart` — 17 test.
+   - `test/machineQr.test.js` (**Fase 5.3 — QR Generator**): `buildQrOptions`, `parseMachineId`, `mapMachineQrData`, `buildQrFilename`, `renderQrPng` — 13 test + 3 test cache buster.
+   - **Frontend:**
+     - `src/utils/timeValidation.test.js` (**Fase 1 — Validasi Waktu Sisi Klien**): 5 skenario paralel dengan aturan backend agar pesan error FE & BE konsisten.
+     - `src/utils/approvalFilter.test.js` (20 test — sinkronisasi filter tab Approval SPV vs logbook rincian).
+     - `src/utils/repeatFailure.test.js` (paralel dengan backend untuk konsistensi UI).
+     - `src/utils/technicianScope.test.js` (filter scope teknisi berdasarkan `isDirectTeam`).
+     - `src/services/machineQrService.test.js` (3 test cache buster `?t=Date.now()` + TTL 5 menit).
+     - `src/utils/mobileNav.test.js` (12 test — menu Admin mobile: Dashboard→Pengguna→Audit→Lainnya→Profil, allow-list drawer).
+     - `src/utils/logbookQuickStart.test.js` (20 test — parse query `?machine=&sub=&task_type=`).
 
-     # Backend — khusus suite keandalan v6.0
-     cd backend && node --test test/reliability.test.js
+   **Perintah menjalankan (v6.0)** — jalankan dari **root repositori** (`npm --prefix` membuat perintah sama di PowerShell, bash, zsh, maupun CI):
 
-     # Frontend — seluruh suite Vitest (termasuk timeValidation.test.js)
-     cd frontend && npm test         # vitest run
+   ```bash
+   # Seluruh suite — backend: node --test test/ · frontend: vitest run
+   npm --prefix backend test
+   npm --prefix frontend test
 
-     # Frontend — build produksi verifikasi
-     cd frontend && npm run build
-     ```
-   - **Catatan lingkungan:** pada Node.js v24 lokal, script `npm test` backend memakai glob `node --test "test/**/*.test.js"`. Bila route API lebih dari satu segmen mengembalikan 404, jalankan `npm install` ulang di folder `backend` (bug resolusi `path-to-regexp` pada `node_modules` lokal).
+   # Build produksi frontend (verifikasi bundle)
+   npm --prefix frontend run build
+
+   # Suite baru v6.0 — subset cepat & tanpa database (lihat script test:v6)
+   npm --prefix backend run test:v6
+   npm --prefix frontend run test:v6
 
 ### 18.2 UAT Checklist
 
