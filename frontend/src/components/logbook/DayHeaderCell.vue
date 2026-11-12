@@ -1,13 +1,13 @@
 <template>
   <div
-    class="flex-1 min-w-0 h-[72px] flex flex-col items-center justify-center border-r border-line last:border-r-0 select-none"
+    class="flex-1 min-w-0 h-14 flex flex-col items-center justify-center border-r border-line last:border-r-0 select-none"
     role="columnheader"
     :aria-label="ariaLabel"
   >
     <!-- Singkatan Hari -->
     <span
       :class="[
-        'text-[11px] font-semibold tracking-wider uppercase',
+        'text-[10px] font-semibold tracking-wider uppercase leading-none',
         isToday ? 'text-primary font-bold' : 'text-ink-2'
       ]"
     >
@@ -18,13 +18,13 @@
     <div class="mt-1 flex items-center justify-center">
       <div
         v-if="isToday"
-        class="w-10 h-10 rounded-full bg-primary text-white font-medium text-base flex items-center justify-center shadow-card"
+        class="w-7 h-7 rounded-full bg-primary text-white font-semibold text-xs flex items-center justify-center shadow-card"
       >
         {{ dateNumber }}
       </div>
       <span
         v-else
-        class="text-xl font-normal text-ink leading-none py-1.5"
+        class="text-sm font-medium text-ink leading-none"
       >
         {{ dateNumber }}
       </span>

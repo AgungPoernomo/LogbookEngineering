@@ -30,9 +30,21 @@ backend/public/uploads/avatars/*
 *.xlsx
 *.xls
 
+# Output audit data (dihasilkan oleh backend/scripts/01-audit-data.js)
+backend/audit/
+
 # System & Editor
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
+*.sql
+AGENT_SPEC_Upgrade_Engineer_Logbook_Satoria_v6.md
+.clineignore
+
+
+# Dokumentasi kerja lokal
+Temuan/
+context_*.md
+struktur.md

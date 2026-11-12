@@ -3,13 +3,14 @@
     class="flex items-center border-b border-line bg-surface shrink-0"
     role="row"
   >
-    <!-- Kolom Zona Waktu (Sel Kiri) -->
+    <!-- Kolom Zona Waktu (Sel Kiri, menyamakan lebar TimeAxis sticky) -->
     <div
-      class="w-12 sm:w-16 h-[72px] shrink-0 border-r border-line flex items-end justify-end pb-3 pr-2 select-none"
+      class="w-12 sm:w-16 h-14 shrink-0 border-r border-line flex items-end justify-end pb-2 pr-2 select-none"
       aria-hidden="true"
     >
-      <span class="text-[10px] font-medium text-ink-2 text-right">
-        WIB (GMT+7)
+      <span class="text-[9px] sm:text-[10px] font-medium text-ink-3 text-right leading-tight">
+        WIB
+        <span class="hidden sm:inline">(GMT+7)</span>
       </span>
     </div>
 

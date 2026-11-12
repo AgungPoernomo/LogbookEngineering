@@ -12,8 +12,10 @@ const router = Router()
 
 router.use(authenticate)
 
-// GET /api/v1/users diizinkan untuk Admin dan Supervisor (read-only untuk keperluan dashboard & aktivitas tim)
-router.get('/', requireRoles('Admin', 'Supervisor'), getUsers)
+// GET /api/v1/users diizinkan untuk Admin, Supervisor, dan Teknisi (read-only).
+// Teknisi secara paksa di-scope hanya ke plant-nya sendiri & akun aktif (lihat getUsers)
+// untuk keperluan card "Teknisi di Line Ini" pada Dashboard Teknisi.
+router.get('/', requireRoles('Admin', 'Supervisor', 'Teknisi'), getUsers)
 
 // Operasi manajemen akun (CRUD) tetap eksklusif hanya untuk Admin
 router.post('/', requireRoles('Admin'), createUser)

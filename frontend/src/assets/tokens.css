@@ -56,7 +56,8 @@
   --planner-toolbar-h: 56px;
   --planner-header-h: 72px;
   --planner-time-col-w: 64px;
-  --planner-hour-h: 60px;
+  /* Tinggi 1 jam pada grid kalender mingguan (compact: total 24 jam = 960px) */
+  --planner-hour-h: 40px;
   --planner-chip-h: 22px;
   --planner-event-min-h: 22px;
   --planner-event-inset: 4px;

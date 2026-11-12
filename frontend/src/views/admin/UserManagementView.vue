@@ -53,20 +53,32 @@
         <table class="w-full text-left text-[13px] border-collapse min-w-[700px]">
           <thead class="bg-muted/60 text-xs font-semibold text-ink-2 border-b border-line">
             <tr>
-              <th class="px-4 py-3">Nama & NIK</th>
-              <th class="px-4 py-3">Peran (RBAC)</th>
-              <th class="px-4 py-3">Plant & Grup Kerja</th>
-              <th class="px-4 py-3">Kontak / Email</th>
-              <th class="px-4 py-3">Status Akun</th>
+              <th class="px-3 py-3 w-10">#</th>
+              <th class="px-4 py-3 cursor-pointer select-none" @click="toggleSort('full_name')">
+                Nama & NIK <span class="text-ink-3">{{ sortIndicator('full_name') }}</span>
+              </th>
+              <th class="px-4 py-3 cursor-pointer select-none" @click="toggleSort('role')">
+                Peran (RBAC) <span class="text-ink-3">{{ sortIndicator('role') }}</span>
+              </th>
+              <th class="px-4 py-3 cursor-pointer select-none" @click="toggleSort('plant')">
+                Line & Grup Kerja <span class="text-ink-3">{{ sortIndicator('plant') }}</span>
+              </th>
+              <th class="px-4 py-3 cursor-pointer select-none" @click="toggleSort('email')">
+                Kontak / Email <span class="text-ink-3">{{ sortIndicator('email') }}</span>
+              </th>
+              <th class="px-4 py-3 cursor-pointer select-none" @click="toggleSort('is_active')">
+                Status Akun <span class="text-ink-3">{{ sortIndicator('is_active') }}</span>
+              </th>
               <th class="px-4 py-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-line text-ink">
             <tr
-              v-for="user in filteredUsers"
+              v-for="(user, index) in users"
               :key="user.id"
               class="hover:bg-muted/40 transition-colors"
             >
+              <td class="px-3 py-3 text-xs text-ink-3 font-mono">{{ (page - 1) * limit + index + 1 }}</td>
               <td class="px-4 py-3 whitespace-nowrap">
                 <div class="font-semibold text-ink">{{ user.full_name }}</div>
                 <div class="text-xs text-ink-3 font-mono">NIK: {{ user.nik }}</div>
@@ -116,6 +128,46 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Paginasi server-side (BUG-011) -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-line text-xs text-ink-2">
+        <div class="flex items-center gap-2">
+          <span>
+            Menampilkan
+            <strong class="text-ink">{{ users.length === 0 ? 0 : (page - 1) * limit + 1 }}</strong>–<strong class="text-ink">{{ (page - 1) * limit + users.length }}</strong>
+            dari <strong class="text-ink">{{ total }}</strong> akun
+          </span>
+          <select
+            v-model.number="limit"
+            class="h-7 px-1.5 rounded-md border border-line bg-surface text-xs focus:outline-none focus:border-primary cursor-pointer"
+            @change="changeLimit"
+          >
+            <option :value="10">10 / hal</option>
+            <option :value="25">25 / hal</option>
+            <option :value="50">50 / hal</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="page <= 1 || loading"
+            @click="goToPage(page - 1)"
+          >
+            ← Sebelumnya
+          </button>
+          <span class="px-2 font-medium">Hal {{ page }} / {{ totalPages }}</span>
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed"
+            :disabled="page >= totalPages || loading"
+            @click="goToPage(page + 1)"
+          >
+            Berikutnya →
+          </button>
+        </div>
       </div>
     </div>
 
@@ -174,13 +226,13 @@
             </select>
           </div>
           <div>
-            <label class="block font-medium text-ink mb-1">Fasilitas Plant <span class="text-danger">*</span></label>
+            <label class="block font-medium text-ink mb-1">Line / Fasilitas <span class="text-danger">*</span></label>
             <select
               v-model="userForm.plant_id"
               required
               class="w-full h-9 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:border-primary focus:outline-none cursor-pointer"
             >
-              <option value="" disabled>-- Pilih Fasilitas Plant --</option>
+              <option value="" disabled>-- Pilih Line --</option>
               <option v-for="p in masterStore.plants" :key="p.id" :value="p.id">
                 {{ p.name }}
               </option>
@@ -223,10 +275,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { userService } from '../../services/userService'
 import { useMasterStore } from '../../stores/master'
 import { useAuthStore } from '../../stores/auth'
+import { alert } from '../../utils/alert'
 import AppBadge from '../../components/common/AppBadge.vue'
 import AppModal from '../../components/common/AppModal.vue'
 
@@ -240,6 +293,14 @@ const searchQuery = ref('')
 const isModalOpen = ref(false)
 const editingId = ref(null)
 
+// Paginasi & pengurutan server-side (BUG-010/011)
+const page = ref(1)
+const limit = ref(25)
+const total = ref(0)
+const sortBy = ref('created_at')
+const sortDir = ref('desc')
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
+
 const userForm = ref({
   full_name: '',
   nik: '',
@@ -249,12 +310,28 @@ const userForm = ref({
   group_id: ''
 })
 
+// BUG-009: email harus local@domain.tld
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/
+
 async function fetchUsers() {
   loading.value = true
   try {
-    users.value = await userService.getUsers()
+    const res = await userService.getUsers({
+      role: selectedRole.value,
+      search: searchQuery.value.trim(),
+      page: page.value,
+      limit: limit.value,
+      sort_by: sortBy.value,
+      sort_dir: sortDir.value
+    })
+    users.value = res
+    total.value = res._meta?.total ?? res.length
+    if (page.value > totalPages.value) {
+      page.value = totalPages.value
+    }
   } catch (err) {
     console.error('Gagal memuat pengguna dari database:', err)
+    await alert.error('Gagal Memuat Data', err.message || 'Tidak dapat mengambil daftar pengguna.')
   } finally {
     loading.value = false
   }
@@ -267,30 +344,46 @@ onMounted(async () => {
   ])
 })
 
-const filteredUsers = computed(() => {
-  let list = users.value
-
-  if (selectedRole.value !== 'ALL') {
-    list = list.filter(u => (u.role || u.role_name) === selectedRole.value)
-  }
-
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase()
-    list = list.filter(u =>
-      u.full_name?.toLowerCase().includes(q) ||
-      u.nik?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q)
-    )
-  }
-
-  return list
+// Reset ke halaman 1 & fetch ulang saat filter/pencarian berubah (debounce sederhana)
+let searchTimer = null
+watch([selectedRole, searchQuery], () => {
+  page.value = 1
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(fetchUsers, 350)
 })
+
+function toggleSort(field) {
+  if (sortBy.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDir.value = 'asc'
+  }
+  page.value = 1
+  fetchUsers()
+}
+
+function sortIndicator(field) {
+  if (sortBy.value !== field) return ''
+  return sortDir.value === 'asc' ? '▲' : '▼'
+}
+
+function goToPage(target) {
+  if (target < 1 || target > totalPages.value) return
+  page.value = target
+  fetchUsers()
+}
+
+function changeLimit() {
+  page.value = 1
+  fetchUsers()
+}
 
 function openAddModal() {
   editingId.value = null
   userForm.value = {
     full_name: '',
-    nik: `TEK-2026-00${users.value.length + 1}`,
+    nik: `TEK-2026-00${total.value + 1}`,
     email: '',
     role: 'Teknisi',
     plant_id: masterStore.plants[0]?.id || 1,
@@ -313,14 +406,36 @@ function openEditModal(user) {
 }
 
 async function saveUser() {
-  try {
-    const roleIdMap = {
-      Admin: 1,
-      Supervisor: 2,
-      Teknisi: 3
-    }
-    const roleId = roleIdMap[userForm.value.role] || 3
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(userForm.value.full_name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama lengkap wajib diisi.')
+    return
+  }
 
+  if (!String(userForm.value.nik || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'NIK wajib diisi.')
+    return
+  }
+
+  // BUG-009: validasi email di sisi klien sebelum kirim
+  if (!EMAIL_REGEX.test(String(userForm.value.email || '').trim())) {
+    await alert.error('Email Tidak Valid', 'Gunakan format email yang benar, contoh: nama@domain.co.id')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan pengguna
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Pengguna?' : 'Buat Akun Pengguna Baru?',
+    editingId.value
+      ? `Perubahan data ${userForm.value.full_name} akan disimpan.`
+      : `Akun baru untuk ${userForm.value.full_name} akan dibuat.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, buat'
+  )
+  if (!isConfirmed) return
+
+  try {
+    const roleIdMap = { Admin: 1, Supervisor: 2, Teknisi: 3 }
+    const roleId = roleIdMap[userForm.value.role] || 3
     const payload = {
       ...userForm.value,
       role_id: roleId,
@@ -336,17 +451,24 @@ async function saveUser() {
 
     await fetchUsers()
     isModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data pengguna berhasil diperbarui.' : 'Akun pengguna baru berhasil dibuat.')
   } catch (err) {
-    alert(err.message || 'Gagal menyimpan data pengguna.')
+    // BUG-005 (ACC-02): NIK duplikat dsb → tampilkan via SweetAlert
+    await alert.error('Gagal Menyimpan', err.message || 'Gagal menyimpan data pengguna.')
   }
 }
 
 async function toggleUserActive(user) {
+  const ok = await alert.confirm(
+    user.is_active ? 'Nonaktifkan Akun?' : 'Aktifkan Akun?',
+    `${user.full_name} (${user.nik}) akan ${user.is_active ? 'dinonaktifkan' : 'diaktifkan'}.`
+  )
+  if (!ok) return
   try {
     await userService.toggleStatus(user.id)
     await fetchUsers()
   } catch (err) {
-    alert(err.message || 'Gagal mengubah status aktif pengguna.')
+    await alert.error('Gagal', err.message || 'Gagal mengubah status aktif pengguna.')
   }
 }
 </script>

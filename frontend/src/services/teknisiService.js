@@ -22,28 +22,40 @@ export const teknisiService = {
     return await api.put(`/users/${id}`, payload)
   },
 
-  async getSupervisorTeamOverview(supervisorUser) {
-    try {
-      const data = await api.get('/supervisor/team-overview')
-      const today = new Date()
-      const y = today.getFullYear()
-      const m = String(today.getMonth() + 1).padStart(2, '0')
-      const dStr = String(today.getDate()).padStart(2, '0')
+  /**
+   * Overview aktivitas & frekuensi logbook teknisi (Supervisor / Admin).
+   *
+   * Endpoint: GET /api/v1/supervisor/team-overview
+   *  - Supervisor : backend mengunci ke plant pada JWT (query `plant_id` diabaikan).
+   *  - Admin      : `plant_id` opsional. Kosong / 'ALL' = seluruh plant.
+   *
+   * Penting: error TIDAK ditelan (dulu return [] sehingga halaman tampak kosong
+   * tanpa penjelasan). Pemanggil (view) yang menampilkan pesan ke pengguna.
+   *
+   * @param {{ plant_id?: number|string|null }} [params={}]
+   * @returns {Promise<{ technicians: Array, summary: object|null, scope: object|null,
+   *                     today: string|null, currentYearMonth: string|null }>}
+   */
+  async getSupervisorTeamOverview(params = {}) {
+    const plantId = params.plant_id
+    const data = await api.get('/supervisor/team-overview', {
+      plant_id: plantId !== undefined && plantId !== null && plantId !== '' && plantId !== 'ALL'
+        ? plantId
+        : undefined
+    })
 
-      return {
-        supervisor: supervisorUser,
-        todayStr: `${y}-${m}-${dStr}`,
-        currentYearMonth: `${y}-${m}`,
-        technicians: data.technicians || []
-      }
-    } catch (err) {
-      console.error('Gagal mengambil ringkasan tim supervisor dari database:', err)
-      return {
-        supervisor: supervisorUser,
-        todayStr: new Date().toISOString().substring(0, 10),
-        currentYearMonth: new Date().toISOString().substring(0, 7),
-        technicians: []
-      }
+    // `api.request` sudah mengembalikan `json.data`, jadi field bisnis ada di root.
+    // Tetap toleran bila backend mengembalikan pembungkus `{ data: {...} }`.
+    const payload = data && Array.isArray(data.technicians)
+      ? data
+      : (data && data.data) || {}
+
+    return {
+      technicians: Array.isArray(payload.technicians) ? payload.technicians : [],
+      summary: payload.summary || null,
+      scope: payload.scope || null,
+      today: payload.today || null,
+      currentYearMonth: payload.current_year_month || payload.currentYearMonth || null
     }
   }
 }

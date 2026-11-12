@@ -10,9 +10,12 @@ import masterRoutes from './routes/masterRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import reportRoutes from './routes/reportRoutes.js'
 import auditRoutes from './routes/auditRoutes.js'
+import adminRoutes from './routes/adminRoutes.js'
 import notificationRoutes from './routes/notificationRoutes.js'
 import supervisorRoutes from './routes/supervisorRoutes.js'
 import overviewRoutes from './routes/overviewRoutes.js'
+import handoverRoutes from './routes/handoverRoutes.js'
+import machineRoutes from './routes/machineRoutes.js'
 import { errorHandler } from './middlewares/errorHandler.js'
 import { successResponse, errorResponse } from './utils/response.js'
 
@@ -85,9 +88,15 @@ app.use(`${API_PREFIX}/master`, masterRoutes)
 app.use(`${API_PREFIX}/users`, userRoutes)
 app.use(`${API_PREFIX}/reports`, reportRoutes)
 app.use(`${API_PREFIX}/admin`, auditRoutes)
+// FASE 5.1 — Radar Aset Belum Terdaftar (rute /unmapped-assets, format JSON murni).
+// Dipasang SETELAH auditRoutes agar rute /admin/audit-logs tetap ditangani auditRoutes;
+// kedua router berbagi prefix /api/v1/admin sehingga pola "1 domain = 1 file route" terjaga.
+app.use(`${API_PREFIX}/admin`, adminRoutes)
 app.use(`${API_PREFIX}/notifications`, notificationRoutes)
 app.use(`${API_PREFIX}/supervisor`, supervisorRoutes)
 app.use(API_PREFIX, overviewRoutes)
+app.use(API_PREFIX, handoverRoutes)
+app.use(API_PREFIX, machineRoutes)
 
 // 404 Route Handler
 app.use((req, res) => {

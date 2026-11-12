@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { authService } from '../services/authService'
 import { ROLES } from '../constants/roles'
+import { useMasterStore } from './master'
+import { useMachineQrStore } from './machineQr'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -43,6 +45,18 @@ export const useAuthStore = defineStore('auth', () => {
     await authService.logout()
     user.value = null
     token.value = null
+    // F1.2: bersihkan cache master (localStorage) saat logout
+    try {
+      useMasterStore().clearCache()
+    } catch (e) {
+      // pinia belum aktif → abaikan
+    }
+    // FASE 5.3: bersihkan cache QR mesin (object URL gambar) saat logout
+    try {
+      useMachineQrStore().clear()
+    } catch (e) {
+      // pinia belum aktif → abaikan
+    }
   }
 
     async function quickLoginAs(targetRole) {

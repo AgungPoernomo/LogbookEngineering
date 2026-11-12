@@ -84,7 +84,22 @@ async function request(endpoint, options = {}) {
       throw error
     }
 
-    return json.data !== undefined ? json.data : json
+    return (() => {
+      const payload = json.data !== undefined ? json.data : json
+      // F1.1: sertakan meta paginasi (non-enumerable) agar tidak merusak serialisasi array
+      if (json.meta && payload && typeof payload === 'object') {
+        try {
+          Object.defineProperty(payload, '_meta', {
+            value: json.meta,
+            enumerable: false,
+            configurable: true
+          })
+        } catch (e) {
+          // payload mungkin frozen → abaikan
+        }
+      }
+      return payload
+    })()
   } catch (err) {
     if (err.name === 'AbortError') {
       const timeoutError = new Error('Permintaan melebihi batas waktu. Periksa koneksi Anda.')

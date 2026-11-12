@@ -1,26 +1,34 @@
-import prisma from '../config/prisma.js'
-import { successResponse, errorResponse } from '../utils/response.js'
-import { logActivity } from '../services/auditService.js'
-import { sendNotification, sendBulkNotifications } from '../services/mailerService.js'
+import prisma from "../config/prisma.js";
+import { successResponse, errorResponse } from "../utils/response.js";
+import { logActivity } from "../services/auditService.js";
+import {
+  sendNotification,
+  sendBulkNotifications,
+} from "../services/mailerService.js";
+import {
+  REPEAT_FAILURE_WINDOW_DAYS,
+  buildRepeatFailureMap,
+} from "../utils/repeatFailure.js";
 
 export async function processApproval(req, res, next) {
   try {
-    const { id } = req.params
-    const { status, notes } = req.body
+    const { id } = req.params;
+    const { status, notes } = req.body;
 
-    if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
+    if (!status || !["APPROVED", "REJECTED"].includes(status)) {
       return errorResponse(res, {
         message: "Status approval harus berupa 'APPROVED' atau 'REJECTED'.",
-        statusCode: 400
-      })
+        statusCode: 400,
+      });
     }
 
     // Catatan wajib jika ditolak (README line 154)
-    if (status === 'REJECTED' && (!notes || !notes.trim())) {
+    if (status === "REJECTED" && (!notes || !notes.trim())) {
       return errorResponse(res, {
-        message: 'Catatan perbaikan / alasan penolakan wajib diisi saat menolak logbook.',
-        statusCode: 400
-      })
+        message:
+          "Catatan perbaikan / alasan penolakan wajib diisi saat menolak logbook.",
+        statusCode: 400,
+      });
     }
 
     const logbook = await prisma.logbook.findUnique({
@@ -28,95 +36,109 @@ export async function processApproval(req, res, next) {
       include: {
         user: true,
         machine: true,
-        plant: true
-      }
-    })
+        plant: true,
+      },
+    });
 
     if (!logbook) {
       return errorResponse(res, {
-        message: 'Logbook tidak ditemukan.',
-        statusCode: 404
-      })
+        message: "Logbook tidak ditemukan.",
+        statusCode: 404,
+      });
     }
 
-    if (logbook.status !== 'PENDING') {
+    // BUG-001 (APR-01): Supervisor hanya boleh menyetujui logbook pada Line/Plant miliknya
+    if (req.user.role === "Supervisor" && req.user.plant_id) {
+      const logPlantId = logbook.plant_id ? Number(logbook.plant_id) : null;
+      if (logPlantId !== Number(req.user.plant_id)) {
+        return errorResponse(res, {
+          message:
+            "Akses ditolak. Logbook ini berada di Line/Plant lain, di luar cakupan supervisi Anda.",
+          statusCode: 403,
+        });
+      }
+    }
+
+    if (logbook.status !== "PENDING") {
       return errorResponse(res, {
         message: `Logbook berstatus [${logbook.status}] tidak dapat diproses approval. Hanya logbook 'PENDING' yang dapat ditinjau.`,
-        statusCode: 400
-      })
+        statusCode: 400,
+      });
     }
 
     // Eksekusi transaksi: update status logbook & insert logbook_approvals
     const [updatedLogbook, approvalRecord] = await prisma.$transaction([
       prisma.logbook.update({
         where: { id: BigInt(id) },
-        data: { status }
+        data: { status },
       }),
       prisma.logbookApproval.create({
         data: {
           logbook_id: BigInt(id),
           supervisor_id: BigInt(req.user.id),
           status,
-          notes: notes?.trim() || '-',
-          reviewed_at: new Date()
-        }
-      })
-    ])
+          notes: notes?.trim() || "-",
+          reviewed_at: new Date(),
+        },
+      }),
+    ]);
 
-    const actionText = status === 'APPROVED' ? 'disetujui' : 'ditolak'
-    const auditActivity = status === 'APPROVED' ? 'APPROVE_LOGBOOK' : 'REJECT_LOGBOOK'
+    const actionText = status === "APPROVED" ? "disetujui" : "ditolak";
+    const auditActivity =
+      status === "APPROVED" ? "APPROVE_LOGBOOK" : "REJECT_LOGBOOK";
 
     // Catat ke audit trail
     await logActivity(
       req.user.id,
       auditActivity,
-      `Supervisor ${req.user.full_name} (${req.user.nik}) ${actionText} logbook #${id} milik ${logbook.user.full_name}. Catatan: ${notes || '-'}`
-    )
+      `Supervisor ${req.user.full_name} (${req.user.nik}) ${actionText} logbook #${id} milik ${logbook.user.full_name}. Catatan: ${notes || "-"}`,
+    );
 
     // Kirim notifikasi ke teknisi, supervisor, dan admin (Fan-Out 1 Query createMany)
-    const notifications = []
+    const notifications = [];
 
     // 1. Notifikasi ke teknisi yang bersangkutan
     notifications.push({
       userId: logbook.user_id,
       logbookId: logbook.id,
-      type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+      type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
       recipientEmail: logbook.user.email,
       subject: `[Logbook ${status}] Logbook ${logbook.machine.name} pada ${logbook.task_date}`,
-      message: status === 'APPROVED'
-        ? `Selamat! Logbook Anda untuk mesin ${logbook.machine.name} pada tanggal ${logbook.task_date} telah DISETUJUI oleh Supervisor ${req.user.full_name}.`
-        : `Perhatian: Logbook Anda untuk mesin ${logbook.machine.name} pada tanggal ${logbook.task_date} DITOLAK oleh Supervisor ${req.user.full_name}. Catatan revisi: "${notes}". Silakan lakukan perbaikan.`,
-      channel: 'INAPP'
-    })
+      message:
+        status === "APPROVED"
+          ? `Selamat! Logbook Anda untuk mesin ${logbook.machine.name} pada tanggal ${logbook.task_date} telah DISETUJUI oleh Supervisor ${req.user.full_name}.`
+          : `Perhatian: Logbook Anda untuk mesin ${logbook.machine.name} pada tanggal ${logbook.task_date} DITOLAK oleh Supervisor ${req.user.full_name}. Catatan revisi: "${notes}". Silakan lakukan perbaikan.`,
+      channel: "INAPP",
+    });
 
     // 2. Notifikasi konfirmasi ke Supervisor yang mereview
     notifications.push({
       userId: req.user.id,
       logbookId: logbook.id,
-      type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+      type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
       recipientEmail: req.user.email,
-      subject: `[Approval Selesai] Logbook #${logbook.id} Berhasil ${status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}`,
-      message: `Anda telah ${actionText} logbook #${logbook.id} milik Teknisi ${logbook.user.full_name} (${logbook.machine.name}). Catatan: ${notes || '-'}`,
-      channel: 'INAPP'
-    })
+      subject: `[Approval Selesai] Logbook #${logbook.id} Berhasil ${status === "APPROVED" ? "Disetujui" : "Ditolak"}`,
+      message: `Anda telah ${actionText} logbook #${logbook.id} milik Teknisi ${logbook.user.full_name} (${logbook.machine.name}). Catatan: ${notes || "-"}`,
+      channel: "INAPP",
+    });
 
     // 3. Notifikasi ke Administrator Sistem
     const admins = await prisma.user.findMany({
-      where: { role: { name: 'Admin' }, is_active: true }
-    })
+      where: { role: { name: "Admin" }, is_active: true },
+    });
     for (const admin of admins) {
       notifications.push({
         userId: admin.id,
         logbookId: logbook.id,
-        type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+        type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
         recipientEmail: admin.email,
         subject: `[Sistem Approval] Logbook #${logbook.id} ${actionText}`,
         message: `Supervisor ${req.user.full_name} telah ${actionText} logbook #${logbook.id} milik Teknisi ${logbook.user.full_name} (${logbook.machine.name}). Status: ${status}.`,
-        channel: 'INAPP'
-      })
+        channel: "INAPP",
+      });
     }
 
-    await sendBulkNotifications(notifications)
+    await sendBulkNotifications(notifications);
 
     return successResponse(res, {
       message: `Logbook berhasil ${actionText}.`,
@@ -125,33 +147,33 @@ export async function processApproval(req, res, next) {
         status: updatedLogbook.status,
         approval_id: Number(approvalRecord.id),
         notes: approvalRecord.notes,
-        reviewed_at: approvalRecord.reviewed_at
-      }
-    })
+        reviewed_at: approvalRecord.reviewed_at,
+      },
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
 export async function getApprovalHistory(req, res, next) {
   try {
-    const { id } = req.params
+    const { id } = req.params;
     const approvals = await prisma.logbookApproval.findMany({
       where: { logbook_id: BigInt(id) },
-      orderBy: { reviewed_at: 'desc' },
+      orderBy: { reviewed_at: "desc" },
       include: {
         supervisor: {
           select: {
             id: true,
             nik: true,
             full_name: true,
-            email: true
-          }
-        }
-      }
-    })
+            email: true,
+          },
+        },
+      },
+    });
 
-    const formatted = approvals.map(a => ({
+    const formatted = approvals.map((a) => ({
       id: Number(a.id),
       logbook_id: Number(a.logbook_id),
       supervisor_id: Number(a.supervisor_id),
@@ -159,15 +181,15 @@ export async function getApprovalHistory(req, res, next) {
       supervisor_nik: a.supervisor?.nik,
       status: a.status,
       notes: a.notes,
-      reviewed_at: a.reviewed_at
-    }))
+      reviewed_at: a.reviewed_at,
+    }));
 
     return successResponse(res, {
-      message: 'Riwayat approval berhasil diambil.',
-      data: formatted
-    })
+      message: "Riwayat approval berhasil diambil.",
+      data: formatted,
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -177,127 +199,154 @@ export async function getApprovalHistory(req, res, next) {
  */
 export async function processTechnicianApproval(req, res, next) {
   try {
-    const { userId } = req.params
-    const { status, notes } = req.body
+    const { userId } = req.params;
+    const { status, notes } = req.body;
 
-    if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
+    if (!status || !["APPROVED", "REJECTED"].includes(status)) {
       return errorResponse(res, {
         message: "Status approval harus berupa 'APPROVED' atau 'REJECTED'.",
-        statusCode: 400
-      })
+        statusCode: 400,
+      });
     }
 
-    if (status === 'REJECTED' && (!notes || !notes.trim())) {
+    if (status === "REJECTED" && (!notes || !notes.trim())) {
       return errorResponse(res, {
-        message: 'Catatan perbaikan / alasan penolakan wajib diisi saat menolak logbook.',
-        statusCode: 400
-      })
+        message:
+          "Catatan perbaikan / alasan penolakan wajib diisi saat menolak logbook.",
+        statusCode: 400,
+      });
     }
 
     const technician = await prisma.user.findUnique({
       where: { id: BigInt(userId) },
       include: {
         plant: { select: { id: true, name: true } },
-        group: { select: { id: true, name: true } }
-      }
-    })
+        group: { select: { id: true, name: true } },
+      },
+    });
 
     if (!technician) {
       return errorResponse(res, {
-        message: 'Teknisi tidak ditemukan.',
-        statusCode: 404
-      })
+        message: "Teknisi tidak ditemukan.",
+        statusCode: 404,
+      });
+    }
+
+    // BUG-001 (APR-01): Supervisor hanya boleh memproses teknisi pada Line/Plant miliknya
+    if (req.user.role === "Supervisor" && req.user.plant_id) {
+      const techPlantId = technician.plant_id
+        ? Number(technician.plant_id)
+        : null;
+      if (techPlantId !== Number(req.user.plant_id)) {
+        return errorResponse(res, {
+          message:
+            "Akses ditolak. Teknisi ini berada di Line/Plant lain, di luar cakupan supervisi Anda.",
+          statusCode: 403,
+        });
+      }
+    }
+
+    const pendingWhere = {
+      user_id: BigInt(userId),
+      status: "PENDING",
+    };
+    if (req.user.role === "Supervisor" && req.user.plant_id) {
+      pendingWhere.plant_id = BigInt(req.user.plant_id);
     }
 
     const pendingLogbooks = await prisma.logbook.findMany({
-      where: {
-        user_id: BigInt(userId),
-        status: 'PENDING'
-      },
+      where: pendingWhere,
       include: {
         machine: true,
-        plant: true
-      }
-    })
+        plant: true,
+      },
+    });
 
     if (pendingLogbooks.length === 0) {
       return errorResponse(res, {
         message: `Tidak ada logbook berstatus PENDING untuk Teknisi ${technician.full_name}.`,
-        statusCode: 400
-      })
+        statusCode: 400,
+      });
     }
 
-    const logbookIds = pendingLogbooks.map(l => l.id)
-    const actionText = status === 'APPROVED' ? 'disetujui' : 'ditolak'
-    const approvalNotes = notes?.trim() || (status === 'APPROVED' ? 'Disetujui per teknisi sesuai SOP pemeliharaan.' : '-')
+    const logbookIds = pendingLogbooks.map((l) => l.id);
+    const actionText = status === "APPROVED" ? "disetujui" : "ditolak";
+    const approvalNotes =
+      notes?.trim() ||
+      (status === "APPROVED"
+        ? "Disetujui per teknisi sesuai SOP pemeliharaan."
+        : "-");
 
     // Transaksi database: update seluruh status logbook & buat catatan approval
     await prisma.$transaction(async (tx) => {
       await tx.logbook.updateMany({
         where: { id: { in: logbookIds } },
-        data: { status }
-      })
+        data: { status },
+      });
 
-      const approvalRecords = logbookIds.map(logbookId => ({
+      const approvalRecords = logbookIds.map((logbookId) => ({
         logbook_id: logbookId,
         supervisor_id: BigInt(req.user.id),
         status,
         notes: approvalNotes,
-        reviewed_at: new Date()
-      }))
+        reviewed_at: new Date(),
+      }));
 
       await tx.logbookApproval.createMany({
-        data: approvalRecords
-      })
-    })
+        data: approvalRecords,
+      });
+    });
 
     // Audit trail
     await logActivity(
       req.user.id,
-      status === 'APPROVED' ? 'APPROVE_LOGBOOK_PER_TEKNISI' : 'REJECT_LOGBOOK_PER_TEKNISI',
-      `Supervisor ${req.user.full_name} (${req.user.nik}) ${actionText} seluruh logbook (${pendingLogbooks.length} entri) milik Teknisi ${technician.full_name} (${technician.nik}). Catatan: ${approvalNotes}`
-    )
+      status === "APPROVED"
+        ? "APPROVE_LOGBOOK_PER_TEKNISI"
+        : "REJECT_LOGBOOK_PER_TEKNISI",
+      `Supervisor ${req.user.full_name} (${req.user.nik}) ${actionText} seluruh logbook (${pendingLogbooks.length} entri) milik Teknisi ${technician.full_name} (${technician.nik}). Catatan: ${approvalNotes}`,
+    );
 
     // Notifikasi fan-out
-    const notifications = []
+    const notifications = [];
     notifications.push({
       userId: technician.id,
       logbookId: pendingLogbooks[0].id,
-      type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+      type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
       recipientEmail: technician.email,
-      subject: `[Approval Per Teknisi] ${pendingLogbooks.length} Logbook Anda Telah ${status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}`,
-      message: status === 'APPROVED'
-        ? `Selamat! Seluruh logbook Anda (${pendingLogbooks.length} entri) telah DISETUJUI oleh Supervisor ${req.user.full_name} dan otomatis tersimpan ke database.`
-        : `Perhatian: Logbook yang Anda ajukan (${pendingLogbooks.length} entri) DITOLAK oleh Supervisor ${req.user.full_name}. Catatan revisi: "${notes}". Silakan lakukan perbaikan.`,
-      channel: 'INAPP'
-    })
+      subject: `[Approval Per Teknisi] ${pendingLogbooks.length} Logbook Anda Telah ${status === "APPROVED" ? "Disetujui" : "Ditolak"}`,
+      message:
+        status === "APPROVED"
+          ? `Selamat! Seluruh logbook Anda (${pendingLogbooks.length} entri) telah DISETUJUI oleh Supervisor ${req.user.full_name} dan otomatis tersimpan ke database.`
+          : `Perhatian: Logbook yang Anda ajukan (${pendingLogbooks.length} entri) DITOLAK oleh Supervisor ${req.user.full_name}. Catatan revisi: "${notes}". Silakan lakukan perbaikan.`,
+      channel: "INAPP",
+    });
 
     notifications.push({
       userId: req.user.id,
       logbookId: pendingLogbooks[0].id,
-      type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+      type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
       recipientEmail: req.user.email,
-      subject: `[Approval Selesai] Seluruh Logbook Teknisi ${technician.full_name} Berhasil ${status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}`,
+      subject: `[Approval Selesai] Seluruh Logbook Teknisi ${technician.full_name} Berhasil ${status === "APPROVED" ? "Disetujui" : "Ditolak"}`,
       message: `Anda telah ${actionText} seluruh logbook (${pendingLogbooks.length} entri) milik Teknisi ${technician.full_name}. Catatan: ${approvalNotes}`,
-      channel: 'INAPP'
-    })
+      channel: "INAPP",
+    });
 
     const admins = await prisma.user.findMany({
-      where: { role: { name: 'Admin' }, is_active: true }
-    })
+      where: { role: { name: "Admin" }, is_active: true },
+    });
     for (const admin of admins) {
       notifications.push({
         userId: admin.id,
         logbookId: pendingLogbooks[0].id,
-        type: status === 'APPROVED' ? 'LOGBOOK_APPROVED' : 'LOGBOOK_REJECTED',
+        type: status === "APPROVED" ? "LOGBOOK_APPROVED" : "LOGBOOK_REJECTED",
         recipientEmail: admin.email,
         subject: `[Sistem Approval] ${pendingLogbooks.length} Logbook Teknisi ${technician.full_name} ${actionText}`,
         message: `Supervisor ${req.user.full_name} telah ${actionText} ${pendingLogbooks.length} logbook milik Teknisi ${technician.full_name}.`,
-        channel: 'INAPP'
-      })
+        channel: "INAPP",
+      });
     }
 
-    await sendBulkNotifications(notifications)
+    await sendBulkNotifications(notifications);
 
     return successResponse(res, {
       message: `Seluruh logbook (${pendingLogbooks.length} entri) milik Teknisi ${technician.full_name} berhasil ${actionText} dan otomatis tersimpan ke database.`,
@@ -306,11 +355,11 @@ export async function processTechnicianApproval(req, res, next) {
         technician_name: technician.full_name,
         processed_count: pendingLogbooks.length,
         status,
-        notes: approvalNotes
-      }
-    })
+        notes: approvalNotes,
+      },
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }
 
@@ -319,8 +368,15 @@ export async function processTechnicianApproval(req, res, next) {
  */
 export async function getPendingApprovalsByTechnician(req, res, next) {
   try {
+    // BUG-001 (APR-01): Supervisor hanya melihat antrean approval pada Line/Plant miliknya.
+    // Admin melihat seluruh Line. Supervisor tanpa plant_id (fallback) melihat seluruh antrean.
+    const pendingWhere = { status: "PENDING" };
+    if (req.user.role === "Supervisor" && req.user.plant_id) {
+      pendingWhere.plant_id = BigInt(req.user.plant_id);
+    }
+
     const pendingLogbooks = await prisma.logbook.findMany({
-      where: { status: 'PENDING' },
+      where: pendingWhere,
       include: {
         user: {
           select: {
@@ -330,21 +386,69 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
             email: true,
             photo_url: true,
             plant: { select: { id: true, name: true } },
-            group: { select: { id: true, name: true } }
-          }
+            group: { select: { id: true, name: true } },
+          },
         },
         plant: { select: { id: true, name: true } },
         shift: { select: { id: true, name: true } },
         machine: { select: { id: true, name: true } },
-        subMachine: { select: { id: true, name: true } }
+        subMachine: { select: { id: true, name: true } },
+        // Fase 4.1a: kode kerusakan untuk deteksi repeat failure
+        failureCode: { select: { id: true, code: true, name: true } },
       },
-      orderBy: [{ task_date: 'desc' }, { created_at: 'desc' }]
-    })
+      orderBy: [{ task_date: "desc" }, { created_at: "desc" }],
+    });
 
-    const technicianMap = new Map()
+    // ---- Fase 4.1a: deteksi repeat failure (SATU query tambahan, tanpa N+1) ----
+    const keyedLogs = pendingLogbooks.filter(
+      (l) => l.machine_id && l.failure_code_id,
+    );
+    const repeatInfoByLogId = new Map();
+
+    if (keyedLogs.length > 0) {
+      const relatedWhere = {
+        machine_id: { in: [...new Set(keyedLogs.map((l) => l.machine_id))] },
+        failure_code_id: {
+          in: [...new Set(keyedLogs.map((l) => l.failure_code_id))],
+        },
+        status: { in: ["PENDING", "APPROVED"] },
+      };
+      // Konsisten dengan scope supervisor (BUG-001): pola dihitung dalam plant yang sama
+      if (req.user.role === "Supervisor" && req.user.plant_id) {
+        relatedWhere.plant_id = BigInt(req.user.plant_id);
+      }
+
+      const relatedLogs = await prisma.logbook.findMany({
+        where: relatedWhere,
+        select: {
+          id: true,
+          machine_id: true,
+          failure_code_id: true,
+          task_date: true,
+        },
+      });
+
+      const failureCodeById = new Map(
+        keyedLogs
+          .filter((l) => l.failureCode)
+          .map((l) => [
+            Number(l.failure_code_id),
+            { code: l.failureCode.code, name: l.failureCode.name },
+          ]),
+      );
+
+      for (const [logId, info] of buildRepeatFailureMap(relatedLogs, {
+        failureCodeById,
+      })) {
+        repeatInfoByLogId.set(logId, info);
+      }
+    }
+    // ---- end Fase 4.1a ----
+
+    const technicianMap = new Map();
 
     for (const log of pendingLogbooks) {
-      const uId = Number(log.user_id)
+      const uId = Number(log.user_id);
       if (!technicianMap.has(uId)) {
         technicianMap.set(uId, {
           user_id: uId,
@@ -354,55 +458,93 @@ export async function getPendingApprovalsByTechnician(req, res, next) {
           user_photo_url: log.user.photo_url,
           plant_id: log.user.plant?.id || log.plant?.id,
           plant_name: log.user.plant?.name || log.plant?.name,
-          work_group_name: log.user.group?.name || '-',
+          work_group_name: log.user.group?.name || "-",
           pending_count: 0,
           total_duration_minutes: 0,
+          repeat_failure_count: 0,
           machines: new Set(),
           shifts: new Set(),
           dates: new Set(),
-          logbooks: []
-        })
+          logs: [],
+        });
       }
 
-      const group = technicianMap.get(uId)
-      group.pending_count += 1
-      group.total_duration_minutes += (log.duration_minutes || 0)
-      if (log.machine?.name) group.machines.add(log.machine.name)
-      if (log.shift?.name) group.shifts.add(log.shift.name)
-      if (log.task_date) group.dates.add(log.task_date)
+      const group = technicianMap.get(uId);
+      group.pending_count += 1;
+      group.total_duration_minutes += log.duration_minutes || 0;
+      if (log.machine?.name) group.machines.add(log.machine.name);
+      if (log.shift?.name) group.shifts.add(log.shift.name);
+      if (log.task_date) group.dates.add(log.task_date);
 
-      group.logbooks.push({
+      const repeatFailure = repeatInfoByLogId.get(Number(log.id)) || null;
+      if (repeatFailure) group.repeat_failure_count += 1;
+
+      group.logs.push({
         id: Number(log.id),
         task_date: log.task_date,
-        shift_name: log.shift?.name || '-',
-        machine_name: log.machine?.name || '-',
-        sub_machine_name: log.subMachine?.name || '-',
+        shift_name: log.shift?.name || "-",
+        machine_name: log.machine?.name || "-",
+        machine_id: log.machine_id ? Number(log.machine_id) : null,
+        sub_machine_name: log.subMachine?.name || "-",
         start_time: log.start_time,
         end_time: log.end_time,
         duration_minutes: log.duration_minutes,
         activity_description: log.activity_description,
         sparepart: log.sparepart,
         status: log.status,
-        created_at: log.created_at
-      })
+        // Fase 4.1a: kode kerusakan supaya label badge bisa tampil di kartu UI
+        failure_code_id: log.failure_code_id ? Number(log.failure_code_id) : null,
+        failure_code: log.failureCode
+          ? {
+              id: Number(log.failureCode.id),
+              code: log.failureCode.code,
+              name: log.failureCode.name,
+            }
+          : null,
+        // Fase 4.1a: flag eksplisit untuk banner + detail kejadian
+        is_repeat_failure: Boolean(repeatFailure),
+        repeat_failure_count: repeatFailure?.occurrence_count || 0,
+        // Detail lengkap (null jika logbook ini bukan bagian pola kerusakan berulang)
+        repeat_failure: repeatFailure,
+        created_at: log.created_at,
+      });
     }
 
-    const result = Array.from(technicianMap.values()).map(tech => ({
-      ...tech,
-      machines: Array.from(tech.machines),
-      shifts: Array.from(tech.shifts),
-      dates: Array.from(tech.dates).sort().reverse()
-    }))
+    const result = Array.from(technicianMap.values()).map((tech) => {
+      const repeatFailures = tech.logs
+        .filter((l) => l.is_repeat_failure)
+        .map((l) => ({
+          logbook_id: l.id,
+          machine_id: l.machine_id,
+          machine_name: l.machine_name,
+          task_date: l.task_date,
+          failure_code: l.repeat_failure?.failure_code || l.failure_code?.code || null,
+          failure_code_name:
+            l.repeat_failure?.failure_code_name || l.failure_code?.name || null,
+          occurrence_count: l.repeat_failure_count,
+        }));
+
+      return {
+        ...tech,
+        machines: Array.from(tech.machines),
+        shifts: Array.from(tech.shifts),
+        dates: Array.from(tech.dates).sort().reverse(),
+        // Fase 4.1a: ringkasan pola di level teknisi
+        is_repeat_failure: repeatFailures.length > 0,
+        repeat_failure_window_days: REPEAT_FAILURE_WINDOW_DAYS,
+        repeat_failures: repeatFailures,
+      };
+    });
 
     return successResponse(res, {
-      message: 'Daftar approval per teknisi berhasil diambil.',
+      message: "Daftar approval per teknisi berhasil diambil.",
       data: result,
       meta: {
         total_technicians: result.length,
-        total_pending_logs: pendingLogbooks.length
-      }
-    })
+        total_pending_logs: pendingLogbooks.length,
+      },
+    });
   } catch (err) {
-    next(err)
+    next(err);
   }
 }

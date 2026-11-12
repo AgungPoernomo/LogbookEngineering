@@ -1,18 +1,18 @@
 # Engineer Logbook Satoria
 
-> Platform digital berbasis web untuk mendigitalisasi pencatatan aktivitas kerja harian teknisi, pengelolaan persetujuan logbook, pemantauan operasional, serta penyusunan laporan kinerja tim teknisi di lingkungan Satoria.
+> Platform digital berbasis web untuk **pencatatan aktivitas super cepat bagi teknisi** (*Quick-start*, 5 tombol besar), **serah-terima shift antargenerasi teknisi** (*Handover Board*), serta pembangunan **histori keandalan mesin** (*Reliability* / Buku Pintar Mesin) di lingkungan Satoria — bukan alat pemantauan HR.
 
 | Item | Keterangan |
 |---|---|
 | **Nama Proyek** | Engineer Logbook Satoria |
-| **Status** | Produksi & Stabil (CI/CD Otomatis, Sentry Monitoring, TiDB Cloud) |
+| **Status** | Produksi & Stabil (Upgrade v6.0 - Teknisi-Oriented) |
 | **Frontend** | Vue.js 3 + Tailwind CSS |
 | **Backend** | Node.js Express + Prisma ORM |
 | **Database** | TiDB (SQL, kompatibel MySQL) |
 | **Deployment** | Vercel |
 | **Repositori** | GitHub (private) |
 | **IDE** | Antigravity IDE |
-| **Versi Dokumen** | 4.8 |
+| **Versi Dokumen** | 6.0 |
 
 ---
 
@@ -29,6 +29,9 @@
 9. [Rancangan Data (Model & ERD Terbaru)](#9-rancangan-data-model--erd-terbaru)
 10. [Rancangan Halaman & Routing](#10-rancangan-halaman--routing)
 11. [Panduan Desain UI](#11-panduan-desain-ui)
+    - 11.5.12 `HandoverBoard` — Papan Serah-Terima Shift
+    - 11.5.13 `MachineHistoryView` — Buku Pintar Mesin
+    - 11.13 Larangan Desain: Tidak Ada Leaderboard (Prinsip P1)
 12. [Alur Kerja Pengembangan](#12-alur-kerja-pengembangan)
 13. [Rencana Backend & API](#13-rencana-backend--api)
 14. [Rencana Deployment](#14-rencana-deployment)
@@ -57,12 +60,23 @@ Apabila pencatatan dilakukan secara manual (buku fisik, spreadsheet terpisah, at
 
 **Engineer Logbook Satoria** dibangun sebagai satu platform terpusat agar teknisi dapat mencatat logbook harian dengan format baku, sementara Supervisor dan Admin dapat meninjau, menyetujui, serta memantau pekerjaan secara terstruktur.
 
+### 1.1 Pergeseran Filosofi: dari *Supervisor-Oriented* ke *Teknisi-Oriented & Reliability* (v6.0)
+
+Sejak **Upgrade v6.0**, tujuan platform ini diperluas melampaui sekadar digitalisasi. Prinsip yang dipegang adalah **"Give Value to Get Data"**: aplikasi baru akan diisi teknisi secara konsisten bila aplikasi itu sendiri **mempermudah pekerjaan teknisi** dan **memberi jawaban yang dibutuhkan teknisi di lapangan**.
+
+Dua pilar baru yang menjadi arah pengembangan:
+
+1. **Pengalaman mencatat yang super cepat (Quick-start)** — teknisi yang baru selesai mengotori tangan cenderung malas mengetik panjang. Karena itu pencatatan dirancang **80% tap, bukan ketik**: form adaptif berbasis **5 tombol besar** (🔧 Perbaikan Mesin, 🛡️ Rawat Rutin, 🛒 Kereta/Tray, ⚡ Fabrikasi, 📋 Non-Mesin) dengan chip aksi cepat, sehingga log dapat diselesaikan dalam hitungan detik.
+2. **Membangun histori keandalan mesin (Reliability)** — setiap log yang masuk **harus berujung pada aksi nyata**, bukan berhenti sebagai arsip. Data log dialirkan menjadi **Papan Serah-Terima Shift (Handover Board)** untuk mesin yang masih menggantung, serta **Buku Pintar Mesin (Machine History)** sebagai rekam medis mesin untuk analisis riwayat kerusakan, downtime, hingga sparepart yang paling sering dipakai.
+
+Dengan begitu, logbook berubah dari *alat absensi aktivitas* menjadi **sistem keandalan mesin + memori pabrik + alat serah-terima shift**. Sepadan dengan itu, sistem ini **secara sadar BUKAN alat HR** — lihat Catatan P1 pada Bagian 5.
+
 ---
 
 ## 2. Tujuan Proyek
 
 ### Tujuan Utama
-Mendigitalisasi dan memusatkan seluruh pencatatan, pelaporan, pemantauan, dan validasi aktivitas kerja teknisi di Satoria.
+Mendigitalisasi dan memusatkan seluruh pencatatan, pelaporan, pemantauan, dan validasi aktivitas kerja teknisi di Satoria, **sekaligus mengubah data logbook menjadi pengetahuan keandalan mesin yang bisa dipakai ulang lintas shift**.
 
 ### Tujuan Spesifik
 1. Mendigitalisasi pencatatan aktivitas kerja harian teknisi secara terstandar.
@@ -72,12 +86,19 @@ Mendigitalisasi dan memusatkan seluruh pencatatan, pelaporan, pemantauan, dan va
 5. Menyediakan fitur ekspor laporan tim ke format PDF atau Excel.
 6. Menyediakan notifikasi email dan notifikasi dalam aplikasi (*InApp*) untuk mempercepat tindak lanjut.
 7. Menyediakan *audit trail* untuk menelusuri aktivitas dan akuntabilitas pengguna.
+8. **Memberikan pengalaman mencatat yang super cepat (Quick-start) bagi teknisi**: form adaptif 5 tombol besar, chip aksi cepat, durasi terhitung otomatis, dan draft aman di perangkat meski jaringan shop floor buruk.
+9. **Membangun histori keandalan mesin (Reliability)**: setiap kerusakan tercatat dengan kode kerusakan baku (ISO 14224), sparepart terstruktur, status akhir mesin, dan durasi downtime sehingga bisa dianalisis trennya.
+10. **Menyediakan Papan Serah-Terima Shift (Handover Board)** untuk memantau mesin yang masih menggantung — berstatus `Tunggu Sparepart` / `Perbaikan Sementara` — agar tidak hilang saat pergantian shift.
+11. **Menyediakan Buku Pintar Mesin (Machine History)** untuk analisis riwayat kerusakan: timeline perbaikan, statistik downtime, serta top kode kerusakan & top sparepart per mesin.
 
 ### Indikator Keberhasilan
 - Seluruh teknisi mengisi logbook harian melalui platform web.
 - Waktu proses approval berkurang dibanding sistem manual.
 - Supervisor/Admin dapat melihat rekap dan statistik tanpa perlu menyusun laporan manual.
 - Perubahan master data (plant/shift/mesin) dapat dikelola langsung via UI Admin tanpa mengubah kode.
+- **Waktu pengisian satu logbook < 1 menit** dan mayoritas interaksi berupa tap (tombol besar + chip), bukan pengetikan bebas.
+- **Nol mesin "hilang" antar shift**: setiap mesin berstatus `WAITING_SPAREPART` / `TEMPORARY_FIX` selalu muncul di Papan Serah-Terima Shift sampai ada log lebih baru yang menyatakan `NORMAL_RESOLVED`.
+- **≥ 80% log kerusakan memiliki kode kerusakan (failure code)** sehingga analisis keandalan mesin dapat diandalkan.
 
 ---
 
@@ -85,33 +106,38 @@ Mendigitalisasi dan memusatkan seluruh pencatatan, pelaporan, pemantauan, dan va
 
 ### 3.1 Termasuk (In Scope)
 - Autentikasi pengguna berbasis JWT dan otorisasi *Role-Based Access Control* (RBAC) untuk Admin, Supervisor, dan Teknisi.
-- Manajemen Master Data (Roles, Work Groups, Plants, Shifts, Machines, Sub-Machines).
+- Manajemen Master Data (Roles, Work Groups, Plants, Shifts, Machines, Sub-Machines, **Failure Codes**, **Spareparts**).
 - Pencatatan logbook harian (termasuk durasi otomatis, perhitungan shift melintasi tengah malam, suku cadang, dan status draft).
+- **Form Input Cepat 5 tombol besar** (🔧 Perbaikan Mesin, 🛡️ Rawat Rutin, 🛒 Kereta/Tray, ⚡ Fabrikasi, 📋 Non-Mesin) dengan chip aksi cepat dan form adaptif per kategori.
+- **Papan Serah-Terima Shift (Handover Board)** untuk memantau mesin berstatus `Tunggu Sparepart` / `Perbaikan Sementara` lintas shift.
+- **Buku Pintar Mesin (Machine History)**: timeline perbaikan, statistik downtime, top kode kerusakan, dan top sparepart per mesin.
+- Pencatatan terstruktur kode kerusakan (ISO 14224), sparepart (many-to-many dengan qty), status akhir mesin, downtime, dan kritikalitas aset.
 - Alur approval logbook (Approve/Reject dengan catatan perbaikan dari Supervisor).
 - Dashboard ringkasan operasional yang disesuaikan per peran.
 - Ekspor laporan tim ke PDF dan Excel dengan filter tanggal, plant, work group, mesin, dan status.
 - Notifikasi email & dalam aplikasi (*InApp*) untuk status approval.
 - Audit trail (*User Activities*) untuk mencatat tindakan sensitif pengguna.
-- Antarmuka responsif (desktop, tablet, ponsel).
+- Antarmuka responsif (desktop, tablet, ponsel) dengan cache *stale-while-revalidate* agar dropdown master tetap terisi saat jaringan buruk.
 
 ### 3.2 Tidak Termasuk (Out of Scope)
 - Pengendalian mesin secara langsung atau integrasi PLC/IoT.
 - Aplikasi mobile native (menggunakan web browser responsif).
-- Pengelolaan inventaris/persediaan suku cadang mendalam (hanya pencatatan teks suku cadang pada logbook).
+- Pengelolaan inventaris/persediaan suku cadang mendalam (master `spareparts` hanya referensi pemakaian pada logbook, bukan sistem gudang/stok).
 - Pemrosesan penggajian (payroll/HRIS).
 - Mode offline penuh.
+- **Penilaian kinerja individu / kehadiran**: tidak ada Leaderboard, Ranking teknisi, lencana peringkat, atau pemantauan "hari tanpa log" (lihat Catatan P1 pada Bagian 5).
 
 ---
 
 ## 4. Pengguna & Hak Akses (RBAC)
 
-Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses berbasis tabel `roles`.
+Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses berbasis tabel `roles`. Selain peran, akun pengguna dilengkapi atribut **`sub_team`** (`LINE_TECH`, `KERETA_TEAM`, `WORKSHOP_FAB`, `DRAFTER`, `PART_SOURCE`) yang dipakai untuk menentukan **kategori aktivitas default** pada Form Input Cepat.
 
 | Peran | Deskripsi | Tanggung Jawab Utama |
 |---|---|---|
-| **Teknisi** | Pelaksana pekerjaan lapangan / engineering | Mengisi logbook, menyimpan draft, mengajukan logbook, merevisi logbook ditolak, melihat dashboard pribadi |
+| **Teknisi** | Pelaksana pekerjaan lapangan / engineering | Mencatat aktivitas secepat mungkin lewat Form Input Cepat (5 tombol besar), menyimpan draft, mengajukan logbook, merevisi logbook ditolak, memantau Papan Serah-Terima Shift, membuka Buku Pintar Mesin, melihat dashboard pribadi |
 | **Supervisor** | Pengawas operasional & tim teknisi | Meninjau & menyetujui/menolak logbook teknisi, memberikan catatan revisi, memantau dashboard tim, mengekspor laporan (PDF/Excel) |
-| **Admin** | Pengelola operasional & konfigurasi sistem | Mengelola akun pengguna (CRUD & aktivasi), mengelola Master Data (Plant, Shift, Group, Mesin, Sub-mesin), melihat Audit Trail |
+| **Admin** | Pengelola operasional & konfigurasi sistem | Mengelola akun pengguna (CRUD & aktivasi), mengelola Master Data (Plant, Shift, Group, Mesin, Sub-mesin, Failure Code, Sparepart), melihat Audit Trail |
 
 ### Matriks Hak Akses
 
@@ -120,17 +146,20 @@ Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses
 | Login & Logout | Ya | Ya | Ya |
 | Kelola Profil Pribadi | Ya | Ya | Ya |
 | Dashboard Ringkasan | Ya (Pribadi) | Ya (Tim / Plant) | Ya (Sistem) |
-| Input Logbook Harian (Draft/Submit) | Ya | - | - |
+| Form Input Cepat (5 Tombol Besar) | Ya | - | - |
 | Riwayat & Status Logbook Sendiri | Ya | - | - |
+| Papan Serah-Terima Shift (Handover Board) | Ya (Line sendiri) | Ya (Tim / Plant) | Ya (Semua) |
+| Buku Pintar Mesin (Machine History) | Ya (Line sendiri) | Ya (Tim / Plant) | Ya (Semua) |
 | Meninjau & Approval Logbook | - | Ya | Opsional* |
 | Ekspor Laporan Tim (PDF/Excel) | - | Ya | Opsional |
 | Manajemen Akun Pengguna (CRUD) | - | - | Ya |
-| Manajemen Master Data (Plant, Shift, Machine, Group) | - | - | Ya |
+| Manajemen Master Data (Plant, Shift, Machine, Group, Failure Code, Sparepart) | - | - | Ya |
 | Akses Audit Trail (`user_activities`) | - | - | Ya |
+| Leaderboard / Ranking / "Hari Tanpa Log" | **Tidak ada (P1)** | **Tidak ada (P1)** | **Tidak ada (P1)** |
 
 > **Catatan Admin Approval:** Admin tidak otomatis menyetujui logbook kecuali diberikan kewenangan eksplisit.
 >
-> **Catatan Otorisasi Backend:** Keamanan hak akses wajib diterapkan ketat di level backend/API, bukan sekadar menyembunyikan elemen UI.
+> **Catatan Otorisasi Backend:** Keamanan hak akses wajib diterapkan ketat di level backend/API, bukan sekadar menyembunyikan elemen UI. Pembatasan Line (`plant_id`) untuk Papan Serah-Terima Shift dan Buku Pintar Mesin juga ditegakkan di sisi controller, bukan hanya di frontend.
 
 ---
 
@@ -141,11 +170,23 @@ Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses
 | Fitur | Deskripsi | Prioritas |
 |---|---|---|
 | **Login & Auth** | Masuk menggunakan NIK/Email dan Kata Sandi | Wajib |
-| **Input Logbook** | Form pencatatan aktivitas kerja harian (Plant, Shift, Mesin, Sub-mesin, Jam Mulai-Selesai, Durasi, Suku Cadang, Deskripsi) | Wajib |
-| **Draft & Submit** | Simpan sebagai `Draft` atau kirim (`Pending`) untuk diperiksa Supervisor | Wajib |
+| **Form Input Cepat (5 Tombol Besar)** | 🔧 **Perbaikan Mesin**, 🛡️ **Rawat Rutin**, 🛒 **Kereta/Tray**, ⚡ **Fabrikasi**, 📋 **Non-Mesin**. Setiap tombol langsung memilih `activity_category` lalu menampilkan chip aksi cepat (mis. *Ganti Part Rusak*, *Setting / Adjust*, *Mesin Macet / Error*). Form **adaptif**: kategori Non-Mesin menyembunyikan Mesin & Sparepart; kategori Kereta/Tray mengunci mesin `KERETA` + input jumlah unit; kategori Perbaikan Mesin menampilkan kondisi akhir mesin, toggle downtime, dan detail kerusakan (opsional). | Wajib |
+| **Draft & Submit** | Simpan sebagai `Draft` atau kirim (`Pending`) untuk diperiksa Supervisor; draft aman tersimpan di perangkat saat jaringan buruk | Wajib |
 | **Riwayat & Status** | Pemantauan logbook dengan status: `Draft`, `Pending`, `Approved`, `Rejected`, `Cancelled` | Wajib |
 | **Revisi Logbook** | Memperbaiki dan mengirim ulang logbook berstatus `Rejected` | Wajib |
-| **Dashboard** | Statistik pribadi: logbook per status, tren aktivitas, notifikasi persetujuan | Wajib |
+| **Papan Serah-Terima Shift (Handover Board)** | Menggantikan slot *Leaderboard* pada Dashboard Teknisi. Menampilkan mesin di Line teknisi yang **masih menggantung**, yaitu log terbaru (hanya `Pending`/`Approved`, bukan `Draft`/`Rejected`/`Cancelled`) per mesin/sub-mesin dengan **status akhir `Tunggu Sparepart` (`WAITING_SPAREPART`) atau `Perbaikan Sementara` (`TEMPORARY_FIX`)**. Mesin otomatis "tertutup" begitu ada log lebih baru berstatus `NORMAL_RESOLVED`. Kartu menampilkan nama mesin/sub-mesin, badge status, catatan untuk shift berikutnya, siapa & jam pencatat, serta tombol buka riwayat. Urutan prioritas: 🔴 Tunggu Sparepart → 🟡 Sementara, lalu kritikalitas aset. Bila kosong tampil pesan positif "Tidak ada mesin yang menggantung 🎉". | Wajib |
+| **Buku Pintar Mesin (Machine History)** | Halaman rekam medis per mesin (`/mesin/:id`) yang dibuka langsung dari kartu mesin di dashboard. Memuat: **timeline kerusakan** (kronologis & berhalaman, berisi chip kategori, aksi cepat, kode kerusakan, downtime, durasi, sparepart + qty), **statistik kerusakan/downtime** (total log, total downtime, waktu perbaikan, jumlah breakdown vs preventive — dasar perhitungan **MTTR/MTBF**), serta **top kode kerusakan** dan **top sparepart** mesin tersebut. | Wajib |
+| **Dashboard** | Statistik pribadi: aktivitas per status, tren aktivitas, ringkasan Line, Papan Serah-Terima Shift, dan notifikasi persetujuan | Wajib |
+
+> [!IMPORTANT]
+> **Catatan P1 — Sistem ini BUKAN Alat HR.**
+> Prinsip ini bersifat **tidak bisa ditawar** dan wajib dipatuhi di setiap keputusan desain:
+> 1. **TIDAK ADA Leaderboard** teknisi teraktif pada dashboard mana pun (Teknisi, Supervisor, Admin).
+> 2. **TIDAK ADA Ranking** atau lencana peringkat (`#1 emas`, `#2 perak`, `#3 perunggu`) yang membandingkan jumlah log antar-teknisi.
+> 3. **TIDAK ADA pemantauan "Hari Tanpa Log"** — baik indikator merah pada kalender maupun filter "Perlu Perhatian". Ketidakhadiran adalah urusan HR, bukan urusan sistem keandalan mesin.
+> 4. Tidak ada KPI yang menghargai **jumlah baris log** (*no quantity gaming*). Yang dinilai adalah **durasi** dan **kualitas tindakan** (kode kerusakan, downtime, kondisi akhir mesin).
+> 5. Nama teknisi tetap boleh tampil sebagai **kontak "siapa yang tahu"** pada riwayat mesin dan handover board — sebagai sumber informasi, bukan bahan perbandingan kinerja.
+> 6. Ringkasan beban kerja per kategori untuk Supervisor bersifat **agregat operasional** (perencanaan tenaga kerja), bukan penilaian individu.
 
 ### 5.2 Supervisor
 
@@ -154,16 +195,19 @@ Sistem menerapkan *Role-Based Access Control* (RBAC) dengan pembatasan hak akses
 | **Approval Logbook** | Meninjau pengajuan logbook teknisi: setujui (`Approved`) atau tolak (`Rejected`) **wajib dengan catatan** | Wajib |
 | **Aktivitas Teknisi** | Memantau seberapa sering setiap teknisi tim mengisi logbook harian, status aktif hari ini, metrik jam kerja, konsistensi 7 hari, mesin utama, dan detail riwayat (`/supervisor/teknisi`) | Wajib |
 | **Dashboard Tim** | Ringkasan operasional: total logbook pending, tren pekerjaan per plant/shift/mesin, status approval | Wajib |
+| **Papan Serah-Terima Shift** | Melihat mesin yang menggantung lintas Line/Plant sebagai antrean tindak lanjut (dasar validasi teknis Fase 4) | Wajib |
+| **Buku Pintar Mesin** | Menelusuri riwayat kerusakan mesin sebagai dasar validasi teknis saat approval (mis. deteksi *repeat failure*) | Wajib |
 | **Ekspor Laporan** | Cetak/unduh laporan tim dalam format **PDF** dan **Excel** dengan filter rentang tanggal, plant, group, mesin, & status | Wajib |
 
 ### 5.3 Admin
 
 | Fitur | Deskripsi | Prioritas |
 |---|---|---|
-| **Manajemen Akun** | Tambah, edit, nonaktifkan akun pengguna (NIK, Email, Nama, Role, Plant, Work Group, Foto) | Wajib |
+| **Manajemen Akun** | Tambah, edit, nonaktifkan akun pengguna (NIK, Email, Nama, Role, Plant, Work Group, Sub-Team, Foto) | Wajib |
 | **Master Plant** | Kelola data referensi unit fasilitas dan plant operasional Satoria Group (`/admin/plants`) | Wajib |
-| **Master Machine** | Kelola data registrasi mesin utama dan komponen sub-mesin / suku cadang terpasang per plant (`/admin/machines`) | Wajib |
+| **Master Machine** | Kelola data registrasi mesin utama (termasuk **kritikalitas aset** A/B/C) dan komponen sub-mesin per plant (`/admin/machines`) | Wajib |
 | **Master Group** | Kelola pengaturan jadwal shift kerja operasional serta grup/departemen spesialisasi engineering (`/admin/groups`) | Wajib |
+| **Master Failure Code & Sparepart** | Referensi 12 kode kerusakan ISO 14224 dan katalog sparepart (fast-moving & consumable) yang dipakai form teknisi | Wajib (Fase 5) |
 | **Audit Trail** | Melihat log aktivitas pengguna (`user_activities`) untuk penelusuran aksi sensitif | Wajib |
 | **Pengaturan Sistem** | Konfigurasi operasional dan pengaturan notifikasi email | Wajib |
 
@@ -191,6 +235,31 @@ flowchart TD
     M --> E
 ```
 
+### 6.1.1 Siklus Serah-Terima Shift & Buku Pintar Mesin (v6.0)
+
+```mermaid
+flowchart TD
+    A[Teknisi Selesai Kerja] --> B[Form Input Cepat: pilih 1 dari 5 Tombol Besar]
+    B --> C{Semua Kategori: bagaimana kondisi mesin sekarang?}
+    C -->|Sudah Normal / Aman| D[machine_end_status = NORMAL_RESOLVED]
+    C -->|Minta shift berikutnya pantau| E[machine_end_status = MONITORING_NEEDED]
+    C -->|Diakali sementara| F[machine_end_status = TEMPORARY_FIX]
+    C -->|Tunggu sparepart| G[machine_end_status = WAITING_SPAREPART]
+    D --> H[(Logbook tersimpan + Sparepart & Failure Code)]
+    E --> H
+    F --> H
+    G --> H
+    H --> I[Papan Serah-Terima Shift: tampilkan log TERBARU per mesin]
+    F --> I
+    G --> I
+    I --> J{Ada log lebih baru berstatus NORMAL_RESOLVED?}
+    J -->|Belum| K[Mesin tetap MENGgantung di papan]
+    J -->|Sudah| L[Mesin tertutup otomatis dari papan]
+    H --> M[Buku Pintar Mesin: timeline, statistik downtime, top failure code, top sparepart]
+```
+
+Kalimat kunci alur ini: **"Setiap log yang berstatus tidak normal hari ini adalah pekerjaan rumah shift berikutnya."** Papan Serah-Terima Shift tidak menyimpan kolom tambahan — status "terbuka" **diturunkan** dari log terbaru per `machine_id` + `sub_machine_id`, sehingga tidak ada risiko data handover basi.
+
 ### 6.2 Siklus Notifikasi & Audit Trail
 
 ```mermaid
@@ -212,6 +281,8 @@ flowchart LR
 | **Frontend** | Vue.js 3 (Composition API, `<script setup>`) | Lightweight, reaktif, modular |
 | **Build Tool** | Vite | Server pengembangan ultra cepat, standar Vue modern |
 | **UI Framework** | Tailwind CSS | Utility-first, konsisten, responsif |
+| **State & Cache Data** | Pinia + SWR `localStorage` (`satoria_master_cache_v1`) | Dropdown master tetap terisi saat jaringan shop floor buruk (stale-while-revalidate) |
+| **Notifikasi UI** | SweetAlert2 (wrapper `utils/alert.js`) | Standar tunggal konfirmasi/sukses/galat — tanpa banner error inline |
 | **Font UI** | Inter (paket `@fontsource/inter`) | Font sans-serif sesuai referensi UI (lihat Bagian 11.3) |
 | **Ikon UI** | `lucide-vue-next` | Ikon garis (outline) sesuai referensi UI (lihat Bagian 11.8) |
 | **Grafik UI** | Chart.js + `vue-chartjs` *(asumsi, dapat diganti)* | Area chart, donut, dan bar mini pada dashboard (lihat Bagian 11.5) |
@@ -227,7 +298,13 @@ flowchart LR
 
 - **Tahap 1 (Selesai):** Pembangunan seluruh antarmuka pengguna (UI) & logika antarmuka yang terstandarisasi, responsif, dan telah diverifikasi.
 - **Tahap 2 (Selesai):** Pembangunan Backend REST API Express.js, skema TiDB Cloud (Prisma ORM), autentikasi JWT & otorisasi RBAC ketat, pengiriman Notifikasi In-App & Email, Avatar Object Storage, dan eliminasi penuh data mock.
-- **Fokus Operasional Saat Ini:** Pengujian keandalan & otorisasi (RBAC security test), integrasi CI otomatis (GitHub Actions `npm test` & `npm run build`), pemisahan environment database dev vs prod, monitoring galat Sentry, serta manajemen cadangan (*backup & disaster recovery*) TiDB Cloud.
+- **Tahap 3 — Upgrade v6.0 (Fase 1, 2, 3.1, 3.3, 3.4 SELESAI):** Pergeseran filosofi dari *Supervisor-Oriented* menjadi *Teknisi-Oriented & Reliability*.
+  - **Fase 1:** Hotfix 13 bug black box (scope approval per Line, validasi waktu lintas tengah malam, anti multi-submit, hapus draft, validasi email, pagination akun/audit), standarisasi pop-up SweetAlert2, dan cache *stale-while-revalidate* pada master data.
+  - **Fase 2:** Migrasi skema Prisma/TiDB — 6 enum baru (`ActivityCategory`, `MachineEndStatus`, `MaintenanceType`, `AssetCriticality`, `SubTeam`, `SparepartItemType`), 3 model baru (`FailureCode`, `Sparepart`, `LogbookSparepart`), seed 12 failure code ISO 14224 + 10 sparepart, serta validasi kategori di backend.
+  - **Fase 3.1:** Form Input Cepat 5 Tombol Besar (adaptif per kategori) pada `InputLogbookView.vue`.
+  - **Fase 3.3:** Papan Serah-Terima Shift (`HandoverBoard.vue` + `GET /api/v1/handover`), menggantikan slot Leaderboard di Dashboard Teknisi.
+  - **Fase 3.4:** Buku Pintar Mesin (`MachineHistoryView.vue` + `GET /api/v1/machines/:id/history`), dapat dibuka dari kartu mesin di dashboard (`/mesin/:id`).
+- **Fokus Operasional Saat Ini:** Penyelesaian lanjutan *Upgrade v6.0* — Fase 4 (Supervisor: validasi teknis, Pareto bad actor, KPI MTTR/MTBF, skill matrix) dan Fase 5 (Admin: radar aset belum terdaftar, master sparepart, generator QR mesin), tanpa mengorbankan pengujian otorisasi RBAC, CI otomatis, monitoring Sentry, dan cadangan TiDB Cloud.
 
 ---
 
@@ -301,7 +378,28 @@ engineer-logbook-satoria/
 
 ## 9. Rancangan Data (Model & ERD Terbaru)
 
-Database dirancang dengan **11 tabel utama** untuk mendukung seluruh transaksi operasional, approval, notifikasi, dan audit trail.
+Database dirancang dengan **14 tabel utama** untuk mendukung seluruh transaksi operasional, approval, notifikasi, audit trail, serta pilar keandalan mesin v6.0 (*failure code*, *sparepart*, dan relasi pemakaian sparepart).
+
+> Perubahan v6.0 bersifat **aditif & non-breaking**: tidak ada tabel/kolom yang di-drop atau di-rename. Kolom baru selalu `nullable` atau memiliki `@default(...)`, sehingga data historis v4.x tetap valid tanpa migrasi destruktif (diterapkan via `prisma db push`).
+
+**Komposisi 14 tabel:**
+
+| # | Tabel | Peran | Status |
+|---|---|---|---|
+| 1 | `roles` | Master peran (Admin, Supervisor, Teknisi) | Lama |
+| 2 | `work_groups` | Master grup kerja / departemen | Lama |
+| 3 | `plants` | Master Line/Plant (label UI: **Line 1, Line 2, …**) | Lama |
+| 4 | `shifts` | Master jadwal shift | Lama |
+| 5 | `machines` | Master mesin (+ `criticality`, `is_unmapped_other`) | Diperluas v6 |
+| 6 | `sub_machines` | Master sub-mesin / komponen | Lama |
+| 7 | `users` | Akun pengguna (+ `sub_team`) | Diperluas v6 |
+| 8 | `logbooks` | Catatan aktivitas (+ 12 kolom keandalan v6) | Diperluas v6 |
+| 9 | `logbook_approvals` | Riwayat keputusan approval | Lama |
+| 10 | `notifications` | Notifikasi Email & In-App | Lama |
+| 11 | `user_activities` | Audit trail | Lama |
+| 12 | `failure_codes` | **Master kode kerusakan ISO 14224** | **Baru v6** |
+| 13 | `spareparts` | **Master sparepart & consumable** | **Baru v6** |
+| 14 | `logbook_spareparts` | **Relasi many-to-many logbook ↔ sparepart (+ qty)** | **Baru v6** |
 
 ```mermaid
 erDiagram
@@ -319,6 +417,10 @@ erDiagram
     USERS ||--o{ USER_ACTIVITIES : "melakukan"
     USERS ||--o{ NOTIFICATIONS : "menerima"
     LOGBOOKS ||--o{ NOTIFICATIONS : "berkaitan dengan"
+    PLANTS ||--o{ MACHINES : "menaungi (v6)"
+    FAILURE_CODES ||--o{ LOGBOOKS : "mengklasifikasi kerusakan (v6)"
+    LOGBOOKS ||--o{ LOGBOOK_SPAREPARTS : "memakai part (v6)"
+    SPAREPARTS ||--o{ LOGBOOK_SPAREPARTS : "dipakai pada (v6)"
 
     USERS {
         bigint id PK
@@ -330,22 +432,41 @@ erDiagram
         bigint group_id FK
         bigint plant_id FK
         string photo_url
+        enum sub_team "v6: LINE_TECH|KERETA_TEAM|WORKSHOP_FAB|DRAFTER|PART_SOURCE"
         boolean is_active
         datetime created_at
+    }
+    MACHINES {
+        bigint id PK
+        string name
+        bigint plant_id FK "v6"
+        enum criticality "v6: A_CRITICAL|B_ESSENTIAL|C_GENERAL"
+        boolean is_unmapped_other "v6"
     }
     LOGBOOKS {
         bigint id PK
         bigint user_id FK
         bigint plant_id FK
         bigint shift_id FK
-        bigint machine_id FK
-        bigint sub_machine_id FK
+        bigint machine_id FK "v6: nullable"
+        bigint sub_machine_id FK "v6: nullable"
         date task_date
-        string sparepart
+        string sparepart "legacy / part belum terdaftar"
         text activity_description
         time start_time
         time end_time
         int duration_minutes
+        enum activity_category "v6: MACHINE_TROUBLE|PREVENTIVE_PM|KERETA_TRAY_REPAIR|FABRICATION_PROJECT|SUPPORT_NON_MACHINE"
+        string quick_action_tag "v6: chip aksi cepat"
+        enum machine_end_status "v6: NORMAL_RESOLVED|MONITORING_NEEDED|TEMPORARY_FIX|WAITING_SPAREPART"
+        enum maintenance_type "v6: PREVENTIVE|CORRECTIVE|BREAKDOWN|AUTONOMOUS_TPM|INSPECTION"
+        bigint failure_code_id FK "v6"
+        text root_cause_notes "v6"
+        boolean is_downtime "v6"
+        int downtime_minutes "v6"
+        int unit_repaired_qty "v6: kereta/tray/fabrikasi"
+        boolean has_sparepart "v6"
+        string unmapped_asset_note "v6: aset belum terdaftar"
         enum status "DRAFT|PENDING|APPROVED|REJECTED|CANCELLED"
         datetime created_at
     }
@@ -378,16 +499,122 @@ erDiagram
         text detail
         datetime created_at
     }
+    FAILURE_CODES {
+        bigint id PK
+        string code UK "v6: MECH-01, ELEC-02, ..."
+        string category "MECHANICAL|ELECTRICAL|INSTRUMENTATION|UTILITY|PROCESS"
+        string name
+        text description
+        boolean is_active
+        datetime created_at
+    }
+    SPAREPARTS {
+        bigint id PK
+        string part_code UK "v6"
+        string part_name
+        string specification
+        enum item_type "v6: MACHINE_PART|CONSUMABLE_WORKSHOP"
+        string unit "pcs"
+        boolean is_active
+        datetime created_at
+    }
+    LOGBOOK_SPAREPARTS {
+        bigint id PK
+        bigint logbook_id FK
+        bigint sparepart_id FK
+        decimal qty_used
+    }
 ```
 
-### Rincian Tabel Master Data
+### 9.1 Rincian Tabel Master Data
 
 1. **roles**: `id`, `name` (Admin, Supervisor, Teknisi), `description`.
 2. **work_groups**: `id`, `name`.
-3. **plants**: `id`, `name`.
-4. **shifts**: `id`, `name`, `start_time`, `end_time`.
-5. **machines**: `id`, `name` *(Rekomendasi penambahan `plant_id` FK)*.
+3. **plants**: `id`, `name` *(label UI ditampilkan sebagai "Line 1, Line 2, …")*.
+4. **shifts**: `id`, `name`, `start_time`, `end_time` *(seed v6: Shift 1 = 06:00–14:00 WIB)*.
+5. **machines**: `id`, `name`, `plant_id` FK, **`criticality`** (A/B/C), **`is_unmapped_other`**.
 6. **sub_machines**: `id`, `machine_id` FK, `name`.
+
+### 9.2 Model Baru v6.0 — Pilar Keandalan Mesin
+
+#### `FailureCode` — Master Kode Kerusakan (ISO 14224)
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `id` | BigInt PK | Auto increment |
+| `code` | VarChar(30) **UNIQUE** | Kode ringkas, mis. `MECH-01`, `ELEC-02`, `UTIL-01` |
+| `category` | VarChar(50) | `MECHANICAL` / `ELECTRICAL` / `INSTRUMENTATION` / `UTILITY` / `PROCESS` |
+| `name` | VarChar(150) | Nama kerusakan, mis. "Bearing aus/overheat/macet" |
+| `description` | Text (nullable) | Penjelasan tambahan |
+| `is_active` | Boolean (default `true`) | Soft-disable tanpa menghapus histori |
+| `created_at` | DateTime | Waktu dibuat |
+
+- **Seed awal 12 kode** (upsert): `MECH-01`…`MECH-04`, `ELEC-01`…`ELEC-03`, `INST-01`…`INST-02`, `UTIL-01`…`UTIL-02`, `PROC-01`.
+- Terhubung ke logbook lewat `failure_code_id` (opsional, `onDelete: SetNull`) — menjadi sumber **Top Failure Codes** di Buku Pintar Mesin dan **Pareto kode kerusakan** pada Fase 4.
+- Log tanpa kode kerusakan **tetap dihitung** sebagai "Tidak diklasifikasi" agar persentase kelengkapan data transparan.
+
+#### `Sparepart` — Master Sparepart & Consumable
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `id` | BigInt PK | Auto increment |
+| `part_code` | VarChar(50) **UNIQUE** (nullable) | Kode part, mis. `BRG-6204-2RS` |
+| `part_name` | VarChar(150) | Nama standar, mis. "Deep Groove Ball Bearing 6204-2RS" |
+| `specification` | VarChar(200) (nullable) | Spesifikasi/dimensi |
+| `item_type` | Enum `SparepartItemType` | `MACHINE_PART` (suku cadang mesin) / `CONSUMABLE_WORKSHOP` (bahan habis pakai bengkel) |
+| `unit` | VarChar(20) (default `pcs`) | Satuan |
+| `is_active` | Boolean (default `true`) | Soft-disable |
+| `created_at` | DateTime | Waktu dibuat |
+
+- **Seed awal 10 part**: fast-moving (*Bearing 6201/6202/6204 varian ZZ/2RS, Bushing IGUS, Seal Piston 85x100x9, Fitting Pneumatik*) dan consumable (*Mata gerinda 4", Kawat las/filler SS 308, Sealtape, Mata bor*).
+- Form teknisi memisahkan tampilan **Suku Cadang Mesin** vs **Bahan Habis Pakai**. Part yang belum ada di katalog tetap dapat dicatat lewat opsi "Part belum terdaftar" (masuk kolom legacy `sparepart`), lalu dilengkapi Admin pada Fase 5.
+
+#### `LogbookSparepart` — Relasi Many-to-Many Logbook ↔ Sparepart
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `id` | BigInt PK | Auto increment |
+| `logbook_id` | BigInt FK → `logbooks` | `onDelete: Cascade` |
+| `sparepart_id` | BigInt FK → `spareparts` | Referensi master part |
+| `qty_used` | Decimal(10,2) | Jumlah pemakaian (mendukung 0,5 pcs / liter) |
+
+- Satu logbook dapat memakai **banyak part** (multi-baris pada form), dan satu part dapat dipakai pada banyak logbook.
+- Berpasangan dengan `logbooks.has_sparepart` (flag cepat untuk filter/agregasi) dan disimpan **dalam satu transaksi** bersama logbook.
+- Indeks: `@@index([logbook_id])`, `@@index([sparepart_id])`.
+- Menjadi sumber **Top Spareparts** di Buku Pintar Mesin dan laporan pemakaian sparepart.
+
+### 9.3 Enum Baru v6.0
+
+| Enum | Nilai | Kegunaan |
+|---|---|---|
+| `ActivityCategory` | `MACHINE_TROUBLE`, `PREVENTIVE_PM`, `KERETA_TRAY_REPAIR`, `FABRICATION_PROJECT`, `SUPPORT_NON_MACHINE` | Pilihan utama teknisi di **5 Tombol Besar**; menentukan field mana yang wajib/disembunyikan (form adaptif) |
+| `MachineEndStatus` | `NORMAL_RESOLVED`, `MONITORING_NEEDED`, `TEMPORARY_FIX`, `WAITING_SPAREPART` | Kondisi mesin setelah pekerjaan. Dasar **Papan Serah-Terima Shift**: `TEMPORARY_FIX` & `WAITING_SPAREPART` = mesin menggantung; `NORMAL_RESOLVED` = menutup item handover |
+| `MaintenanceType` | `PREVENTIVE`, `CORRECTIVE`, `BREAKDOWN`, `AUTONOMOUS_TPM`, `INSPECTION` | **Diturunkan otomatis oleh backend** (teknisi tidak memilih langsung); hanya dipakai untuk KPI keandalan (MTTR/MTBF, planned ratio) |
+| `AssetCriticality` | `A_CRITICAL`, `B_ESSENTIAL`, `C_GENERAL` | Kritikalitas mesin (`machines.criticality`, default `B_ESSENTIAL`); dipakai memprioritaskan urutan kartu handover board |
+| `SubTeam` | `LINE_TECH`, `KERETA_TEAM`, `WORKSHOP_FAB`, `DRAFTER`, `PART_SOURCE` | Sub-tim akun (`users.sub_team`); menentukan **kategori default** pada Form Input Cepat |
+| `SparepartItemType` | `MACHINE_PART`, `CONSUMABLE_WORKSHOP` | Memisahkan suku cadang mesin vs bahan habis pakai bengkel |
+
+**Aturan penurunan `MaintenanceType`** (dilakukan di backend, bukan dipilih teknisi):
+
+| `activity_category` | Kondisi | `maintenance_type` |
+|---|---|---|
+| `MACHINE_TROUBLE` | `is_downtime = true` | `BREAKDOWN` |
+| `MACHINE_TROUBLE` | `is_downtime = false` | `CORRECTIVE` |
+| `PREVENTIVE_PM` | chip "Cek Rutin" | `INSPECTION` |
+| `PREVENTIVE_PM` | chip lain (Lubrikasi, Cleaning, Backwash) | `PREVENTIVE` |
+| `KERETA_TRAY_REPAIR` / `FABRICATION_PROJECT` / `SUPPORT_NON_MACHINE` | — | `NULL` |
+
+### 9.4 Validasi Server per Kategori (ditegakkan di backend, bukan hanya UI)
+
+| Kategori | `machine_id` | `sub_machine_id` | Sparepart | `machine_end_status` | Downtime/Failure | `unit_repaired_qty` |
+|---|---|---|---|---|---|---|
+| `MACHINE_TROUBLE` | wajib* | wajib* | opsional | wajib (default NORMAL) | opsional | — |
+| `PREVENTIVE_PM` | wajib* | wajib* | opsional | dipaksa `NORMAL_RESOLVED` | — | — |
+| `KERETA_TRAY_REPAIR` | otomatis = mesin "KERETA" | opsional | opsional | — | — | wajib ≥ 1 |
+| `FABRICATION_PROJECT` | opsional | opsional | opsional (boleh consumable) | — | — | opsional |
+| `SUPPORT_NON_MACHINE` | dilarang (NULL) | dilarang (NULL) | dilarang | — | — | — |
+
+\* Boleh dikosongkan **hanya** bila `unmapped_asset_note` terisi ("Mesin/bagian belum terdaftar"). Semua kategori: `quick_action_tag` wajib dan `activity_description` maksimal 1000 karakter.
 
 ---
 
@@ -396,19 +623,24 @@ erDiagram
 | Path | Halaman | Hak Akses Peran |
 |---|---|---|
 | `/login` | Login Antarmuka | Publik |
-| `/dashboard` | Dashboard Utama (Tampilan otomatis sesuai Peran) | Semua |
-| `/logbook/input` | Form Input Logbook Harian | Teknisi |
+| `/dashboard` | Dashboard Utama (Tampilan otomatis sesuai Peran; Teknisi memuat **Papan Serah-Terima Shift**) | Semua |
+| `/logbook/input` | **Form Input Cepat (5 Tombol Besar, adaptif per kategori)** | Teknisi |
 | `/logbook/riwayat` | Daftar Logbook Saya & Status | Teknisi |
 | `/logbook/edit/:id` | Edit Logbook (Draft / Rejected) | Teknisi |
+| `/mesin/:id` | **Buku Pintar Mesin** (timeline, statistik downtime, top failure & top sparepart) | Semua (dibatasi Line di backend) |
 | `/approval` | Daftar Pengajuan Approval Logbook | Supervisor |
 | `/approval/detail/:id` | Detail Pemeriksaan & Action Approval | Supervisor |
 | `/supervisor/teknisi` | Aktivitas & Frekuensi Logbook Teknisi Tim | Supervisor |
 | `/laporan` | Ekspor Laporan Tim (PDF / Excel) | Supervisor |
+| `/supervisor/reliability` | **Analitik Keandalan** (Pareto Bad Actor & Skill Matrix) | Supervisor, Admin |
 | `/admin/users` | Manajemen Akun Pengguna | Admin |
 | `/admin/plants` | Master Plant (Manajemen Fasilitas & Pabrik) | Admin |
 | `/admin/machines` | Master Machine (Mesin Utama & Sub-Mesin) | Admin |
 | `/admin/groups` | Master Group (Shift Kerja & Grup Kerja) | Admin |
 | `/admin/master` | *Redirect ke `/admin/plants` (Kompatibilitas)* | Admin |
+| `/admin/unmapped-assets` | **Radar Aset Belum Terdaftar** | Admin |
+| `/admin/spareparts` | Master Sparepart (CRUD) | Admin |
+| `/admin/machines/qr-print?plant_id=X` | Batch Print QR per Line | Admin |
 | `/admin/audit` | Audit Trail Activity Logs | Admin |
 | `/profil` | Pengaturan Profil Pribadi & Kata Sandi | Semua |
 | `/403` | Halaman Akses Ditolak (*Forbidden*) | Semua |
@@ -750,6 +982,35 @@ Daftar menu per peran (rute mengikuti Bagian 10; WAJIB disimpan di `constants/me
 
 Halaman non-dashboard memakai komponen umum ini. Referensi UI tidak memuat tata letak halaman form/tabel/modal, sehingga tata letak detail halaman tersebut mengikuti kebutuhan fitur pada Bagian 5 dengan pola: kartu putih di atas canvas `app`, judul kartu `card-title-lg`, tombol utama di kanan atas kartu, tabel dengan gaya `RecentTableCard`.
 
+#### 11.5.12 `HandoverBoard` — Papan Serah-Terima Shift (pengganti slot Leaderboard)
+
+Komponen: `frontend/src/components/dashboard/HandoverBoard.vue`. Menggantikan **seluruh** desain Leaderboard lama (lencana #1 emas / #2 perak / mini bar chart peringkat) — lihat larangan pada 11.13.
+
+| Elemen | Spesifikasi |
+|---|---|
+| Header | Judul `card-title-md` "Papan Serah-Terima Shift" + subjudul `caption` `ink-3`: "Mesin dari shift sebelumnya yang masih perlu tindak lanjut — Tunggu Sparepart atau perbaikan sementara." |
+| Filter cepat | Segmented control kecil: **Semua** · **🟡 Sementara** (`TEMPORARY_FIX`) · **🔴 Tunggu Sparepart** (`WAITING_SPAREPART`). Tinggi 30 px, radius 8, item aktif latar `primary` teks putih |
+| Grid kartu | Grid 1 kolom pada `base`, 2 kolom mulai `sm`, 3 kolom pada `xl`; gap `space-3` |
+| Isi kartu | Nama mesin (13-14 px, 600) + sub-mesin (`caption`, `ink-2`); badge status (🟡 `#FEF3C7`/`#B45309`, 🔴 `#FEE2E2`/`#B91C1C`) WAJIB berlabel teks; catatan untuk shift berikutnya (maks 2 baris, `line-clamp-2`); baris "siapa & jam" (avatar inisial 20 px + nama + `HH:mm`); tombol sekunder "Lihat riwayat" → `/mesin/:id` |
+| Urutan | 🔴 Tunggu Sparepart lebih dulu → 🟡 Sementara; di dalam status yang sama urut **kritikalitas aset** (`A_CRITICAL` → `B_ESSENTIAL` → `C_GENERAL`), lalu terbaru |
+| Aksi | Klik kartu membuka modal detail log (payload `@open-log-detail`); tombol "Lihat riwayat" membuka Buku Pintar Mesin mesin tersebut |
+| Empty state | Pesan positif "Tidak ada mesin yang menggantung 🎉" — **tidak boleh** berupa peringatan merah atau tuduhan kelalaian |
+| Larangan P1 | DILARANG menambahkan kolom: jumlah log teknisi, peringkat, poin, persentase kontribusi, atau badge "hari tanpa log" pada komponen ini |
+
+#### 11.5.13 `MachineHistoryView` — Buku Pintar Mesin
+
+Halaman: `frontend/src/views/shared/MachineHistoryView.vue`, rute `/mesin/:id`. Tata letak mengikuti pola non-dashboard 11.5.11 (kartu putih di atas canvas `app`) dengan susunan berikut:
+
+| Elemen | Spesifikasi |
+|---|---|
+| Header detail | Nama mesin (`title-page`), Line/Plant + sub-mesin aktif (`caption`, `ink-2`), badge kritikalitas aset (A/B/C), tombol "Kembali" (secondary) dan **"Catat Logbook untuk Mesin Ini"** (primary, ikon `SquarePen`) yang membuka `/logbook/input?machine=<id>&task_type=MACHINE_TROUBLE` — form Input Logbook langsung terisi mesin (dan sub-mesin bila `&sub=<id>` ikut dikirim). Tombol hanya dirender untuk peran Teknisi karena rute `/logbook/input` difilter `roles: [TEKNISI]` |
+| Baris statistik | 4 kotak statistik (`radius-md`, border 1 px `line`, padding 14 px): **Total Log** · **Total Downtime** (`danger`) · **Waktu Perbaikan** (`violet`) · **Jumlah Breakdown** (dengan sub-teks "n preventive"). Format ringkas `12j 30m` / `45m`; angka besar `stat-value` tabular-nums |
+| Kiri: Timeline Riwayat | Daftar kronologis terbalik dengan garis vertikal + titik penanda; tiap item: tanggal & jam, chip kategori (`ActivityCategory`), chip aksi cepat, kode kerusakan (`FailureCode`), chip downtime & durasi, daftar sparepart + qty; pagination **Prev / Next** berbasis meta server (`page`, `total_pages`) |
+| Kanan: Sidebar | Kartu **Top Failure Codes** (bar persentase + jumlah kejadian + total downtime) dan kartu **Top Spareparts** (nama part standar, qty total, jumlah pemakaian). Maksimal 5 baris (Top-5) |
+| Guard state | Wajib punya state loading (skeleton), empty ("Belum ada riwayat perbaikan untuk mesin ini"), dan anti-*race condition* (urutan request/`requestSeq`) agar timeline tidak tertukar saat navigasi cepat |
+| Larangan P1 | Nama teknisi boleh muncul sebagai kontak "siapa yang tahu", tetapi TIDAK boleh diagregasi menjadi peringkat jumlah penanganan antar-teknisi |
+
+
 ### 11.6 Pemetaan Konten Dashboard per Peran
 
 Rute dashboard tetap `/dashboard` (Bagian 10); isi menyesuaikan peran. Semua angka dihitung dari mock.
@@ -762,6 +1023,7 @@ Rute dashboard tetap `/dashboard` (Bagian 10); isi menyesuaikan peran. Semua ang
 | Kartu grafik tren | "Tren Aktivitas" (logbook milik sendiri per bulan) | "Tren Aktivitas Tim" | "Tren Aktivitas Sistem" |
 | Kartu donut | "Status Logbook" (milik sendiri) | "Status Logbook Tim" | "Status Logbook Sistem" |
 | Kartu progress | "Persetujuan per Shift" | "Persetujuan per Plant" (4 plant, sesuai versi 1.3) | "Persetujuan per Plant" |
+| **Kartu utama (slot eks-Leaderboard)** | **`HandoverBoard`** — Papan Serah-Terima Shift: mesin Line sendiri berstatus Tunggu Sparepart / Perbaikan Sementara (lihat 11.5.12) | **`HandoverBoard`** — mesin menggantung lintas Line/Plant sebagai antrean tindak lanjut | **`HandoverBoard`** — seluruh plant (mode `ALL`) |
 | Tabel ringkas | "Logbook Terbaru": Tanggal, Mesin, Shift, Durasi, Status; "Lihat Semua" → `/logbook/riwayat` | "Pengajuan Pending": Teknisi, Tanggal, Mesin, Plant, tombol "Tinjau" → `/approval/detail/:id`; "Lihat Semua" → `/approval` | "Aktivitas Pengguna Terbaru": Pengguna, Aktivitas, Waktu (dari `user_activities`); "Lihat Semua" → `/admin/audit` |
 | Kolom kanan atas | `NotificationPanel` | `NotificationPanel` | `NotificationPanel` |
 | Kolom kanan bawah | `CalendarCard` | `ActivityFeedPanel` | `CalendarCard` |
@@ -770,6 +1032,8 @@ Aturan data:
 - Teknisi hanya melihat logbook miliknya; Supervisor melihat logbook timnya; Admin melihat seluruh sistem. Pembatasan ini mengikuti Bagian 4 dan WAJIB diterapkan pada service/mock, bukan hanya di tampilan.
 - Delta persentase pada StatCard dihitung terhadap periode sebelumnya yang sama panjang.
 - Teks "Persetujuan per ..." menampilkan rasio `Approved` terhadap total pada kelompok tersebut (lihat 11.5.6).
+- **Slot Leaderboard sudah dihapus permanen** (P1). Slot tersebut kini diisi `HandoverBoard`, dan TIDAK BOLEH diisi kembali dengan peringkat/jumlah log per teknisi.
+- Kartu mesin pada dashboard Teknisi **dapat diklik** menuju `/mesin/:id` (Buku Pintar Mesin) — jalur ≤ 3 tap agar teknisi cepat menemukan riwayat kerusakan mesin di depannya.
 
 ### 11.7 Component Tree
 
@@ -790,6 +1054,7 @@ Aturan data:
     └── (Halaman Dashboard)
         ├── <MainColumn>
         │   ├── <StatCardRow> <StatCard /> ×3 (+ <MiniBarChart /> atau <ProgressBar />) </StatCardRow>
+        │   ├── <HandoverBoard />        (Papan Serah-Terima Shift — slot eks-Leaderboard, 11.5.12)
         │   ├── <StatisticsChartCard> <AreaChart /> + tooltip </StatisticsChartCard>
         │   ├── <SplitRow>
         │   │   ├── <StatusDonutCard> <DonutChart /> + legend </StatusDonutCard>
@@ -798,6 +1063,20 @@ Aturan data:
         └── <RightColumn>
             ├── <NotificationPanel />
             └── <CalendarCard /> atau <ActivityFeedPanel />
+```
+
+Halaman Buku Pintar Mesin (`/mesin/:id`) memakai pola non-dashboard, bukan `<MainColumn>`/`<RightColumn>`:
+
+```
+<MachineHistoryView>            (views/shared/MachineHistoryView.vue)
+├── <MachineHistoryHeader />     nama mesin · Line · badge kritikalitas · tombol Catat Logbook
+├── <MachineStatsRow />          Total Log · Total Downtime · Waktu Perbaikan · Jumlah Breakdown
+└── <div class="grid lg:grid-cols-[1fr_320px]">
+    ├── <MachineTimeline />      timeline perbaikan + pagination Prev/Next
+    └── <aside>
+        ├── <TopFailureCodesCard />
+        └── <TopSparepartsCard />
+    </aside>
 ```
 
 ### 11.8 Ikon dan State Interaksi
@@ -873,7 +1152,7 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 - [ ] UI-1: Sidebar 208 px (±4), tinggi penuh viewport, latar putih; Navbar 70 px (±4); kolom kanan dashboard 288 px (±4); gap antar kartu 16 px.
 - [ ] UI-2: Menu sidebar sesuai tabel 11.5.1 untuk masing-masing dari 3 peran; item aktif berwarna `primary` dengan teks putih dan `aria-current="page"`; tidak ada item di luar tabel.
 - [ ] UI-3: Navbar memuat `PageHeader`, `RoleSwitcher` (mode pengembangan), `NotificationBell` dengan badge jumlah belum dibaca, dan `UserMenu` dengan urutan tersebut.
-- [ ] UI-4: Dashboard tiap peran menampilkan slot sesuai tabel 11.6, dengan urutan kartu: 3 StatCard → tren → (donut + progress) → tabel ringkas; kolom kanan sesuai peran.
+- [ ] UI-4: Dashboard tiap peran menampilkan slot sesuai tabel 11.6, dengan urutan kartu: 3 StatCard → `HandoverBoard` (v6.0) → tren → (donut + progress) → tabel ringkas; kolom kanan sesuai peran.
 - [ ] UI-5: Semua angka dashboard berasal dari mock/service dan berubah saat data mock berubah; tidak ada angka hardcode di komponen.
 - [ ] UI-6: Grafik tren berupa area chart linear dengan gradien, grid putus-putus, 12 label bulan berbahasa Indonesia, sorotan dan tooltip pada bulan berjalan saat render pertama, dan tooltip berpindah saat hover.
 - [ ] UI-7: Donut menampilkan 5 status dengan warna 11.3.2, label persen di segmen ≥ 8%, dan legend memuat seluruh 5 status.
@@ -887,6 +1166,11 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 - [ ] UI-15: Seluruh poin aksesibilitas pada 11.9 terpenuhi; Lighthouse Accessibility ≥ 90.
 - [ ] UI-16: Seluruh halaman pada Bagian 10 (termasuk `/403` dan `*`) memakai token dan komponen umum yang sama.
 - [ ] UI-17: `npm run build` sukses tanpa error; logika, rute, model data, dan akun dummy tidak berubah dibanding versi 1.3.
+- [ ] UI-18 (v6.0): Dashboard Teknisi memuat **`HandoverBoard`** pada slot eks-Leaderboard; kartu menampilkan mesin berstatus Tunggu Sparepart / Perbaikan Sementara, urut 🔴 sebelum 🟡 lalu kritikalitas aset, dan empty state berupa pesan positif.
+- [ ] UI-19 (v6.0): **Tidak ada Leaderboard, ranking, lencana peringkat, mini bar chart kontribusi teknisi, maupun penanda "hari tanpa log"** pada seluruh halaman (lihat 11.13). Pemeriksaan `grep -i "leaderboard\\|peringkat\\|hari tanpa log"` pada `src/components` dan `src/views` tidak menemukan elemen UI aktif.
+- [ ] UI-20 (v6.0): Form Input Cepat menampilkan 5 tombol besar (🔧 🛡️ 🛒 ⚡ 📋) dan **beradaptasi** per kategori: 📋 menyembunyikan Mesin & Sparepart, 🛒 mengunci mesin `KERETA` + input jumlah unit (wajib ≥ 1), 🔧 menampilkan kondisi akhir mesin + toggle downtime.
+- [ ] UI-21 (v6.0): Halaman `/mesin/:id` menampilkan header mesin, 4 kotak statistik (Total Log, Total Downtime, Waktu Perbaikan, Jumlah Breakdown), timeline berhalaman, serta kartu Top Failure Codes & Top Spareparts.
+- [ ] UI-22 (v6.0): Tombol/kartu kategori dan chip aksi cepat memiliki **target sentuh ≥ 44 × 44 px** dan dapat digunakan satu tangan pada lebar 360 px.
 
 ### 11.12 Asumsi UI dan Elemen Referensi yang Tidak Diterapkan
 
@@ -916,6 +1200,23 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 | Kartu kredit, "Balance", "Quick Transfer", "Send Money", "Add Card" | Konten keuangan, di luar ruang lingkup (Bagian 3.2) |
 | Seksi "Help" pada sidebar | Digantikan seksi "Akun" (Profil) |
 
+### 11.13 Larangan Desain: Tidak Ada Leaderboard (Prinsip P1)
+
+> **Berlaku untuk seluruh halaman, komponen, dan iterasi desain berikutnya.** Aturan ini menggantikan semua spesifikasi Leaderboard pada versi dokumen ≤ 4.9 (termasuk desain "Leaderboard Teknisi Teraktif", "Lencana peringkat #1 emas, #2 perak, #3 perunggu", dan "Mini Bar Chart peringkat kontribusi teknisi").
+
+| DILARANG pada UI | PENGGANTI yang benar |
+|---|---|
+| Leaderboard teknisi teraktif per Line/Plant (jumlah log terbanyak) | **Papan Serah-Terima Shift (`HandoverBoard`)** — fokus pada *kondisi mesin*, bukan pada orang (11.5.12) |
+| Lencana/medali peringkat (`#1 emas`, `#2 perak`, `#3 perunggu`) | **Badge status mesin** 🟡 Sementara / 🔴 Tunggu Sparepart / 🟢 Normal |
+| Mini Bar Chart / progress bar yang membandingkan kontribusi antar-teknisi | **Statistik mesin** (downtime, waktu perbaikan, breakdown vs preventive) dan **Buku Pintar Mesin** (11.5.13) |
+| Warna merah / filter "Perlu Perhatian" (< 5 log/bulan) atau penanda "Hari Tanpa Log" pada kalender | **Timeline kerusakan mesin** dan **Top Failure Codes / Top Spareparts** |
+| Kolom "peringkat", "poin", "persentase kontribusi", "streak pengisian" | **Chip kategori & chip aksi cepat** sebagai ekspresi kualitas tindakan |
+| Peringatan/tuduhan pada empty state karena teknisi jarang mengisi | **Pesan positif** (mis. "Tidak ada mesin yang menggantung 🎉") |
+
+**Boleh tetap tampil:** nama teknisi sebagai **kontak "siapa yang tahu"** (siapa yang terakhir menangani, siapa yang mencatat handover), serta agregat beban kerja per kategori untuk perencanaan tenaga kerja Supervisor — selama tidak disusun sebagai urutan/ranking individu.
+
+**Alasan:** sistem ini adalah alat keandalan mesin dan serah-terima shift. Metrik yang membandingkan jumlah log antar-teknisi mendorong *quantity gaming* (mengisi log banyak-banyak tanpa kualitas), memperburuk hubungan kerja, dan membuat data keandalan menjadi tidak jujur.
+
 ---
 
 ## 12. Alur Kerja Pengembangan
@@ -936,13 +1237,30 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 ### Fase 2 - Backend REST API, Skema TiDB & Integrasi *(Selesai Dieksekusi)*
 
 - [x] **Inisialisasi Backend**: Node.js (ES Module) + Express.js di folder `/backend`.
-- [x] **Skema Database TiDB (MySQL-compatible)**: 11 tabel lengkap dengan relasi FK dan indeks menggunakan Prisma ORM (`backend/prisma/schema.prisma`).
+- [x] **Skema Database TiDB (MySQL-compatible)**: 11 tabel lengkap dengan relasi FK dan indeks menggunakan Prisma ORM (`backend/prisma/schema.prisma`) — **berkembang menjadi 14 tabel pada Upgrade v6.0** (lihat Fase 3 di bawah).
 - [x] **Database Seeding**: Skrip `backend/prisma/seed.js` untuk master data (Plant, Shift, Machine, Sub-Machine, Group, Role), akun dummy resmi, sample logbook, dan audit log.
 - [x] **Autentikasi & Keamanan**: JSON Web Token (JWT) stateless, enkripsi kata sandi `bcryptjs`, dan middleware RBAC (`Teknisi`, `Supervisor`, `Admin`).
 - [x] **REST API Endpoints v1**: Format standar JSON (`success`, `message`, `data`, `meta`) di `/api/v1` untuk auth, logbook CRUD, approval, master data, user management, ekspor laporan, notifikasi, dan audit log.
 - [x] **Layanan Ekspor & Audit**: Generator file spreadsheet Excel (`ExcelJS`) dan pencatat aktivitas otomatis ke tabel `user_activities`.
 - [x] **Layanan Notifikasi**: Modul email Nodemailer (SMTP) dan pencatatan In-App Notification.
 - [x] **Automated Testing Suite**: 7 pengujian otomatis endpoint dan kalkulasi durasi (`npm test` di backend).
+
+### Fase 3 - Upgrade v6.0: Teknisi-Oriented & Reliability *(Berjalan — Fase 1, 2, 3.1, 3.3, 3.4 Selesai)*
+
+Keputusan filosofi: sistem beralih dari *Supervisor-Oriented* menjadi *Teknisi-Oriented & Reliability* dengan prinsip **"Give Value to Get Data"**. Branch kerja: `feat/v6-reliability`.
+
+- [x] **Fase 0 (Recon & Baseline)**: Pemetaan file nyata, baseline test (34 backend + 9 frontend), branch `feat/v6-reliability`, dan penyesuaian script test untuk Node.js v24 (`node --test "test/**/*.test.js"`).
+- [x] **Fase 1 (Hotfix Black Box & Stabilitas)**: Perbaikan **13 bug** (scope approval Supervisor per Line, validasi waktu lintas tengah malam, anti multi-submit, hapus draft, validasi email ketat, pagination akun & audit, batas 1000 karakter), standarisasi pop-up **SweetAlert2**, cache **stale-while-revalidate** (`masterStore.js` → `localStorage`), dan penghapusan Leaderboard/Ranking/"Hari Tanpa Log" (P1).
+- [x] **Fase 2 (Migrasi Database)**: Skema Prisma aditif — **6 enum baru** dan **3 model baru** (`FailureCode`, `Sparepart`, `LogbookSparepart`), seed 12 failure code ISO 14224 + 10 sparepart, validasi kategori di `logbookController.js`, dan `maintenance_type` diturunkan backend. Diterapkan dengan `npx prisma db push` (tanpa reset data).
+- [x] **Fase 3.1 (Form Teknisi)**: `InputLogbookView.vue` dirombak menjadi **Form 5 Tombol Besar yang adaptif** (🔧 🛡️ 🛒 ⚡ 📋) lengkap dengan chip aksi cepat, kategori default dari `sub_team`, picker sparepart multi-baris, kondisi akhir mesin, dan toggle downtime.
+- [ ] **Fase 3.2 (Quick-start & QR)**: *Ditunda* menunggu stiker fisik QR Code dicetak.
+- [x] **Fase 3.3 (Handover Board)**: `HandoverBoard.vue` + `GET /api/v1/handover` — dedup log terbaru per mesin/sub-mesin, filter `WAITING_SPAREPART`/`TEMPORARY_FIX`, urut kritikalitas. Menggantikan slot Leaderboard di Dashboard Teknisi.
+- [x] **Fase 3.4 (Machine History)**: `MachineHistoryView.vue` + `GET /api/v1/machines/:id/history` — timeline berhalaman, statistik downtime (dasar MTTR/MTBF), top failure code & top sparepart; kartu mesin di dashboard kini menuju `/mesin/:id`.
+- [x] **Fase 4 (Supervisor)**: Approval sebagai validasi teknis (banner *repeat failure*), antrean tindak lanjut dari Handover Board, KPI keandalan (MTTR/MTBF/Availability/Planned Ratio/Repeat Failure Rate), Pareto bad actor, dan reframing `/supervisor/teknisi` + skill matrix.
+- [ ] **Fase 5 (Admin)**: Radar aset belum terdaftar, master sparepart lengkap, dan generator QR mesin.
+- [ ] **Fase 6–7 (Hardening & Fitur Tertunda)**: Test tambahan (token expired → 401, injeksi input), dokumentasi, serta fitur yang sebelumnya BLOCKED.
+
+**Aturan kerja v6.0:** jangan mengubah skema database lagi tanpa persetujuan (Fase 2 sudah selesai), ikuti daftar file LOCKED, dan jalankan `npm test` backend + `npm test` & `npm run build` frontend di setiap akhir fase.
 
 ### Akun Dummy Resmi Sistem
 
@@ -987,11 +1305,21 @@ Diuji pada viewport 1280-1440 px kecuali dinyatakan lain.
 | DELETE | `/api/v1/logbooks/:id` | Hapus Logbook (Hanya milik sendiri & status Draft) | Teknisi, Admin |
 | POST | `/api/v1/logbooks/:id/approval` | Action Approve / Reject Logbook (wajib catatan bila ditolak) | Supervisor, Admin |
 | GET | `/api/v1/logbooks/:id/approvals` | Riwayat Persetujuan Logbook | Terotentikasi (Semua Peran) |
-| GET | `/api/v1/master/:type` | Ambil Data Master (`plants`, `shifts`, `machines`, `sub-machines`, `groups`, `roles`) | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/master/:type` | Ambil Data Master (`plants`, `shifts`, `machines`, `sub-machines`, `groups`, `roles`, **`failure-codes`**, **`spareparts`**) | Terotentikasi (Semua Peran) |
+| GET | `/api/v1/supervisor/reliability-analytics` | **Analitik Keandalan**: Pareto Mesin, Pareto Failure Code, Skill Matrix (query: `plant_id`, `year_month`) | Supervisor, Admin |
 | POST | `/api/v1/master/:type` | Tambah Data Master Baru | Admin |
 | PUT | `/api/v1/master/:type/:id` | Perbarui Data Master | Admin |
 | DELETE | `/api/v1/master/:type/:id` | Nonaktifkan / Hapus Data Master | Admin |
-| GET | `/api/v1/users` | Daftar Seluruh Pengguna Sistem | Admin |
+| GET | `/api/v1/handover` | **Papan Serah-Terima Shift**: log terbaru per mesin/sub-mesin dengan `machine_end_status` ∈ `WAITING_SPAREPART`/`TEMPORARY_FIX` (query: `status_filter`, `plant_id`, `days` (1-90, default 30), `limit` (1-100, default 50)) | Teknisi (Line sendiri), Supervisor & Admin (lintas Line) |
+| GET | `/api/v1/machines/:id/history` | **Buku Pintar Mesin**: timeline log (hanya `PENDING`/`APPROVED`), statistik (`total_logs`, `total_downtime_minutes`, `total_repair_minutes`, `breakdown_count`, `preventive_count`), `top_failure_codes`, `top_spareparts` (Top-5, query: `page`, `page_size`, `from`, `to`, `sub_machine_id`) | Teknisi, Supervisor, Admin (RBAC Line divalidasi di controller) |
+| GET | `/api/v1/admin/unmapped-assets` | **Radar Aset**: grup logbook dengan `unmapped_asset_note` | Admin |
+| POST | `/api/v1/admin/unmapped-assets/promote` | Promosikan aset belum terdaftar menjadi mesin resmi | Admin |
+| GET | `/api/v1/machines/:id/qr` | **QR Code PNG** untuk mesin (image/png, bukan JSON) | Admin |
+| GET | `/api/v1/machines/:id/qr-data` | Info mesin untuk modal QR (JSON) | Admin |
+| GET | `/api/v1/machines/qr-batch?plant_id=X` | Data batch QR per Line (max 200) | Admin |
+| GET | `/api/v1/master/spareparts` | Katalog sparepart (difilter `?item_type=` & `?search=`) | Semua role terotentikasi |
+| POST/PUT/DELETE | `/api/v1/master/spareparts` | CRUD sparepart (soft delete) | Admin |
+| GET | `/api/v1/users` | Daftar Pengguna (Admin: semua; **Supervisor/Teknisi: mode read-only, difilter ketat berdasarkan `plant_id` JWT**) | Admin, Supervisor, Teknisi (read-only) |
 | POST | `/api/v1/users` | Tambah Akun Pengguna Baru | Admin |
 | PUT | `/api/v1/users/:id` | Edit Akun Pengguna & Toggle Status Aktif | Admin |
 | GET | `/api/v1/supervisor/team-overview` | Metrik Frekuensi & Konsistensi Pengisian Tim Teknisi | Supervisor, Admin |
@@ -1108,6 +1436,29 @@ Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan 
    - `src/utils/calendarLayout.test.js`: Validasi clustering kalender mingguan, snapping grid 15 menit, penanggalan WIB, dan segmentasi event lintas hari.
    - `npm run build`: Kompilasi produksi Vite bebas galat dengan dynamic code splitting (81.6 kB bundle).
 
+3. **v6.0 Reliability Test Suite (Tambahan Upgrade v6.0 — Status: Backend 59/59 & Frontend 14/14 Lulus)**:
+   - `test/reliability.test.js` (**Fase 2 — Aturan Keandalan Mesin**):
+     - `deriveMaintenanceType` (Bagian 4.2): `MACHINE_TROUBLE` + downtime → `BREAKDOWN`, tanpa downtime → `CORRECTIVE`; `PREVENTIVE_PM` + "Cek Rutin" → `INSPECTION`, chip lain → `PREVENTIVE`; `KERETA_TRAY_REPAIR`/`FABRICATION_PROJECT`/`SUPPORT_NON_MACHINE` → `NULL`.
+     - `normalizeMachineEndStatus` (Bagian 4.3): `PREVENTIVE_PM` selalu dipaksa `NORMAL_RESOLVED`.
+     - `validateActivityCategory`: validasi field wajib/dilarang per kategori (mesin dilarang untuk `SUPPORT_NON_MACHINE`, `unit_repaired_qty` wajib ≥ 1 untuk `KERETA_TRAY_REPAIR`, dll).
+   - `test/validation.test.js` (**Fase 1 — Hotfix Black Box**): BUG-003 (`08:00→07:00` ditolak pada shift siang, sah pada shift malam), BUG-004 (durasi 0 ditolak), format jam tidak valid, BUG-009 (validasi email ketat), BUG-012 (batas 1000 karakter).
+   - `src/utils/timeValidation.test.js` (**Fase 1 — Validasi Waktu Sisi Klien**): 5 skenario paralel dengan aturan backend agar pesan error FE & BE konsisten.
+   - **Perintah menjalankan (v6.0)**:
+     ```bash
+     # Backend — seluruh suite (termasuk reliability.test.js)
+     cd backend && npm test          # node --test "test/**/*.test.js"
+
+     # Backend — khusus suite keandalan v6.0
+     cd backend && node --test test/reliability.test.js
+
+     # Frontend — seluruh suite Vitest (termasuk timeValidation.test.js)
+     cd frontend && npm test         # vitest run
+
+     # Frontend — build produksi verifikasi
+     cd frontend && npm run build
+     ```
+   - **Catatan lingkungan:** pada Node.js v24 lokal, script `npm test` backend memakai glob `node --test "test/**/*.test.js"`. Bila route API lebih dari satu segmen mengembalikan 404, jalankan `npm install` ulang di folder `backend` (bug resolusi `path-to-regexp` pada `node_modules` lokal).
+
 ### 18.2 UAT Checklist
 
 - [x] Teknisi sukses menginput logbook dan durasi terhitung otomatis.
@@ -1116,6 +1467,12 @@ Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan 
 - [x] Admin dapat mengelola Master Data Plant & Shift tanpa error.
 - [x] Ekspor laporan PDF/Excel menyajikan data sesuai filter.
 - [x] Pengujian otorisasi RBAC mencegah kebocoran data antar-teknisi dan eskalasi hak akses.
+- [x] **v6.0:** Teknisi dapat menyelesaikan satu logbook lewat Form Input Cepat (5 tombol besar) dengan **mayoritas tap**, tanpa mengetik deskripsi panjang.
+- [x] **v6.0:** Form adaptif bekerja — kategori 📋 Non-Mesin menyembunyikan Mesin & Sparepart; 🛒 Kereta/Tray mengunci mesin `KERETA` dan mewajibkan jumlah unit.
+- [x] **v6.0:** Log berstatus `WAITING_SPAREPART`/`TEMPORARY_FIX` muncul di Papan Serah-Terima Shift, dan **hilang otomatis** setelah ada log lebih baru berstatus `NORMAL_RESOLVED`.
+- [x] **v6.0:** Buku Pintar Mesin menampilkan timeline, statistik downtime, top failure code, dan top sparepart untuk mesin yang pernah ditangani.
+- [x] **v6.0 (P1):** Tidak ada Leaderboard, Ranking, lencana peringkat, maupun indikator "Hari Tanpa Log" di halaman mana pun.
+- [x] **v6.0 (P5):** Saat jaringan diputus setelah master termuat, seluruh dropdown tetap terisi dan draft lokal tidak hilang.
 
 ---
 
@@ -1126,25 +1483,45 @@ Alur kerja Continuous Integration terpasang pada `.github/workflows/ci.yml` dan 
 | Shift melintasi tengah malam (misal 22:00 - 06:00) | Perhitungan durasi minus / salah | Utility kalkulator khusus memperhatikan `task_date` & pergantian hari |
 | Kegagalan pengiriman Notifikasi Email | Supervisor tidak sadar ada pending approval | Menyediakan fallback **InApp Notification** di dashboard Supervisor |
 | Data Mesin bertambah pesat | Dropdown UI lambat | Implementasi search/select async pagination pada dropdown Mesin |
+| **Teknisi menganggap form terlalu rumit** sehingga kembali mencatat manual | Data keandalan tidak terbentuk | Form Input Cepat 5 tombol besar, chip aksi cepat, kategori default dari `sub_team`, dan target pengisian < 1 menit (Bagian 2) |
+| **Data lama (v4.x) tidak memiliki `activity_category`/`failure_code`** | Statistik KPI v6 tercampur data tak terklasifikasi | Data lama memakai default `MACHINE_TROUBLE` + `NORMAL_RESOLVED`; log legacy dikecualikan dari KPI melalui filter tanggal go-live v6, dan kelengkapan kode kerusakan ditampilkan transparan sebagai "Tidak diklasifikasi" |
+| **Aset belum terdaftar** (mesin/sub-mesin baru di lapangan) | Teknisi bingung memilih mesin | Opsi darurat "Mesin/bagian belum terdaftar" (`unmapped_asset_note`) yang masuk radar aset Admin (Fase 5) |
+| **Handover Board menumpuk log kuno** | Papan penuh item basi | Batas `days` (default 30, maks 90) + dedup log terbaru per mesin/sub-mesin; mesin tertutup otomatis saat `NORMAL_RESOLVED` |
 
 ---
 
 ## 20. Pertanyaan Terbuka & Catatan Penyempurnaan
 
-1. **Relasi Mesin dan Plant**: Disarankan menambahkan `plant_id` pada tabel `machines` agar mesin terfilter otomatis sesuai plant teknisi.
+1. **Relasi Mesin dan Plant**: Implementasi v6 sudah menambahkan `plant_id` pada tabel `machines` (nullable); perlu dilengkapi secara konsisten untuk seluruh data lama agar filter otomatis per Line berjalan penuh.
 2. **Batas Re-submit Logbook**: Menetapkan berapa kali teknisi dapat mengajukan ulang logbook yang ditolak.
 3. **Pengaturan Mail Server**: Penentuan kredensial SMTP resmi Satoria untuk pengiriman notifikasi email.
+4. **Waktu operasi terjadwal per Line**: Konstanta dasar perhitungan MTBF & Technical Availability (default 24 jam × jumlah hari) masih perlu nilai resmi per Line.
+5. **Ambang "Major Breakdown vs Minor Stop"**: Default 15 menit untuk kuadran frekuensi × durasi (Fase 4) menunggu konfirmasi engineering.
+6. **Kelas aset kritis**: Penetapan resmi `A_CRITICAL`/`B_ESSENTIAL`/`C_GENERAL` per mesin perlu divalidasi tim reliability.
 
 ---
 
 ## 21. Glosarium
 
 - **Logbook**: Catatan pekerjaan harian teknisi.
-- **Plant**: Lokasi/Fasilitas pabrik Satoria.
+- **Plant**: Lokasi/Fasilitas pabrik Satoria (label UI kini ditampilkan sebagai **Line**).
+- **Line**: Istilah UI untuk Plant (mis. "Line 1"); nama tabel/kolom DB tetap `plants`/`plant_id`.
 - **Shift**: Jadwal jam kerja operasional.
 - **Sub-Machine**: Bagian spesifik/komponen dari mesin utama.
 - **Approval**: Proses pemeriksaan dan persetujuan pengajuan logbook.
 - **RBAC**: *Role-Based Access Control* (Pengaturan Hak Akses Berbasis Peran).
+- **Form Input Cepat (5 Tombol Besar)**: Antarmuka pencatatan utama teknisi — 🔧 Perbaikan Mesin, 🛡️ Rawat Rutin, 🛒 Kereta/Tray, ⚡ Fabrikasi, 📋 Non-Mesin.
+- **`activity_category`**: Kategori aktivitas yang dipilih teknisi lewat 5 tombol besar; menentukan field form mana yang wajib/dilarang.
+- **`quick_action_tag` (Chip Aksi Cepat)**: Label tindakan singkat (mis. "Ganti Part Rusak") yang dipilih dengan satu tap, menggantikan pengetikan bebas.
+- **`machine_end_status` (Status Akhir Mesin)**: Kondisi mesin setelah pekerjaan — `NORMAL_RESOLVED`, `MONITORING_NEEDED`, `TEMPORARY_FIX`, `WAITING_SPAREPART`.
+- **`maintenance_type` (Jenis Pemeliharaan)**: Turunan otomatis backend dari kategori + chip + toggle downtime; hanya dipakai untuk KPI keandalan.
+- **Papan Serah-Terima Shift (Handover Board)**: Daftar mesin yang masih menggantung (`Tunggu Sparepart`/`Perbaikan Sementara`) lintas shift, diturunkan dari log terbaru per mesin.
+- **Buku Pintar Mesin (Machine History)**: Rekam medis per mesin — timeline kerusakan, statistik downtime, top kode kerusakan, dan top sparepart.
+- **Failure Code**: Kode kerusakan baku mengikuti taksonomi ringkas ISO 14224 (seed 12 kode, mis. `MECH-01`).
+- **Sparepart / Consumable**: Suku cadang mesin (`MACHINE_PART`) vs bahan habis pakai bengkel (`CONSUMABLE_WORKSHOP`).
+- **MTTR / MTBF**: *Mean Time To Repair* / *Mean Time Between Failures* — metrik keandalan yang dihitung dari durasi perbaikan dan downtime.
+- **Quick-start**: Prinsip pencatatan super cepat (80% tap, bukan ketik) agar teknisi bersedia mengisi data.
+- **P1 (Bukan Alat HR)**: Prinsip yang melarang Leaderboard, Ranking, lencana peringkat, dan pemantauan "hari tanpa log".
 
 ---
 
@@ -1202,6 +1579,8 @@ Dokumen ini adalah **sumber kebenaran tunggal (*Single Source of Truth*)** untuk
 | 4.7 | 21 Oktober 2026 | **Aktivasi & Perbaikan Fitur Kalender Mingguan Teknisi (`RiwayatLogbookView.vue`, `calendarLayout.js`, `LogbookEventBlock.vue`, `DayColumn.vue`, `LogbookEventPopover.vue`, `InputLogbookView.vue`)**:<br>- **Latar Belakang & Identifikasi Masalah/Bug**:<br>  Fitur `BAGIAN 1: Kalender Mingguan Teknisi (UI dari Input Logbook)` pada `RiwayatLogbookView.vue` sebelumnya tidak berfungsi secara aktif dan tidak merender balok event pekerjaan karena beberapa galat struktural dan ketidaksesuaian antarmuka props:<br>  1. *Pencocokan Kunci Tanggal Tidak Cocok*: Fungsi `splitLogbookToSegments` menghasilkan segmen berproperti `s.day`, sedangkan loop di view membandingkan `s.dateKey === dayDate` yang selalu bernilai `false`, berakibat array segmen harian selalu kosong.<br>  2. *Ketidaksesuaian Interface Komponen Grid*: Objek `calculatedDays` mengembalikan `{ dateKey, blocks, summary }`, sementara komponen anak (`TimeGrid.vue`, `WeekHeader.vue`, `DaySummaryRow.vue`, `DayColumn.vue`) membaca `dateStr`, `isToday`, `segments`, dan `summaryChips`.<br>  3. *Galat Parameter Ringkasan Harian*: Fungsi `computeDaySummary` menerima parameter `(dayDateStr, dayLogbooks = [])` namun dipanggil dengan argumen tunggal `daySegments`, sehingga chip ringkasan tidak terhitung.<br>  4. *Query Parameter Slot Klik/Seret*: `DayColumn.vue` memancarkan `task_date` dan `start_time`, sedangkan handler `handleCreateFromSlot` membaca `slot.date` dan `slot.time` sehingga navigasi form input membawa parameter `undefined`.<br>  5. *Bounding Rect Popover Hilang*: `LogbookEventBlock.vue` hanya memancarkan segmen tanpa bounding rect, sehingga popover ringkasan tidak memiliki posisi jangkar (*anchor rect*) akurat dan jatuh ke koordinat default pojok layar.<br>- **Solusi & Implementasi Komprehensif**:<br>  1. `calendarLayout.js`: Menambahkan properti ganda `day` dan `dateKey` pada setiap segmen logbook normal maupun lintas tengah malam.<br>  2. `RiwayatLogbookView.vue`: Mengaktifkan pencocokan `(s.day === dayDate || s.dateKey === dayDate)`, merestrukturisasi objek `calculatedDays` lengkap dengan `dateStr`, `dateKey`, `isToday`, `segments`, `blocks`, dan `summaryChips` dari hasil `computeDaySummary(dayDate, dayLogs)`, serta menyempurnakan `myLogs` dengan konversi numerik `Number(l.user_id) === Number(authStore.user?.id)`.<br>  3. `DayColumn.vue` & `LogbookEventBlock.vue`: Menghitung dan meneruskan element bounding rect secara presisi saat kartu logbook diklik, serta melengkapi payload `create-slot` dengan properti `date`, `task_date`, `time`, `start_time`, dan `end_time`.<br>  4. `LogbookEventPopover.vue`: Mengintegrasikan tombol interaktif 'Detail Lengkap' (membuka modal detail riwayat) dan tombol 'Edit' / 'Revisi' (membuka halaman edit untuk status Draft/Rejected).<br>  5. `InputLogbookView.vue`: Memasang watcher reaktif pada `route.query` agar saat slot waktu atau tombol kalender diklik, form input langsung otomatis terisi tanggal tugas (`task_date`) dan jam mulai (`start_time`) serta bulan kalender picker tersinkronisasi.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 9 pengujian unit test Vitest frontend lulus 100% (`npm test`).<br>  - Build produksi frontend Vite (`npm run build`) selesai tanpa galat (`built in 4.23s`).<br>  - Seluruh pengujian otorisasi dan fungsionalitas backend Node.js terverifikasi stabil. |
 | 4.8 | 21 Oktober 2026 | **Integrasi Supabase Storage SDK (Metode 1) untuk Media & Avatar (`storageService.js`, `.env.example`)**:<br>- **Implementasi Supabase Storage SDK (`@supabase/supabase-js`)**:<br>  1. Memasang package `@supabase/supabase-js` pada backend Express.<br>  2. Mengimplementasikan modul adaptor Supabase pada `backend/src/services/storageService.js` (`saveAvatar`, `removeAvatar`, `isSupabaseConfigured`, `getSupabaseClient`).<br>  3. Mendukung direct public upload dengan buffer WebP teroptimasi, otomatis upsert, pembuatan public URL instan, serta pembersihan file lama (*cleanup deletion*).<br>  4. Menyediakan sistem fallback hierarkis cerdas: Supabase Storage -> S3/R2 Object Storage -> Local Disk Storage (development offline).<br>  5. Memperbarui `backend/.env.example` dengan variabel `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan `SUPABASE_STORAGE_BUCKET`.<br>- **Pengujian & Verifikasi**:<br>  - Seluruh 34 unit & integration test backend Node.js (`npm test`) lulus 100%. |
 | 4.9 | 6 November 2026 | **Perbaikan Bug Dashboard Overview & Stabilitas CI/CD**:<br>- **Perbaikan Bug Dashboard**: Menghapus filter `is_active` yang tidak valid pada query `prisma.plant.findMany` di `overviewController.js`. Error `Unknown argument 'is_active'` pada Dashboard Admin & Supervisor telah teratasi. Perubahan ini tidak mengubah struktur database (schema).<br>- **Perbaikan CI/CD Pipeline**: Memperbaiki perintah test di `backend/package.json` (`node --test test/`) agar kompatibel dengan lingkungan Linux (GitHub Actions). Menambahkan injeksi environment variable (`DATABASE_URL`, `JWT_SECRET`) pada `.github/workflows/ci.yml` untuk memastikan test backend berjalan lancar di server CI.<br>- **Dokumentasi**: Membuat file `CHANGELOG.md` untuk mencatat rilis dan perbaikan secara lebih terperinci ke depannya. |
+| 6.0 | 9 November 2026 | **UPGRADE v6.0 — Teknisi-Oriented & Reliability (dari v4.8)**:<br>1. **Perubahan Filosofi**: Dari *Supervisor-Oriented* menjadi **Teknisi-Oriented & Reliability**. Prinsip baru "Give Value to Get Data" — aplikasi wajib mempermudah teknisi (pencatatan super cepat) dan memberi nilai balik (histori keandalan mesin). Ditutup dengan prinsip tidak bisa ditawar **P1 — Bukan Alat HR**: Leaderboard, Ranking, lencana peringkat, dan pemantauan "Hari Tanpa Log" **dihapus dari seluruh dashboard** dan dilarang ditambahkan kembali.<br>2. **Fase 1 (Hotfix & Stabilitas)**: Perbaikan **13 bug black box** (scope approval Supervisor per Line, validasi waktu lintas tengah malam, anti multi-submit, muat-ke-form, hapus draft, validasi email ketat, batas 1000 karakter, pagination akun & audit trail). **Standarisasi SweetAlert2** lewat satu wrapper `utils/alert.js` (tanpa banner error inline). **SWR Cache**: `masterStore.js` memakai *stale-while-revalidate* pada `localStorage` (`satoria_master_cache_v1`) agar dropdown master tidak pernah kosong saat jaringan shop floor buruk. Label UI "Plant" diganti "Line".<br>3. **Fase 2 (Database)**: Migrasi skema Prisma aditif & non-breaking (`npx prisma db push`, tanpa reset) — **6 enum baru** (`ActivityCategory`, `MachineEndStatus`, `MaintenanceType`, `AssetCriticality`, `SubTeam`, `SparepartItemType`), **3 model baru** (`FailureCode` ISO 14224, `Sparepart`, `LogbookSparepart`), 12 kolom keandalan pada `logbooks` (+ 4 index komposit), `sub_team` pada `users`, `criticality` & `is_unmapped_other` pada `machines`. Seed 12 failure code + 10 sparepart. Validasi kategori di server (tabel 4.3) dan penurunan otomatis `maintenance_type` (tabel 4.2). Total tabel: **11 → 14**.<br>4. **Fase 3.1 (Form Teknisi)**: `InputLogbookView.vue` dirombak menjadi **Form 5 Tombol Besar yang adaptif** — 🔧 Perbaikan Mesin, 🛡️ Rawat Rutin, 🛒 Kereta/Tray, ⚡ Fabrikasi, 📋 Non-Mesin — dengan chip aksi cepat, kategori default dari `sub_team`, picker sparepart multi-baris, opsi "Part belum terdaftar", pertanyaan kondisi akhir mesin, toggle downtime, dan detail kerusakan opsional. Target **80% tap, bukan ketik**.<br>5. **Fase 3.3 (Handover Board)**: Implementasi **Papan Serah-Terima Shift** (`HandoverBoard.vue` + `GET /api/v1/handover`) menggantikan slot Leaderboard di Dashboard Teknisi. Menampilkan mesin "menggantung" (`WAITING_SPAREPART`/`TEMPORARY_FIX`) hasil **dedup log terbaru per mesin/sub-mesin**, urut status lalu kritikalitas aset, tertutup otomatis saat ada log `NORMAL_RESOLVED`. Bugfix sampingan: token service via Pinia, tinggi grid `StatisticsChartCard`, dan data "Teknisi di Line Ini" (read-only `GET /users` terfilter `plant_id` JWT).<br>6. **Fase 3.4 (Machine History)**: Implementasi **Buku Pintar Mesin** (`MachineHistoryView.vue` + `GET /api/v1/machines/:id/history`, rute `/mesin/:id`) berisi **timeline kerusakan** berhalaman, **statistik downtime** (Total Log, Total Downtime, Waktu Perbaikan, jumlah Breakdown vs Preventive — dasar MTTR/MTBF), serta **Top Failure Codes** dan **Top Spareparts**. Query paralel + filter WIB + anti-race condition (`requestSeq`); kartu mesin di dashboard kini dapat diklik langsung.<br>7. **Dokumentasi & Pengujian**: README diselaraskan ke v6.0 (Bagian 1, 2, 3, 4, 5 + Catatan P1, 6.1.1 alur handover, 7.2 status fase, 9 ERD 14 tabel + 6 enum + 3 model baru, 10 routing, 11.5.12 & 11.5.13 spesifikasi UI handover/machine history, 11.13 larangan Leaderboard, 13 endpoint baru, 18.1 suite uji v6, 19 risiko, 21 glosarium). Status test: **Backend 59/59 lulus**, **Frontend 14/14 lulus**, `npm run build` sukses. Fase 3.2 (Quick-start & QR) ditunda menunggu stiker QR fisik; Fase 4 (Supervisor) dan Fase 5 (Admin) menyusul. |
+| 6.1 | 9 November 2026 | **Fase 5 (Admin) + Fase 6 (Hardening — Sesi 1 & 2) SELESAI**:<br>1. **F5.1 Radar Aset**: `/admin/unmapped-assets` untuk promote `unmapped_asset_note` ke master mesin.<br>2. **F5.2 Master Sparepart**: CRUD + soft delete + filter tipe di `/admin/spareparts`.<br>3. **F5.3 QR Generator**: Single QR (`MachineQrModal.vue`) + Batch Print A4 (`MachineQRPrintView.vue`) untuk 200 mesin/halaman.<br>4. **F6-H1**: Tombol "Catat Logbook dari Buku Pintar" + auto-prefill via `logbookQuickStart.js`.<br>5. **F6-H2**: RBAC audit 11/11 PASSED via `scripts/rbac-audit.ps1`.<br>6. **F6-S2**: UI Polish — skeleton drafts, empty state kontekstual, toggle mode mobile 360px.<br>**Test:** Backend 176/176, Frontend 55/55. **PWA + Offline-first** masuk backlog v6.1. |
 
 ---
 

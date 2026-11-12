@@ -1,14 +1,16 @@
 <template>
   <div
-    class="relative w-full select-none"
+    class="relative w-full h-full flex flex-col justify-between select-none"
     role="img"
     :aria-label="ariaSummary"
     @mouseleave="resetToInitial"
   >
     <!-- Chart Container: Y-Axis Column (HTML) + Plot Area (SVG & HTML Overlay) -->
-    <div class="flex gap-2">
-      <!-- Y Axis Labels (Crisp HTML Text - Zero SVG Font Stretch) -->
-      <div class="relative w-7 shrink-0 h-[160px]" aria-hidden="true">
+    <!-- PERUBAHAN: Tambahkan 'flex-1 min-h-0' -->
+    <div class="flex gap-2 flex-1 min-h-0">
+      <!-- Y Axis Labels -->
+      <!-- PERUBAHAN: Ganti 'h-[160px]' menjadi 'h-full' -->
+      <div class="relative w-7 shrink-0 h-full" aria-hidden="true">
         <div
           v-for="(tick, idx) in yTicks"
           :key="`y-tick-${idx}`"
@@ -20,7 +22,8 @@
       </div>
 
       <!-- Main Plot Area -->
-      <div class="relative flex-1 h-[160px]">
+      <!-- PERUBAHAN: Ganti 'h-[160px]' menjadi 'h-full min-h-0' -->
+      <div class="relative flex-1 h-full min-h-0">
         <!-- Vertical Highlight Column on Selected Month -->
         <div
           v-if="selectedPoint"
@@ -41,14 +44,14 @@
           preserveAspectRatio="none"
         >
           <defs>
-            <!-- Area fill gradient (primary 0.22 to transparent) per 11.5.4 -->
+            <!-- Area fill gradient -->
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#2563EB" stop-opacity="0.22" />
               <stop offset="100%" stop-color="#2563EB" stop-opacity="0.0" />
             </linearGradient>
           </defs>
 
-          <!-- Horizontal Dashed Grid Lines per 11.5.4 -->
+          <!-- Horizontal Dashed Grid Lines -->
           <g class="grid-lines-y">
             <line
               v-for="(yVal, idx) in yTicks"
@@ -64,7 +67,7 @@
             />
           </g>
 
-          <!-- Vertical Dashed Grid Lines per 11.5.4 -->
+          <!-- Vertical Dashed Grid Lines -->
           <g class="grid-lines-x">
             <line
               v-for="(point, idx) in points"
@@ -87,7 +90,7 @@
             class="transition-all duration-300 pointer-events-none"
           />
 
-          <!-- Linear Line Path (Stroke 2px primary, no smooth curve) per 11.5.4 -->
+          <!-- Linear Line Path -->
           <path
             :d="linePathD"
             fill="none"
@@ -100,7 +103,7 @@
           />
         </svg>
 
-        <!-- Highlight Dot: Perfect HTML Circle (No SVG Aspect Ratio Distortion) -->
+        <!-- Highlight Dot -->
         <div
           v-if="selectedPoint"
           class="absolute w-3 h-3 rounded-full bg-surface border-[2.5px] border-primary shadow-xs -translate-x-1/2 -translate-y-1/2 transition-all duration-150 pointer-events-none z-10"
@@ -123,14 +126,13 @@
           @click="selectedIndex = idx"
         />
 
-        <!-- Custom Tooltip per 11.5.4: White box, radius 8, shadow-tooltip, blue indicator square -->
+        <!-- Custom Tooltip -->
         <div
           v-if="selectedPoint"
           class="absolute z-20 pointer-events-none transition-all duration-150"
           :style="tooltipStyle"
         >
           <div class="relative bg-surface rounded-md shadow-tooltip border border-line px-3 py-1.5 text-center min-w-[90px]">
-            <!-- Blue indicator square at top of tooltip per 11.5.4 -->
             <div class="w-3.5 h-1.5 bg-primary rounded-xs mx-auto -mt-2 mb-1 shadow-xs" />
             <div class="text-[13px] font-semibold text-primary leading-tight font-sans">
               {{ selectedPoint.value }}
@@ -143,8 +145,8 @@
       </div>
     </div>
 
-    <!-- X Axis Labels (Crisp HTML Text - Zero SVG Font Stretch) -->
-    <div class="flex items-center pl-9 pt-2">
+    <!-- X Axis Labels (Shrink-0 agar tidak terdorong) -->
+    <div class="flex items-center pl-9 pt-2 shrink-0">
       <div class="relative w-full h-5">
         <button
           v-for="(point, idx) in points"
@@ -163,7 +165,7 @@
       </div>
     </div>
 
-    <!-- Hidden Accessible Data Table per 11.9 butir 6 -->
+    <!-- Hidden Accessible Data Table -->
     <div class="sr-only">
       <table>
         <caption>Data Tren Aktivitas Logbook per Bulan</caption>
@@ -293,7 +295,6 @@ const tooltipStyle = computed(() => {
   if (!selectedPoint.value) return { display: 'none' }
   const px = selectedPoint.value.percentX
   const py = selectedPoint.value.percentY
-  // Clamp tooltip horizontal position so it doesn't overflow container edges
   const leftClamped = Math.min(Math.max(px, 8), 92)
   return {
     left: `${leftClamped}%`,

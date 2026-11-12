@@ -182,6 +182,10 @@ import {
   Building2,
   Cpu,
   Layers,
+  LineChart,
+  Radar,
+  Wrench,
+  ShieldAlert,
   ChevronLeft,
   ChevronRight,
   LogOut
@@ -211,6 +215,12 @@ const iconMap = {
   Building2,
   Cpu,
   Layers,
+  LineChart,
+  Radar,
+  // FASE 5.2 — ikon Master Sparepart.
+  Wrench,
+  // FASE 5 — ikon Master Failure Code.
+  ShieldAlert,
   ScrollText,
   UserCircle
 }

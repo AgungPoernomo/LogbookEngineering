@@ -44,10 +44,20 @@ const routes = [
     meta: { roles: [ROLES.SUPERVISOR], title: 'Approval Logbook' }
   },
   {
+    // Monitoring aktivitas & frekuensi logbook teknisi.
+    // Supervisor: terkunci ke plant-nya (backend). Admin: seluruh plant / bisa filter plant.
     path: '/supervisor/teknisi',
     name: 'supervisor-teknisi',
     component: () => import('../views/supervisor/TeknisiActivityView.vue'),
     meta: { roles: [ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Aktivitas Teknisi Tim' }
+  },
+  {
+    // Fase 4.4 — Pareto Bad Actor & Skill Matrix.
+    // Analitik KEANDALAN ASET + pemetaan keahlian (bukan leaderboard / penilaian kinerja).
+    path: '/supervisor/reliability',
+    name: 'supervisor-reliability',
+    component: () => import('../views/supervisor/ReliabilityAnalyticsView.vue'),
+    meta: { roles: [ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Analitik Keandalan' }
   },
   {
     path: '/laporan',
@@ -74,6 +84,36 @@ const routes = [
     meta: { roles: [ROLES.ADMIN], title: 'Master Mesin & Sub-Mesin' }
   },
   {
+    // FASE 5.3 — Cetak batch label QR per Line (grid kartu QR + @media print).
+    // Generator QR disiapkan sekarang walau stiker QR fisik menyusul (Fase 3.2).
+    path: '/admin/machines/qr-print',
+    name: 'admin-machines-qr-print',
+    component: () => import('../views/admin/MachineQRPrintView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Cetak QR Code Mesin' }
+  },
+  {
+    // FASE 5.2 — Master Sparepart (katalog MACHINE_PART & CONSUMABLE_WORKSHOP).
+    path: '/admin/spareparts',
+    name: 'admin-spareparts',
+    component: () => import('../views/admin/MasterSparepartView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Master Sparepart' }
+  },
+  {
+    // FASE 5 — Master Failure Code (taksonomi kerusakan ISO 14224).
+    // CRUD Admin: tambah/edit kode, toggle aktif/nonaktif (soft delete).
+    path: '/admin/failure-codes',
+    name: 'admin-failure-codes',
+    component: () => import('../views/admin/MasterFailureCodeView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Master Failure Code' }
+  },
+  {
+    // FASE 5.1 — Radar Aset Belum Terdaftar (promote `unmapped_asset_note` → master mesin).
+    path: '/admin/unmapped-assets',
+    name: 'admin-unmapped-assets',
+    component: () => import('../views/admin/UnmappedAssetsView.vue'),
+    meta: { roles: [ROLES.ADMIN], title: 'Radar Aset Belum Terdaftar' }
+  },
+  {
     path: '/admin/groups',
     name: 'admin-groups',
     component: () => import('../views/admin/MasterGroupView.vue'),
@@ -94,6 +134,19 @@ const routes = [
     name: 'profil',
     component: () => import('../views/shared/ProfileView.vue'),
     meta: { roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN], title: 'Profil Akun' }
+  },
+  {
+    // F3.4 "Buku Pintar Mesin" — rekam medis detail per mesin (timeline, statistik, top failure & part).
+    // `requiresAuth: true` eksplisit; `roles` membuat guard RBAC bawaan hanya mengizinkan user terautentikasi
+    // (endpoint backend sendiri membatasi Teknisi/Supervisor ke plant-nya).
+    path: '/mesin/:id',
+    name: 'machine-history',
+    component: () => import('../views/shared/MachineHistoryView.vue'),
+    meta: {
+      requiresAuth: true,
+      roles: [ROLES.TEKNISI, ROLES.SUPERVISOR, ROLES.ADMIN],
+      title: 'Buku Pintar Mesin'
+    }
   },
   // Backward redirects for old routes
   {

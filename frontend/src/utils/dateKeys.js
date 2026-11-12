@@ -3,6 +3,30 @@
  */
 
 /**
+ * Mendapatkan tanggal string hari ini dalam ZONA WAKTU WIB (Asia/Jakarta, UTC+7)
+ * Gunakan ini untuk default filter (bukan toISOString yang berbasis UTC).
+ * @param {Date} [date=new Date()]
+ * @returns {string} 'YYYY-MM-DD' (WIB)
+ */
+export function getWIBDateString(d = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(d)
+}
+
+/**
+ * Mendapatkan 'YYYY-MM' bulan berjalan dalam zona waktu WIB
+ * @param {Date} [date=new Date()]
+ * @returns {string} 'YYYY-MM' (WIB)
+ */
+export function getWIBYearMonth(d = new Date()) {
+  return getWIBDateString(d).slice(0, 7)
+}
+
+/**
  * Format Date object to 'YYYY-MM-DD' in local time
  * @param {Date|string} d
  * @returns {string}

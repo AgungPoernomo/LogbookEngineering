@@ -1,7 +1,7 @@
 <template>
   <div
     class="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
-    :style="{ top: `${nowPx}px` }"
+    :style="{ top: `calc(var(--planner-hour-h) * ${(nowMin / 60).toFixed(4)})` }"
     aria-hidden="true"
   >
     <!-- Dot Merah 8px -->
@@ -14,19 +14,19 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const nowPx = ref(getNowMinutesToPx())
+// Posisi sekarang dalam menit sejak 00:00; tinggi piksel mengikuti --planner-hour-h
+const nowMin = ref(getNowMinutes())
 let timer = null
 
-function getNowMinutesToPx() {
+function getNowMinutes() {
   const d = new Date()
-  const minutes = d.getHours() * 60 + d.getMinutes()
-  return (minutes / 60) * 60 // 1 hour = 60px
+  return d.getHours() * 60 + d.getMinutes()
 }
 
 onMounted(() => {
-  nowPx.value = getNowMinutesToPx()
+  nowMin.value = getNowMinutes()
   timer = setInterval(() => {
-    nowPx.value = getNowMinutesToPx()
+    nowMin.value = getNowMinutes()
   }, 60000)
 })
 

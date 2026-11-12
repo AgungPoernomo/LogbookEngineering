@@ -5,15 +5,58 @@
       <div>
         <div class="text-[12px] font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
           <Users class="w-3.5 h-3.5" />
-          <span>Supervisi & Kinerja Tim</span>
+          <span>{{ isAdmin ? 'Monitoring Lintas Plant' : 'Supervisi & Kinerja Tim' }}</span>
         </div>
         <h1 class="text-[20px] font-bold text-ink tracking-tight mt-0.5">
           Aktivitas & Frekuensi Logbook Teknisi
         </h1>
         <p class="text-xs text-ink-2 mt-0.5">
-          Pantau seberapa sering teknisi di tim Anda mengisi logbook harian, konsistensi kerja, dan detail pemeliharaan mesin.
+          {{ isAdmin
+            ? 'Pantau konsistensi pengisian logbook seluruh teknisi pabrik, lengkap dengan status approval dan riwayat pemeliharaan mesin.'
+            : 'Pantau seberapa sering teknisi di tim Anda mengisi logbook harian, konsistensi kerja, dan detail pemeliharaan mesin.' }}
         </p>
       </div>
+
+      <!-- Filter Plant (khusus Admin) — Supervisor otomatis terkunci ke plant di JWT -->
+      <div v-if="isAdmin" class="shrink-0">
+        <label for="plant-filter" class="block text-[10px] font-semibold uppercase tracking-wider text-ink-3 mb-1">
+          Line / Plant
+        </label>
+        <div class="relative min-w-[190px]">
+          <select
+            id="plant-filter"
+            v-model="plantFilter"
+            class="w-full h-8 pl-2.5 pr-7 rounded-md border border-line text-xs font-medium text-ink bg-surface focus:outline-none focus:border-primary cursor-pointer appearance-none"
+          >
+            <option value="ALL">Seluruh Plant</option>
+            <option v-for="plant in plantOptions" :key="plant.id" :value="String(plant.id)">
+              {{ plant.name }}
+            </option>
+          </select>
+          <ChevronDown class="w-3.5 h-3.5 text-ink-3 absolute right-2 top-2.5 pointer-events-none" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Banner Error (mis. 403/500): jelaskan kegagalan agar tombol tidak terasa "macet" -->
+    <div
+      v-if="errorMessage"
+      class="bg-status-rejected-bg border border-danger/30 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+    >
+      <div class="flex items-start gap-2 text-status-rejected-fg">
+        <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
+        <div>
+          <p class="font-semibold">Gagal memuat data aktivitas teknisi.</p>
+          <p class="text-[11px] opacity-90 mt-0.5">{{ errorMessage }}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="h-7 px-3 rounded text-[11px] font-semibold border border-danger/40 bg-surface text-danger hover:bg-danger/10 transition shrink-0"
+        @click="loadData"
+      >
+        Coba Lagi
+      </button>
     </div>
 
     <!-- 4 KPI Ringkasan Tim -->
@@ -108,21 +151,21 @@
             type="button"
             :class="[
               'px-3 py-1 rounded transition text-xs font-medium',
-              scopeFilter === 'my_team' ? 'bg-surface text-ink font-semibold shadow-xs' : 'text-ink-3 hover:text-ink'
+              scopeFilter === SCOPE_MY_TEAM ? 'bg-surface text-ink font-semibold shadow-xs' : 'text-ink-3 hover:text-ink'
             ]"
-            @click="scopeFilter = 'my_team'"
+            @click="scopeFilter = SCOPE_MY_TEAM"
           >
-            Tim Pimpinan Saya ({{ directTeamCount }})
+            {{ isAdmin ? 'Di plant terpilih' : 'Tim Pimpinan Saya' }} ({{ directTeamCount }})
           </button>
           <button
             type="button"
             :class="[
               'px-3 py-1 rounded transition text-xs font-medium',
-              scopeFilter === 'all' ? 'bg-surface text-ink font-semibold shadow-xs' : 'text-ink-3 hover:text-ink'
+              scopeFilter === SCOPE_ALL ? 'bg-surface text-ink font-semibold shadow-xs' : 'text-ink-3 hover:text-ink'
             ]"
-            @click="scopeFilter = 'all'"
+            @click="scopeFilter = SCOPE_ALL"
           >
-            Seluruh Teknisi Pabrik ({{ allTechnicians.length }})
+            {{ isAdmin ? 'Seluruh Plant (semua teknisi)' : 'Seluruh Teknisi Pabrik' }} ({{ allTechniciansCount }})
           </button>
         </div>
 
@@ -136,9 +179,6 @@
             >
               <option value="ALL">Semua Tingkat Aktivitas</option>
               <option value="ACTIVE_TODAY">Aktif Hari Ini (Telah Isi Log)</option>
-              <option value="INACTIVE_TODAY">Belum Ada Log Hari Ini</option>
-              <option value="HIGH_ACTIVITY">Sangat Rajin (Frekuensi Tinggi)</option>
-              <option value="NEEDS_ATTENTION">Perlu Perhatian (Jarang Isi)</option>
             </select>
             <ChevronDown class="w-3.5 h-3.5 text-ink-3 absolute right-2 top-2.5 pointer-events-none" />
           </div>
@@ -149,8 +189,6 @@
               v-model="sortBy"
               class="w-full h-8 pl-2.5 pr-7 rounded-md border border-line text-xs font-medium text-ink bg-muted focus:outline-none focus:border-primary cursor-pointer appearance-none"
             >
-              <option value="most_active">Log Terbanyak</option>
-              <option value="least_active">Log Paling Sedikit</option>
               <option value="name">Nama Teknisi (A-Z)</option>
             </select>
             <ChevronDown class="w-3.5 h-3.5 text-ink-3 absolute right-2 top-2.5 pointer-events-none" />
@@ -210,7 +248,10 @@
       </div>
       <div>
         <h3 class="text-sm font-bold text-ink">Tidak Ada Teknisi Ditemukan</h3>
-        <p class="text-xs text-ink-3 mt-1 max-w-sm mx-auto">
+        <p v-if="errorMessage" class="text-xs text-ink-3 mt-1 max-w-sm mx-auto">
+          Data teknisi belum bisa dimuat. Periksa koneksi/server lalu tekan "Coba Lagi" di atas.
+        </p>
+        <p v-else class="text-xs text-ink-3 mt-1 max-w-sm mx-auto">
           Tidak ada data teknisi yang sesuai dengan kriteria filter atau pencarian "{{ searchQuery }}".
         </p>
       </div>
@@ -223,13 +264,14 @@
       </button>
     </div>
 
-    <!-- TAMPILAN 1: GRID VIEW (KARTU VISUAL TEKNISI) -->
+    <!-- TAMPILAN 1: GRID VIEW (KARTU VISUAL TEKNISI) — hanya halaman aktif yang dirender -->
     <div
       v-else-if="viewMode === 'grid'"
+      :key="`grid-page-${currentPage}`"
       class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
     >
       <div
-        v-for="tech in filteredTechnicians"
+        v-for="tech in paginatedTechnicians"
         :key="tech.id"
         class="bg-surface rounded-lg border border-line shadow-card p-4 flex flex-col justify-between space-y-3.5 hover:border-primary/40 transition group"
       >
@@ -251,9 +293,8 @@
                 {{ getInitials(tech.full_name) }}
               </div>
               <span
-                class="w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 ring-2 ring-surface shrink-0"
-                :class="tech.isActiveToday ? 'bg-success' : 'bg-ink-3'"
-                :title="tech.isActiveToday ? 'Aktif mengisi logbook hari ini' : 'Belum mengisi logbook hari ini'"
+                class="w-2.5 h-2.5 rounded-full absolute -bottom-0.5 -right-0.5 ring-2 ring-surface shrink-0 bg-ink-3"
+                title="Status aktivitas harian"
               />
             </div>
 
@@ -264,7 +305,7 @@
                   {{ tech.full_name }}
                 </h3>
                 <span
-                  v-if="tech.isDirectTeam"
+                  v-if="tech.isDirectTeam && !isAdmin"
                   class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-primary-soft text-primary border border-primary/20 shrink-0"
                 >
                   Tim Anda
@@ -278,14 +319,6 @@
               </div>
             </div>
           </div>
-
-          <!-- Lencana Frekuensi Keaktifan -->
-          <span
-            class="px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 border"
-            :class="tech.frequencyBadgeClass"
-          >
-            {{ tech.frequencyScore }}
-          </span>
         </div>
 
         <!-- Metrik Angka Frekuensi Pengisian (3 Kolom Mini) -->
@@ -388,6 +421,47 @@
       </div>
     </div>
 
+    <!-- Pagination (Grid View) — di bawah daftar kartu -->
+    <nav
+      v-if="!loading && filteredTechnicians.length > 0"
+      class="bg-surface rounded-lg shadow-card border border-line px-3.5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+      aria-label="Navigasi halaman daftar teknisi"
+    >
+      <p class="text-[11px] text-ink-3">
+        Menampilkan
+        <span class="font-semibold text-ink font-mono">{{ rangeStart }}–{{ rangeEnd }}</span>
+        dari <span class="font-semibold text-ink font-mono">{{ filteredTechnicians.length }}</span> teknisi
+        <span class="text-ink-3/80">({{ itemsPerPage }} kartu per halaman)</span>
+      </p>
+
+      <div class="flex items-center gap-1.5 self-start sm:self-auto">
+        <button
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+          :disabled="currentPage <= 1"
+          title="Halaman sebelumnya"
+          @click="goToPage(currentPage - 1)"
+        >
+          <ChevronLeft class="w-3.5 h-3.5" />
+          <span>Prev</span>
+        </button>
+        <span class="text-[11px] text-ink-2 font-medium px-1 whitespace-nowrap">
+          Halaman <strong class="text-ink font-mono">{{ currentPage }}</strong> dari
+          <strong class="text-ink font-mono">{{ totalPages }}</strong>
+        </span>
+        <button
+          type="button"
+          class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+          :disabled="currentPage >= totalPages"
+          title="Halaman berikutnya"
+          @click="goToPage(currentPage + 1)"
+        >
+          <span>Next</span>
+          <ChevronRight class="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </nav>
+
     <!-- TAMPILAN 2: TABLE VIEW (TABEL RINGKASAN SEMUA ANGGOTA TIM) -->
     <div
       v-else
@@ -410,7 +484,7 @@
           </thead>
           <tbody class="divide-y divide-line text-ink">
             <tr
-              v-for="tech in filteredTechnicians"
+              v-for="tech in paginatedTechnicians"
               :key="tech.id"
               class="hover:bg-muted/40 transition-colors"
             >
@@ -435,7 +509,7 @@
                     <div class="font-bold text-ink flex items-center gap-1">
                       <span>{{ tech.full_name }}</span>
                       <span
-                        v-if="tech.isDirectTeam"
+                        v-if="tech.isDirectTeam && !isAdmin"
                         class="px-1 py-0.2 rounded text-[8px] font-semibold bg-primary-soft text-primary"
                       >
                         Tim Anda
@@ -518,6 +592,42 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination (Table View) -->
+      <nav
+        v-if="filteredTechnicians.length > 0"
+        class="px-3.5 py-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface"
+        aria-label="Navigasi halaman daftar teknisi"
+      >
+        <p class="text-[11px] text-ink-3">
+          Menampilkan <span class="font-semibold text-ink font-mono">{{ rangeStart }}–{{ rangeEnd }}</span>
+          dari <span class="font-semibold text-ink font-mono">{{ filteredTechnicians.length }}</span> teknisi
+        </p>
+        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage <= 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            <ChevronLeft class="w-3.5 h-3.5" />
+            <span>Sebelumnya</span>
+          </button>
+          <span class="text-[11px] text-ink-2 font-medium px-1 whitespace-nowrap">
+            Halaman <strong class="text-ink font-mono">{{ currentPage }}</strong> dari
+            <strong class="text-ink font-mono">{{ totalPages }}</strong>
+          </span>
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage >= totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            <span>Berikutnya</span>
+            <ChevronRight class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </nav>
     </div>
 
     <!-- MODAL DETAIL LENGKAP & RIWAYAT LOGBOOK TEKNISI -->
@@ -547,7 +657,7 @@
               <div class="text-sm font-bold text-ink flex items-center gap-1.5">
                 <span>{{ selectedTech.full_name }}</span>
                 <span class="text-[10px] px-2 py-0.5 rounded font-semibold bg-primary-soft text-primary">
-                  {{ selectedTech.frequencyScore }}
+                  Teknisi
                 </span>
               </div>
               <div class="text-ink-2 text-xs font-mono mt-0.5">
@@ -630,9 +740,9 @@
               <span class="text-[9px] uppercase font-semibold text-status-pending-fg block leading-tight">Menunggu Approval</span>
               <span class="text-sm font-bold text-warning font-mono mt-0.5 block">{{ modalMonthSummary.pendingDays }} Hari</span>
             </div>
-            <div class="p-2 rounded-md bg-status-rejected-bg/60 border border-danger/20">
-              <span class="text-[9px] uppercase font-semibold text-status-rejected-fg block leading-tight">Hari Tanpa Log</span>
-              <span class="text-sm font-bold text-danger font-mono mt-0.5 block">{{ modalMonthSummary.noLogDays }} Hari</span>
+            <div class="p-2 rounded-md bg-muted/60 border border-line">
+              <span class="text-[9px] uppercase font-semibold text-ink-3 block leading-tight">Hari Tanpa Aktivitas</span>
+              <span class="text-sm font-bold text-ink-2 font-mono mt-0.5 block">{{ modalMonthSummary.noLogDays }} Hari</span>
             </div>
             <div class="p-2 rounded-md bg-muted/60 border border-line">
               <span class="text-[9px] uppercase font-semibold text-ink-3 block leading-tight">Total Log Bulan Ini</span>
@@ -658,16 +768,19 @@
                 :disabled="!cell.isCurrentMonth"
                 :class="[
                   'h-11 sm:h-12 rounded-md p-1 flex flex-col justify-between items-center transition relative border text-center select-none',
-                  cell.isCurrentMonth ? cell.colorClass : 'opacity-20 border-transparent bg-transparent cursor-default pointer-events-none',
+                  cell.isCurrentMonth ? cell.colorClass : 'opacity-20 border-transparent bg-transparent cursor-default',
                   cell.isToday ? 'ring-2 ring-primary ring-offset-1 z-10 font-bold' : '',
                   modalSelectedDate === cell.dateStr ? 'ring-2 ring-ink shadow-sm' : ''
                 ]"
                 :title="cell.tooltip"
-                @click="cell.isCurrentMonth && selectModalDate(cell.dateStr)"
+                @click="selectModalDate(cell.dateStr)"
               >
                 <!-- Angka Tanggal & Penanda Hari Ini -->
                 <div class="flex items-center justify-between w-full px-0.5">
-                  <span class="text-[11px] font-bold font-mono leading-none">
+                  <span v-if="cell.isCurrentMonth" class="text-[11px] font-bold font-mono leading-none">
+                    {{ cell.dayNumber }}
+                  </span>
+                  <span v-else class="text-[11px] font-mono leading-none opacity-60">
                     {{ cell.dayNumber }}
                   </span>
                   <span
@@ -678,7 +791,7 @@
                 </div>
 
                 <!-- Indikator Ringkas Jumlah Logbook / Status Hari -->
-                <div class="w-full text-center">
+                <div v-if="cell.isCurrentMonth" class="w-full text-center">
                   <span
                     v-if="cell.logCount > 0"
                     class="text-[9px] font-bold font-mono px-1 rounded leading-tight inline-block"
@@ -716,11 +829,6 @@
             <div class="flex items-center gap-1.5">
               <span class="w-2 h-2 rounded-full bg-status-pending-fg shrink-0" />
               <span class="text-ink font-medium">Butuh Approval (Pending)</span>
-            </div>
-            <!-- Merah: Hari Tanpa Log -->
-            <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-status-rejected-fg shrink-0" />
-              <span class="text-ink font-medium">Hari Tanpa Log</span>
             </div>
             <!-- Indikator Hari Ini -->
             <div class="flex items-center gap-1.5 text-ink-3">
@@ -846,12 +954,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useMasterStore } from '../../stores/master'
 import { teknisiService } from '../../services/teknisiService'
 import { formatDuration } from '../../utils/duration'
-import Avatar from '../../components/common/Avatar.vue'
+import { parseLocalDate } from '../../utils/dateKeys'
+import {
+  filterTechniciansByScope,
+  SCOPE_MY_TEAM,
+  SCOPE_ALL
+} from '../../utils/technicianScope'
 import AppBadge from '../../components/common/AppBadge.vue'
 import AppModal from '../../components/common/AppModal.vue'
 
@@ -865,38 +979,131 @@ import {
   List,
   ChevronDown,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  AlertCircle
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
+const masterStore = useMasterStore()
+
+// Admin memantau semua plant (bisa difilter). Supervisor selalu terkunci ke plant JWT.
+const isAdmin = computed(() => authStore.isAdmin)
 
 const loading = ref(false)
 const allTechnicians = ref([])
+// Ringkasan dari API: `total_team` (isDirectTeam) & `total_factory` (semua teknisi plant).
+const overviewSummary = ref(null)
 const selectedTech = ref(null)
+const errorMessage = ref('')
 
 // Toolbar filters
-const scopeFilter = ref('my_team') // 'my_team' | 'all'
+const scopeFilter = ref(SCOPE_MY_TEAM) // 'my_team' | 'all'
 const activityStatusFilter = ref('ALL') // 'ALL' | 'ACTIVE_TODAY' | 'INACTIVE_TODAY' | 'HIGH_ACTIVITY' | 'NEEDS_ATTENTION'
-const sortBy = ref('most_active') // 'most_active' | 'least_active' | 'name'
+const sortBy = ref('name') // 'name' (urutan default; ranking keaktifan dihapus sesuai P1)
 const searchQuery = ref('')
 const viewMode = ref('grid') // 'grid' | 'table'
 
-// Modal state didefinisikan bersama state kalender di bawah
+// Pagination (client-side) — daftar teknisi bisa puluhan hingga ratusan,
+// jadi hanya satu halaman kartu yang dirender agar halaman tetap ringan.
+// 9 kartu = 3 baris penuh pada grid 3 kolom (xl), 1 baris pada md, 9 baris pada mobile.
+const currentPage = ref(1)
+const itemsPerPage = 9
 
+// Filter plant (hanya dipakai Admin)
+const plantFilter = ref('ALL')
+const plantOptions = computed(() => masterStore.plants || [])
+
+/**
+ * Normalisasi satu baris teknisi dari API.
+ * Backend kini mengirim camelCase, namun tetap toleran terhadap snake_case
+ * agar perubahan kontrak tidak membuat seluruh kartu crash (undefined.property).
+ */
+function normalizeTechnician(tech) {
+  const raw = tech || {}
+  const statusCounts = raw.statusCounts || raw.status_counts || {}
+
+  const toNumber = (value) => {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  return {
+    ...raw,
+    id: raw.id,
+    full_name: raw.full_name || raw.fullName || 'Tanpa Nama',
+    nik: raw.nik || '-',
+    email: raw.email || '-',
+    photo_url: raw.photo_url || raw.photoUrl || null,
+    plant_id: raw.plant_id ?? raw.plantId ?? null,
+    plant_name: raw.plant_name || raw.plantName || 'Line Umum',
+    group_id: raw.group_id ?? raw.groupId ?? null,
+    group_name: raw.group_name || raw.groupName || 'Umum',
+    isDirectTeam: Boolean(raw.isDirectTeam ?? raw.is_direct_team),
+    isActiveToday: Boolean(raw.isActiveToday ?? raw.is_active_today),
+    totalLogs: toNumber(raw.totalLogs ?? raw.total_logs),
+    monthLogs: toNumber(raw.monthLogs ?? raw.month_logs),
+    weekLogs: toNumber(raw.weekLogs ?? raw.week_logs),
+    todayLogs: toNumber(raw.todayLogs ?? raw.today_logs),
+    totalDurationMinutes: toNumber(raw.totalDurationMinutes ?? raw.total_duration_minutes),
+    statusCounts: {
+      approved: toNumber(statusCounts.approved),
+      pending: toNumber(statusCounts.pending),
+      rejected: toNumber(statusCounts.rejected),
+      draft: toNumber(statusCounts.draft)
+    },
+    topMachine: raw.topMachine || raw.top_machine || '-',
+    frequencyScore: raw.frequencyScore || raw.frequency_score || 'Aktif Normal',
+    frequencyBadgeClass:
+      raw.frequencyBadgeClass ||
+      raw.frequency_badge_class ||
+      'bg-primary-soft text-primary border-primary/30',
+    // 7 hari terakhir: pastikan setiap bar memiliki date/dayLabel/count valid
+    last7Days: (Array.isArray(raw.last7Days) ? raw.last7Days : raw.last_7_days || []).map((day) => ({
+      date: day?.date || '',
+      dayLabel: day?.dayLabel || day?.day_label || '',
+      count: toNumber(day?.count)
+    })),
+    lastLog: raw.lastLog || raw.last_log || null,
+    logs: Array.isArray(raw.logs) ? raw.logs : []
+  }
+}
 
 async function loadData() {
   loading.value = true
+  errorMessage.value = ''
   try {
-    const data = await teknisiService.getSupervisorTeamOverview(authStore.user)
-    allTechnicians.value = data.technicians || []
+    const data = await teknisiService.getSupervisorTeamOverview({
+      // Supervisor: jangan kirim plant_id (backend selalu memakai plant JWT).
+      // Admin: 'ALL' = seluruh plant, selain itu plant terpilih.
+      plant_id: isAdmin.value ? plantFilter.value : undefined
+    })
+    allTechnicians.value = (data.technicians || []).map(normalizeTechnician)
+    overviewSummary.value = data.summary || null
   } catch (err) {
     console.error('Gagal memuat data aktivitas teknisi tim:', err)
+    allTechnicians.value = []
+    overviewSummary.value = null
+    errorMessage.value =
+      err?.status === 403
+        ? 'Anda tidak memiliki hak akses untuk memantau aktivitas teknisi.'
+        : err?.message || 'Terjadi kesalahan saat menghubungi server.'
   } finally {
     loading.value = false
   }
 }
 
 onMounted(() => {
+  // Master plant hanya dibutuhkan untuk dropdown filter Admin.
+  if (isAdmin.value) {
+    masterStore.fetchAll().catch(() => {})
+  }
+  loadData()
+})
+
+// Muat ulang saat Admin mengganti plant yang dipantau.
+watch(plantFilter, () => {
+  if (!isAdmin.value) return
+  selectedTech.value = null
   loadData()
 })
 
@@ -910,16 +1117,23 @@ function getInitials(name) {
     .join('')
 }
 
-// Filtered by direct team vs all
+// Scope tab: 'my_team' → hanya isDirectTeam === true, 'all' → semua dari API.
 const teamTechnicians = computed(() => {
-  if (scopeFilter.value === 'my_team') {
-    return allTechnicians.value.filter(t => t.isDirectTeam)
-  }
-  return allTechnicians.value
+  return filterTechniciansByScope(allTechnicians.value, scopeFilter.value)
 })
 
+// Badge tab "Tim Pimpinan Saya" — angka dari API (total_team), fallback hitung array.
 const directTeamCount = computed(() => {
-  return allTechnicians.value.filter(t => t.isDirectTeam).length
+  const fromApi = Number(overviewSummary.value?.total_team)
+  if (Number.isFinite(fromApi)) return fromApi
+  return filterTechniciansByScope(allTechnicians.value, SCOPE_MY_TEAM).length
+})
+
+// Badge tab "Seluruh Teknisi Pabrik" — angka dari API (total_factory), fallback array.
+const allTechniciansCount = computed(() => {
+  const fromApi = Number(overviewSummary.value?.total_factory)
+  if (Number.isFinite(fromApi)) return fromApi
+  return filterTechniciansByScope(allTechnicians.value, SCOPE_ALL).length
 })
 
 // KPI Computeds
@@ -933,15 +1147,15 @@ const participationRate = computed(() => {
 })
 
 const totalMonthLogs = computed(() => {
-  return teamTechnicians.value.reduce((acc, t) => acc + t.monthLogs, 0)
+  return teamTechnicians.value.reduce((acc, t) => acc + (t.monthLogs || 0), 0)
 })
 
 const totalWeekLogs = computed(() => {
-  return teamTechnicians.value.reduce((acc, t) => acc + t.weekLogs, 0)
+  return teamTechnicians.value.reduce((acc, t) => acc + (t.weekLogs || 0), 0)
 })
 
 const totalTeamDuration = computed(() => {
-  return teamTechnicians.value.reduce((acc, t) => acc + t.totalDurationMinutes, 0)
+  return teamTechnicians.value.reduce((acc, t) => acc + (t.totalDurationMinutes || 0), 0)
 })
 
 const avgLogsPerTech = computed(() => {
@@ -968,11 +1182,11 @@ const filteredTechnicians = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter(t =>
-      t.full_name?.toLowerCase().includes(q) ||
-      t.nik?.toLowerCase().includes(q) ||
-      t.topMachine?.toLowerCase().includes(q) ||
-      t.plant_name?.toLowerCase().includes(q) ||
-      t.group_name?.toLowerCase().includes(q)
+      String(t.full_name || '').toLowerCase().includes(q) ||
+      String(t.nik || '').toLowerCase().includes(q) ||
+      String(t.topMachine || '').toLowerCase().includes(q) ||
+      String(t.plant_name || '').toLowerCase().includes(q) ||
+      String(t.group_name || '').toLowerCase().includes(q)
     )
   }
 
@@ -982,17 +1196,59 @@ const filteredTechnicians = computed(() => {
   } else if (sortBy.value === 'least_active') {
     list.sort((a, b) => a.totalLogs - b.totalLogs)
   } else if (sortBy.value === 'name') {
-    list.sort((a, b) => a.full_name.localeCompare(b.full_name))
+    list.sort((a, b) => String(a.full_name || '').localeCompare(String(b.full_name || '')))
   }
 
   return list
 })
 
+/**
+ * --- Pagination (client-side) ---
+ * `filteredTechnicians` tetap menjadi sumber kebenaran (KPI & Counter memakai data
+ * penuh), sedangkan `paginatedTechnicians` hanya yang dirender di halaman aktif.
+ */
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredTechnicians.value.length / itemsPerPage)))
+
+const paginatedTechnicians = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredTechnicians.value.slice(start, start + itemsPerPage)
+})
+
+const rangeStart = computed(() =>
+  filteredTechnicians.value.length === 0 ? 0 : (currentPage.value - 1) * itemsPerPage + 1
+)
+
+const rangeEnd = computed(() =>
+  Math.min(currentPage.value * itemsPerPage, filteredTechnicians.value.length)
+)
+
+function goToPage(page) {
+  if (!Number.isFinite(page) || page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+// Reset ke halaman 1 setiap kali kriteria daftar berubah, agar user tidak
+// "terdampar" di halaman kosong setelah mempersempit filter/pencarian.
+watch([scopeFilter, plantFilter, activityStatusFilter, sortBy, searchQuery, viewMode], () => {
+  currentPage.value = 1
+})
+
+// Jaring pengaman: bila data/filter berubah sehingga halaman aktif melewati
+// total halaman (mis. setelah loadData mengembalikan data lebih sedikit),
+// tarik kembali ke halaman terakhir yang valid.
+watch(totalPages, (max) => {
+  if (currentPage.value > max) currentPage.value = max
+})
+
 function resetFilters() {
-  scopeFilter.value = 'my_team'
+  scopeFilter.value = SCOPE_MY_TEAM
   activityStatusFilter.value = 'ALL'
-  sortBy.value = 'most_active'
+  sortBy.value = 'name'
   searchQuery.value = ''
+  // Admin: kembalikan juga filter plant ke seluruh plant.
+  if (isAdmin.value) {
+    plantFilter.value = 'ALL'
+  }
 }
 
 // Modal State & Kalender Aktivitas Logbook Teknisi
@@ -1005,6 +1261,7 @@ const modalStatusFilter = ref('ALL')
 const modalSelectedDate = ref(null)
 const modalCalendarYear = ref(new Date().getFullYear())
 const modalCalendarMonth = ref(new Date().getMonth())
+// Sinkron dengan perbaikan `openTechnicianDetail`: hindari getter tanpa parameter saat inisialisasi.
 
 const modalCalendarMonthName = computed(() => {
   return MONTH_NAMES_ID[modalCalendarMonth.value]
@@ -1050,9 +1307,11 @@ function openTechnicianDetail(tech) {
   selectedTech.value = tech
   modalStatusFilter.value = 'ALL'
   modalSelectedDate.value = null
-  const now = new Date()
-  modalCalendarYear.value = now.getFullYear()
-  modalCalendarMonth.value = now.getMonth()
+  // Buka kalender pada bulan log terakhir teknisi (bila ada) agar riwayat
+  // langsung terlihat; fallback ke bulan berjalan.
+  const initialDate = parseLocalDate(tech?.lastLog?.task_date)
+  modalCalendarYear.value = initialDate.getFullYear()
+  modalCalendarMonth.value = initialDate.getMonth()
 }
 
 // 42 cells grid (Starts Monday: Sen - Min)
@@ -1094,8 +1353,8 @@ const modalCalendarCells = computed(() => {
   }
 
   // Hari dalam bulan berjalan
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const isToday = dateStr === todayStr
     const isFuture = dateStr > todayStr
     const dayLogs = userLogs.filter(l => l.task_date === dateStr)
@@ -1103,7 +1362,7 @@ const modalCalendarCells = computed(() => {
 
     let status = 'NO_LOG'
     let colorClass = ''
-    let tooltip = `${d} ${modalCalendarMonthName.value} ${y}: `
+    let tooltip = `${day} ${modalCalendarMonthName.value} ${y}: `
 
     if (logCount > 0) {
       const hasPending = dayLogs.some(l => l.status === 'PENDING')
@@ -1145,7 +1404,7 @@ const modalCalendarCells = computed(() => {
 
     cells.push({
       dateStr,
-      dayNumber: d,
+      dayNumber: day,
       isCurrentMonth: true,
       isToday,
       isFuture,

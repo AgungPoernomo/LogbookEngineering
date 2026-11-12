@@ -20,14 +20,14 @@
         <span>(lanjutan)</span>
       </div>
 
-      <!-- Tinggi < 30px: 1 baris ringkas -->
-      <div v-if="segment.heightPx < 30" class="truncate text-[11px] font-medium flex items-center gap-1">
+      <!-- Tinggi < 26px (<= ~30 menit pada 40px/jam): 1 baris ringkas -->
+      <div v-if="segment.heightPx < 26" class="truncate text-[11px] font-medium flex items-center gap-1">
         <span class="font-mono text-[10px]">{{ timeLabel }}</span>
         <span class="font-semibold">{{ machineName }}</span>
       </div>
 
-      <!-- Tinggi 30 - 59px: 2 baris -->
-      <div v-else-if="segment.heightPx < 60" class="truncate">
+      <!-- Tinggi 26 - 43px (mis. 45 menit - 1 jam): 2 baris -->
+      <div v-else-if="segment.heightPx < 44" class="truncate">
         <div class="font-semibold text-xs truncate">
           {{ machineName }}
         </div>
@@ -36,7 +36,7 @@
         </div>
       </div>
 
-      <!-- Tinggi >= 60px: nama mesin, sub-mesin, jam -->
+      <!-- Tinggi >= 44px (>= ~1 jam 15 menit): nama mesin, sub-mesin, jam -->
       <div v-else class="truncate space-y-0.5">
         <div class="font-semibold text-xs truncate">
           {{ machineName }}

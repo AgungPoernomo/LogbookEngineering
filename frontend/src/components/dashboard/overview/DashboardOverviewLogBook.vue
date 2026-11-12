@@ -100,7 +100,7 @@
 
         <div class="grid grid-cols-2 gap-2 text-ink">
           <div class="p-2.5 bg-muted rounded-md">
-            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI PLANT</span>
+            <span class="text-ink-3 block text-[10px] uppercase font-semibold">LOKASI LINE</span>
             <span class="font-semibold text-ink">{{ selectedLogDetail.plant_name }}</span>
           </div>
           <div class="p-2.5 bg-muted rounded-md">
@@ -153,6 +153,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../../stores/auth'
 import { useMasterStore } from '../../../stores/master'
 import { overviewLogbookService } from '../../../services/overviewLogbookService'
+import { getWIBYearMonth } from '../../../utils/dateKeys'
 import OverviewHeader from './OverviewHeader.vue'
 import OverviewFilter from './OverviewFilter.vue'
 import PlantCard from './PlantCard.vue'
@@ -176,7 +177,7 @@ const hasLoadedOnce = ref(false)
 const error = ref('')
 
 const filters = reactive({
-  yearMonth: new Date().toISOString().substring(0, 7),
+  yearMonth: getWIBYearMonth(),
   groupId: 'ALL',
   shiftId: 'ALL',
   search: ''

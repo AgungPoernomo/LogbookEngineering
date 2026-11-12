@@ -8,13 +8,35 @@
         <p class="text-xs text-ink-2 mt-0.5">Kelola data registrasi mesin utama dan komponen sub-mesin / suku cadang terpasang per plant.</p>
       </div>
 
-      <button
-        type="button"
-        class="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs sm:text-sm transition shadow-card"
-        @click="openAddModal"
-      >
-        <span>+ Tambah {{ currentTab === 'machines' ? 'Mesin Utama' : 'Sub-Mesin' }}</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="currentTab === 'machines'"
+          type="button"
+          class="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-line bg-surface text-ink hover:bg-muted font-medium text-xs sm:text-sm transition shadow-card"
+          title="Cetak label QR semua mesin per Line"
+          @click="openBatchQrPrint"
+        >
+          <Grid3x3 class="w-4 h-4" />
+          <span>Cetak QR per Line</span>
+        </button>
+
+        <button
+          type="button"
+          class="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs sm:text-sm transition shadow-card"
+          @click="openAddModal"
+        >
+          <span>+ Tambah {{ currentTab === 'machines' ? 'Mesin Utama' : 'Sub-Mesin' }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- F1.2: Indikator data offline (cache lokal) -->
+    <div
+      v-if="masterStore.isOffline"
+      class="p-2.5 rounded-md bg-status-pending-bg border border-warning/20 text-status-pending-fg text-xs flex items-center gap-2"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-status-pending-dot animate-pulse" />
+      <span>{{ masterStore.cacheStatusText }}</span>
     </div>
 
     <!-- Machine & Sub-Machine Tabs -->
@@ -62,7 +84,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            :placeholder="currentTab === 'machines' ? 'Cari kode / nama mesin...' : 'Cari nama sub-mesin...'"
+            :placeholder="currentTab === 'machines' ? 'Cari nama mesin...' : 'Cari nama sub-mesin...'"
             class="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-line bg-surface text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary"
           />
           <span class="absolute left-2.5 top-2 text-ink-3 text-xs">🔍</span>
@@ -70,12 +92,12 @@
 
         <!-- Filter Plant -->
         <div class="flex items-center gap-1.5">
-          <label class="text-xs text-ink-2 font-medium">Plant:</label>
+          <label class="text-xs text-ink-2 font-medium">Line:</label>
           <select
             v-model="plantFilter"
             class="h-8 px-2 text-xs rounded-md border border-line bg-surface text-ink focus:outline-none focus:border-primary cursor-pointer max-w-[180px]"
           >
-            <option value="all">Semua Plant</option>
+            <option value="all">Semua Line</option>
             <option v-for="p in masterStore.plants" :key="p.id" :value="p.id">
               {{ p.name }}
             </option>
@@ -117,9 +139,8 @@
         <table class="w-full text-left text-[13px] border-collapse min-w-[700px]">
           <thead class="bg-muted/60 text-xs font-semibold text-ink-2 border-b border-line">
             <tr>
-              <th class="px-4 py-3">Kode Mesin</th>
               <th class="px-4 py-3">Nama Mesin</th>
-              <th class="px-4 py-3">Lokasi Plant</th>
+              <th class="px-4 py-3">Lokasi Line</th>
               <th class="px-4 py-3">Sub-Mesin Terdaftar</th>
               <th class="px-4 py-3">Status</th>
               <th class="px-4 py-3 text-right">Aksi</th>
@@ -131,9 +152,6 @@
               :key="machine.id"
               class="hover:bg-muted/40 transition-colors"
             >
-              <td class="px-4 py-3 font-mono text-xs font-semibold text-primary">
-                {{ machine.code || '-' }}
-              </td>
               <td class="px-4 py-3 font-semibold text-ink">
                 {{ machine.name }}
               </td>
@@ -167,6 +185,15 @@
                 <div class="flex items-center justify-end gap-2">
                   <button
                     type="button"
+                    class="h-7 w-7 rounded-md border border-line bg-surface text-ink-2 hover:bg-primary-soft hover:text-primary inline-flex items-center justify-center transition"
+                    :aria-label="`QR Code mesin ${machine.name}`"
+                    title="QR Code mesin (Buku Pintar Mesin)"
+                    @click="openQrModal(machine)"
+                  >
+                    <QrCode class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     class="h-7 px-2.5 rounded-md text-xs font-medium border border-line bg-surface text-ink hover:bg-muted transition"
                     @click="openEditMachineModal(machine)"
                   >
@@ -186,7 +213,7 @@
               </td>
             </tr>
             <tr v-if="filteredMachines.length === 0">
-              <td colspan="6" class="px-4 py-8 text-center text-xs text-ink-3">
+              <td colspan="5" class="px-4 py-8 text-center text-xs text-ink-3">
                 Tidak ada data mesin yang sesuai filter.
               </td>
             </tr>
@@ -203,7 +230,7 @@
             <tr>
               <th class="px-4 py-3">Nama Sub-Mesin / Komponen</th>
               <th class="px-4 py-3">Mesin Induk</th>
-              <th class="px-4 py-3">Lokasi Plant</th>
+              <th class="px-4 py-3">Lokasi Line</th>
               <th class="px-4 py-3">Status</th>
               <th class="px-4 py-3 text-right">Aksi</th>
             </tr>
@@ -225,7 +252,7 @@
                   {{ getMachineName(sub.machine_id) }}
                 </div>
                 <div class="font-mono text-[11px] text-ink-2">
-                  {{ getMachineCode(sub.machine_id) }}
+                  {{ getMachineName(sub.machine_id) }}
                 </div>
               </td>
               <td class="px-4 py-3 text-xs text-ink-2">
@@ -285,19 +312,6 @@
       <form @submit.prevent="saveMachine" class="space-y-3.5 text-xs">
         <div>
           <label class="block font-medium text-ink mb-1">
-            Kode Mesin <span class="text-danger">*</span>
-          </label>
-          <input
-            v-model="machineForm.code"
-            type="text"
-            required
-            placeholder="Contoh: EQ-ACV-02"
-            class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium font-mono text-ink focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label class="block font-medium text-ink mb-1">
             Nama Mesin <span class="text-danger">*</span>
           </label>
           <input
@@ -311,7 +325,7 @@
 
         <div>
           <label class="block font-medium text-ink mb-1">
-            Lokasi Plant Satoria <span class="text-danger">*</span>
+            Lokasi Line Satoria <span class="text-danger">*</span>
           </label>
           <select
             v-model="machineForm.plant_id"
@@ -334,9 +348,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Mesin' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Mesin') }}
           </button>
         </div>
       </form>
@@ -359,7 +374,7 @@
             class="w-full h-9 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:border-primary focus:outline-none cursor-pointer"
           >
             <option v-for="m in masterStore.machines" :key="m.id" :value="m.id">
-              {{ m.code }} - {{ m.name }} ({{ getPlantName(m.plant_id) }})
+              {{ m.name }} ({{ getPlantName(m.plant_id) }})
             </option>
           </select>
         </div>
@@ -387,22 +402,38 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Sub-Mesin' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Sub-Mesin') }}
           </button>
         </div>
       </form>
     </AppModal>
+
+    <!-- FASE 5.3 — Modal QR Code Mesin (preview, unduh PNG, cetak, cetak batch) -->
+    <MachineQrModal
+      :is-open="isQrModalOpen"
+      :machine="qrMachine"
+      @close="isQrModalOpen = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { QrCode, Grid3x3 } from 'lucide-vue-next'
 import { useMasterStore } from '../../stores/master'
+import { alert } from '../../utils/alert'
 import AppModal from '../../components/common/AppModal.vue'
+import MachineQrModal from '../../components/admin/MachineQrModal.vue'
 
 const masterStore = useMasterStore()
+const router = useRouter()
+
+// BUG-005 (MST-02/03): cegah multi-submit (double click)
+const isSubmitting = ref(false)
 
 const currentTab = ref('machines')
 const searchQuery = ref('')
@@ -414,7 +445,11 @@ const isMachineModalOpen = ref(false)
 const isSubMachineModalOpen = ref(false)
 const editingId = ref(null)
 
-const machineForm = ref({ name: '', code: '', plant_id: 1 })
+// FASE 5.3 — Modal QR Code Mesin
+const isQrModalOpen = ref(false)
+const qrMachine = ref(null)
+
+const machineForm = ref({ name: '', plant_id: 1 })
 const subMachineForm = ref({ name: '', machine_id: 1 })
 
 onMounted(async () => {
@@ -437,11 +472,6 @@ function getPlantName(plantId) {
 function getMachineName(machineId) {
   const m = masterStore.machines.find(item => item.id === Number(machineId))
   return m ? m.name : '-'
-}
-
-function getMachineCode(machineId) {
-  const m = masterStore.machines.find(item => item.id === Number(machineId))
-  return m ? m.code : '-'
 }
 
 function getSubMachinePlantName(machineId) {
@@ -468,8 +498,7 @@ const filteredMachines = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase().trim()
     list = list.filter(m =>
-      (m.name && m.name.toLowerCase().includes(q)) ||
-      (m.code && m.code.toLowerCase().includes(q))
+      m.name && m.name.toLowerCase().includes(q)
     )
   }
 
@@ -521,12 +550,24 @@ function viewMachineSubMachines(machineId) {
   }
 }
 
+// FASE 5.3 — Buka modal QR Code mesin (preview + unduh PNG + cetak).
+function openQrModal(machine) {
+  qrMachine.value = machine
+  isQrModalOpen.value = true
+}
+
+// FASE 5.3 — Buka halaman cetak batch QR untuk Line yang sedang difilter.
+// Tanpa filter Line → arahkan ke halaman cetak agar Admin memilih Line di sana.
+function openBatchQrPrint() {
+  const query = plantFilter.value !== 'all' ? { plant_id: plantFilter.value } : {}
+  router.push({ name: 'admin-machines-qr-print', query })
+}
+
 function openAddModal() {
   editingId.value = null
   if (currentTab.value === 'machines') {
     machineForm.value = {
       name: '',
-      code: `EQ-NEW-0${(masterStore.machines.length || 0) + 1}`,
       plant_id: masterStore.plants[0]?.id || 1
     }
     isMachineModalOpen.value = true
@@ -543,7 +584,6 @@ function openEditMachineModal(machine) {
   editingId.value = machine.id
   machineForm.value = {
     name: machine.name,
-    code: machine.code || '',
     plant_id: machine.plant_id || masterStore.plants[0]?.id || 1
   }
   isMachineModalOpen.value = true
@@ -559,36 +599,109 @@ function openEditSubMachineModal(sub) {
 }
 
 async function saveMachine() {
-  if (editingId.value) {
-    await masterStore.updateItem('machines', editingId.value, machineForm.value)
-  } else {
-    await masterStore.addItem('machines', machineForm.value)
+  if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(machineForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama mesin wajib diisi.')
+    return
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isMachineModalOpen.value = false
+
+  // F1.3: konfirmasi sebelum menyimpan mesin
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Mesin?' : 'Tambah Mesin Baru?',
+    editingId.value
+      ? `Perubahan data mesin "${machineForm.value.name}" akan disimpan.`
+      : `Mesin baru "${machineForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('machines', editingId.value, machineForm.value)
+    } else {
+      await masterStore.addItem('machines', machineForm.value)
+    }
+    // `masterStore.addItem/updateItem` sudah memanggil `invalidate()` + `fetchAll(true)`
+    // setelah respons sukses → cache localStorage bersih & daftar mesin/sub-mesin
+    // segar dari API SEBELUM modal ditutup, sehingga form teknisi langsung melihat
+    // data baru tanpa hard refresh (tanpa fetch ganda di sini).
+    isMachineModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data mesin berhasil diperbarui.' : 'Mesin baru berhasil ditambahkan.')
+  } catch (err) {
+    // BUG-005: pesan duplikat (409) dari server
+    await alert.error('Gagal Menyimpan Mesin', err.message || 'Terjadi kesalahan saat menyimpan data mesin.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function saveSubMachine() {
-  if (editingId.value) {
-    await masterStore.updateItem('sub_machines', editingId.value, subMachineForm.value)
-  } else {
-    await masterStore.addItem('sub_machines', subMachineForm.value)
+  if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(subMachineForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama sub-mesin wajib diisi.')
+    return
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isSubMachineModalOpen.value = false
+
+  // F1.3: konfirmasi sebelum menyimpan sub-mesin
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Sub-Mesin?' : 'Tambah Sub-Mesin Baru?',
+    editingId.value
+      ? `Perubahan data sub-mesin "${subMachineForm.value.name}" akan disimpan.`
+      : `Sub-mesin baru "${subMachineForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('sub_machines', editingId.value, subMachineForm.value)
+    } else {
+      await masterStore.addItem('sub_machines', subMachineForm.value)
+    }
+    // Store sudah invalidate + fetchAll(true) setelah respons sukses → sub-mesin
+    // baru langsung tersedia di dropdown Bagian Mesin form teknisi.
+    isSubMachineModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data sub-mesin berhasil diperbarui.' : 'Sub-mesin baru berhasil ditambahkan.')
+  } catch (err) {
+    await alert.error('Gagal Menyimpan Sub-Mesin', err.message || 'Terjadi kesalahan saat menyimpan data sub-mesin.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function toggleActiveMachine(machine) {
-  await masterStore.toggleActive('machines', machine.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif mesin
+  const isConfirmed = await alert.confirm(
+    machine.isActive === false ? 'Aktifkan Mesin?' : 'Nonaktifkan Mesin?',
+    `Mesin "${machine.name}" akan ${machine.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    // Store sudah invalidate + fetchAll(true) → status mesin langsung segar.
+    await masterStore.toggleActive('machines', machine.id)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif mesin.')
+  }
 }
 
 async function toggleActiveSubMachine(sub) {
-  await masterStore.toggleActive('sub_machines', sub.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif sub-mesin
+  const isConfirmed = await alert.confirm(
+    sub.isActive === false ? 'Aktifkan Sub-Mesin?' : 'Nonaktifkan Sub-Mesin?',
+    `Sub-mesin "${sub.name}" akan ${sub.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    // Store sudah invalidate + fetchAll(true) → status sub-mesin langsung segar.
+    await masterStore.toggleActive('sub_machines', sub.id)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif sub-mesin.')
+  }
 }
 </script>

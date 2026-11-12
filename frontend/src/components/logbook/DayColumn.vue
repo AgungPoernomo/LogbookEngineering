@@ -1,18 +1,18 @@
 <template>
   <div
     ref="columnRef"
-    class="flex-1 min-w-0 h-[1440px] relative border-r border-line last:border-r-0 select-none cursor-crosshair group"
+    class="flex-1 min-w-0 h-[calc(var(--planner-hour-h)*24)] relative border-r border-line last:border-r-0 select-none cursor-crosshair group"
     role="gridcell"
     :aria-label="`Jadwal ${dateStr}`"
     @mousedown="handleMouseDown"
     @click="handleClick"
   >
-    <!-- Background Hour Grid Lines (horizontal 1px border at each 60px) -->
+    <!-- Background Hour Grid Lines (horizontal 1px border tiap 1 jam = --planner-hour-h) -->
     <div
       v-for="h in 23"
       :key="h"
       class="absolute left-0 right-0 border-b border-line pointer-events-none"
-      :style="{ top: `${h * 60}px` }"
+      :style="{ top: `calc(var(--planner-hour-h) * ${h})` }"
     />
 
     <!-- Now Indicator if this day is today -->
@@ -42,7 +42,7 @@ import { ref, computed } from 'vue'
 import NowIndicator from './NowIndicator.vue'
 import SelectionGhost from './SelectionGhost.vue'
 import LogbookEventBlock from './LogbookEventBlock.vue'
-import { pxToMinutes, minutesToPx, minutesToHhmm } from '../../utils/calendarLayout'
+import { pxToMinutes, minutesToPx, minutesToHhmm, readPxPerHour } from '../../utils/calendarLayout'
 
 const props = defineProps({
   dateStr: {
@@ -73,17 +73,26 @@ const hasMoved = ref(false)
 
 const ghostRange = computed(() => {
   if (!isSelecting.value) return null
+  const pxPerHour = getPxPerHour()
   const minStart = Math.min(dragStartMin.value, dragCurrentMin.value)
   const minEnd = Math.max(dragStartMin.value, dragCurrentMin.value)
   const duration = Math.max(15, minEnd - minStart)
   const finalEnd = minStart + duration
 
   return {
-    topPx: minutesToPx(minStart),
-    heightPx: minutesToPx(duration),
+    topPx: minutesToPx(minStart, pxPerHour),
+    heightPx: minutesToPx(duration, pxPerHour),
     label: `${minutesToHhmm(minStart)} - ${minutesToHhmm(finalEnd)}`
   }
 })
+
+/**
+ * Tinggi 1 jam (px) aktual dari token `--planner-hour-h` pada kolom ini,
+ * agar konversi menit <-> piksel selalu sama dengan tinggi grid yang dirender.
+ */
+function getPxPerHour() {
+  return readPxPerHour(columnRef.value)
+}
 
 function getYFromEvent(e) {
   if (!columnRef.value) return 0
@@ -96,7 +105,7 @@ function handleMouseDown(e) {
   if (e.target.closest('button')) return
 
   const y = getYFromEvent(e)
-  dragStartMin.value = pxToMinutes(y)
+  dragStartMin.value = pxToMinutes(y, getPxPerHour())
   dragCurrentMin.value = dragStartMin.value
   isSelecting.value = true
   hasMoved.value = false
@@ -109,7 +118,7 @@ function handleMouseMove(e) {
   if (!isSelecting.value) return
   hasMoved.value = true
   const y = getYFromEvent(e)
-  dragCurrentMin.value = pxToMinutes(y)
+  dragCurrentMin.value = pxToMinutes(y, getPxPerHour())
 }
 
 function handleMouseUp(e) {
@@ -143,7 +152,7 @@ function handleClick(e) {
   // Only handle simple click if there was no drag movement
   if (!hasMoved.value) {
     const y = getYFromEvent(e)
-    const startMin = pxToMinutes(y)
+    const startMin = pxToMinutes(y, getPxPerHour())
     const endMin = Math.min(1440, startMin + 60)
 
     emit('create-slot', {

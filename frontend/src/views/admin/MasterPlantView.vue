@@ -4,8 +4,8 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <div class="text-[12px] font-medium text-primary uppercase tracking-wider">Konfigurasi Fasilitas Satoria</div>
-        <h1 class="text-[20px] font-semibold text-ink tracking-tight">Master Plant Pabrik</h1>
-        <p class="text-xs text-ink-2 mt-0.5">Kelola data seluruh unit fasilitas manufaktur dan plant operasional Satoria Group.</p>
+        <h1 class="text-[20px] font-semibold text-ink tracking-tight">Master Line Pabrik</h1>
+        <p class="text-xs text-ink-2 mt-0.5">Kelola data seluruh unit fasilitas manufaktur dan line operasional Satoria Group.</p>
       </div>
 
       <button
@@ -13,8 +13,17 @@
         class="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-xs sm:text-sm transition shadow-card"
         @click="openAddModal"
       >
-        <span>+ Tambah Plant Baru</span>
+        <span>+ Tambah Line Baru</span>
       </button>
+    </div>
+
+    <!-- F1.2: Indikator data offline (cache lokal) -->
+    <div
+      v-if="masterStore.isOffline"
+      class="p-2.5 rounded-md bg-status-pending-bg border border-warning/20 text-status-pending-fg text-xs flex items-center gap-2"
+    >
+      <span class="w-1.5 h-1.5 rounded-full bg-status-pending-dot animate-pulse" />
+      <span>{{ masterStore.cacheStatusText }}</span>
     </div>
 
     <!-- Stats Summary Cards -->
@@ -24,8 +33,8 @@
           🏢
         </div>
         <div>
-          <div class="text-xs text-ink-2 font-medium">Total Plant Satoria</div>
-          <div class="text-lg font-bold text-ink">{{ masterStore.plants.length }} Plant</div>
+          <div class="text-xs text-ink-2 font-medium">Total Line Satoria</div>
+          <div class="text-lg font-bold text-ink">{{ masterStore.plants.length }} Line</div>
         </div>
       </div>
 
@@ -34,8 +43,8 @@
           ✅
         </div>
         <div>
-          <div class="text-xs text-ink-2 font-medium">Plant Operasional Aktif</div>
-          <div class="text-lg font-bold text-ink">{{ activePlantsCount }} Plant</div>
+          <div class="text-xs text-ink-2 font-medium">Line Operasional Aktif</div>
+          <div class="text-lg font-bold text-ink">{{ activePlantsCount }} Line</div>
         </div>
       </div>
 
@@ -57,7 +66,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Cari kode atau nama plant..."
+            placeholder="Cari nama line..."
             class="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-line bg-surface text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary"
           />
           <span class="absolute left-2.5 top-2 text-ink-3 text-xs">🔍</span>
@@ -172,13 +181,13 @@
 
         <div>
           <label class="block font-medium text-ink mb-1">
-            Nama Fasilitas Plant <span class="text-danger">*</span>
+            Nama Line / Fasilitas <span class="text-danger">*</span>
           </label>
           <input
             v-model="modalForm.name"
             type="text"
             required
-            placeholder="Contoh: Plant 1 - Satoria Pharma Pasuruan"
+            placeholder="Contoh: Line 1 - Satoria Pharma Pasuruan"
             class="w-full h-9 px-3 rounded-md border border-line bg-surface text-sm font-medium text-ink focus:border-primary focus:outline-none"
           />
         </div>
@@ -193,9 +202,10 @@
           </button>
           <button
             type="submit"
-            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card"
+            :disabled="isSubmitting"
+            class="h-8 px-4 rounded-md bg-primary hover:bg-blue-700 text-white font-medium text-xs transition shadow-card disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {{ editingId ? 'Simpan Perubahan' : 'Tambah Plant' }}
+            {{ isSubmitting ? 'Menyimpan...' : (editingId ? 'Simpan Perubahan' : 'Tambah Line') }}
           </button>
         </div>
       </form>
@@ -206,6 +216,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useMasterStore } from '../../stores/master'
+import { alert } from '../../utils/alert'
 import AppModal from '../../components/common/AppModal.vue'
 
 const masterStore = useMasterStore()
@@ -215,6 +226,7 @@ const editingId = ref(null)
 const searchQuery = ref('')
 const statusFilter = ref('all')
 const modalForm = ref({ name: '', code: '' })
+const isSubmitting = ref(false)
 
 onMounted(async () => {
   await masterStore.fetchAll()
@@ -267,19 +279,60 @@ function openEditModal(plant) {
 }
 
 async function savePlant() {
-  if (editingId.value) {
-    await masterStore.updateItem('plants', editingId.value, modalForm.value)
-  } else {
-    await masterStore.addItem('plants', modalForm.value)
+  if (isSubmitting.value) return
+
+  // Validasi field wajib (F1.3: SweetAlert, bukan banner inline)
+  if (!String(modalForm.value.name || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Nama line pabrik wajib diisi.')
+    return
   }
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
-  isModalOpen.value = false
+
+  if (!String(modalForm.value.code || '').trim()) {
+    await alert.error('Data Belum Lengkap', 'Kode line pabrik wajib diisi.')
+    return
+  }
+
+  // F1.3: konfirmasi sebelum menyimpan line
+  const isConfirmed = await alert.confirm(
+    editingId.value ? 'Simpan Perubahan Line?' : 'Tambah Line Baru?',
+    editingId.value
+      ? `Perubahan data line "${modalForm.value.name}" akan disimpan.`
+      : `Line baru "${modalForm.value.name}" akan ditambahkan.`,
+    editingId.value ? 'Ya, simpan' : 'Ya, tambah'
+  )
+  if (!isConfirmed) return
+
+  isSubmitting.value = true
+  try {
+    if (editingId.value) {
+      await masterStore.updateItem('plants', editingId.value, modalForm.value)
+    } else {
+      await masterStore.addItem('plants', modalForm.value)
+    }
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+    isModalOpen.value = false
+    await alert.success('Berhasil', editingId.value ? 'Data line berhasil diperbarui.' : 'Line baru berhasil ditambahkan.')
+  } catch (err) {
+    await alert.error('Gagal Menyimpan Line', err.message || 'Terjadi kesalahan saat menyimpan data line.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 async function toggleActiveStatus(plant) {
-  await masterStore.toggleActive('plants', plant.id)
-  masterStore.invalidate()
-  await masterStore.fetchAll(true)
+  // F1.3: konfirmasi sebelum mengubah status aktif line
+  const isConfirmed = await alert.confirm(
+    plant.isActive === false ? 'Aktifkan Line?' : 'Nonaktifkan Line?',
+    `Line "${plant.name}" akan ${plant.isActive === false ? 'diaktifkan' : 'dinonaktifkan'}.`
+  )
+  if (!isConfirmed) return
+  try {
+    await masterStore.toggleActive('plants', plant.id)
+    masterStore.invalidate()
+    await masterStore.fetchAll(true)
+  } catch (err) {
+    await alert.error('Gagal Mengubah Status', err.message || 'Gagal mengubah status aktif line.')
+  }
 }
 </script>
