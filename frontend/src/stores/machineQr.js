@@ -6,13 +6,21 @@ import {
   clearMachineQrCache
 } from '../services/machineQrService'
 
+// Cache QR mesin berlaku maksimal 5 menit di memori. Setelah itu entri dianggap
+// stale dan dimuat ulang otomatis saat modal dibuka lagi — mencegah gambar QR
+// lama (mis. berisi URL localhost) tertahan setelah `FRONTEND_URL` backend diubah.
+const CACHE_TTL_MS = 5 * 60 * 1000
+
 // FASE 5.3 — Cache QR mesin selama sesi (in-memory, TIDAK di localStorage).
 // - Info mesin (`qr-data`) dan gambar QR (object/data URL) disimpan per mesin.
-// - Modal yang dibuka ulang untuk mesin yang sama tidak memicu request baru.
+// - Modal yang dibuka ulang untuk mesin yang sama tidak memicu request baru
+//   selama cache masih fresh (TTL di atas).
+// - Cache buster (`?t=<timestamp>`) ditangani `machineQrService`, jadi HTTP
+//   cache browser tidak pernah menyajikan PNG lama.
 // - `clear()` dipanggil saat logout / ganti pengguna agar gambar QR & object URL
 //   tidak tertinggal di memori.
 export const useMachineQrStore = defineStore('machineQr', () => {
-  // Map machineId(string) → { data, blobUrl, dataUrl, error }
+  // Map machineId(string) → { data, blobUrl, dataUrl, error, loadedAt }
   const entries = ref({})
   const loadingIds = ref([])
 
@@ -36,7 +44,17 @@ export const useMachineQrStore = defineStore('machineQr', () => {
   }
 
   /**
-   * Muat info mesin + gambar QR (memakai cache sesi bila sudah ada).
+   * Cek apakah entri cache sudah kedaluwarsa (lebih dari CACHE_TTL_MS).
+   */
+  function isStale(entry) {
+    if (!entry || !entry.loadedAt) return true
+    return Date.now() - entry.loadedAt > CACHE_TTL_MS
+  }
+
+  /**
+   * Muat info mesin + gambar QR.
+   * - `force: true` → abaikan cache Pinia & HTTP (cache buster di service).
+   * - Entri yang lebih tua dari CACHE_TTL_MS otomatis dimuat ulang.
    *
    * @param {number|string} machineId
    * @param {{ force?: boolean }} [options]
@@ -45,22 +63,24 @@ export const useMachineQrStore = defineStore('machineQr', () => {
   async function load(machineId, { force = false } = {}) {
     const key = getId(machineId)
     const cached = entries.value[key]
+    const needsRefresh = force || !cached || !cached.data || !cached.blobUrl || isStale(cached)
 
-    if (!force && cached && cached.data && cached.blobUrl) {
+    if (!needsRefresh) {
       return cached
     }
 
     setLoading(machineId, true)
     try {
       const [data, image] = await Promise.all([
-        getMachineQrData(machineId),
-        getMachineQrImage(machineId, { force })
+        getMachineQrData(machineId, { force: needsRefresh }),
+        getMachineQrImage(machineId, { force: needsRefresh })
       ])
       const entry = {
         data,
         blobUrl: image.blobUrl,
         dataUrl: image.dataUrl,
-        error: ''
+        error: '',
+        loadedAt: Date.now()
       }
       entries.value = { ...entries.value, [key]: entry }
       return entry
@@ -69,13 +89,21 @@ export const useMachineQrStore = defineStore('machineQr', () => {
         data: cached?.data || null,
         blobUrl: cached?.blobUrl || '',
         dataUrl: cached?.dataUrl || '',
-        error: err?.message || 'Gagal memuat QR Code mesin.'
+        error: err?.message || 'Gagal memuat QR Code mesin.',
+        loadedAt: cached?.loadedAt || 0
       }
       entries.value = { ...entries.value, [key]: entry }
       return entry
     } finally {
       setLoading(machineId, false)
     }
+  }
+
+  /**
+   * Paksa muat ulang QR dari server (abaikan seluruh cache).
+   */
+  function refresh(machineId) {
+    return load(machineId, { force: true })
   }
 
   /**
@@ -92,7 +120,9 @@ export const useMachineQrStore = defineStore('machineQr', () => {
     loadingIds,
     isLoading,
     getEntry,
+    isStale,
     load,
+    refresh,
     clear
   }
 })
