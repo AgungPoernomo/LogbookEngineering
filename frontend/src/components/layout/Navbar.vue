@@ -1,5 +1,5 @@
 <template>
-  <header class="sticky top-0 z-30 flex h-[70px] w-full min-w-0 items-center justify-between border-b border-line bg-surface/95 backdrop-blur-md px-3.5 sm:px-5 lg:px-6 shadow-xs transition-shadow">
+  <header class="sticky top-0 z-40 flex h-[70px] w-full min-w-0 items-center justify-between border-b border-line bg-surface/95 backdrop-blur-md px-3.5 sm:px-5 lg:px-6 shadow-xs transition-shadow">
     <!-- Left: Brand Icon (Mobile/Tablet) & PageHeader -->
     <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
       <!-- Brand Logo Shortcut (HP & Tablet, side navbar dinonaktifkan) -->

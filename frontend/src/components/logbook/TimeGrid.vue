@@ -1,7 +1,7 @@
 <template>
   <div
     ref="scrollContainerRef"
-    class="time-grid-scroll flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative bg-surface select-none overscroll-y-auto"
+    class="time-grid-scroll flex-1 min-h-0 h-full overflow-y-auto overflow-x-hidden relative isolate bg-surface select-none overscroll-y-auto"
     role="grid"
     :aria-label="ariaLabel"
   >
@@ -13,7 +13,7 @@
         <!-- Skeleton blocks when loading -->
         <div
           v-if="loading"
-          class="absolute inset-0 z-30 pointer-events-none p-4 space-y-8"
+          class="absolute inset-0 z-10 pointer-events-none p-4 space-y-8"
         >
           <div class="w-3/4 h-16 bg-muted/80 rounded-md animate-pulse border border-line/60" />
           <div class="w-1/2 h-20 bg-muted/80 rounded-md animate-pulse border border-line/60 ml-auto" />

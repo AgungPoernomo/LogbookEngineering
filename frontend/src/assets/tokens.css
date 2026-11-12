@@ -50,6 +50,22 @@
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow-tooltip: 0 4px 12px rgba(16, 24, 40, 0.10);
 
+  /*
+   * Skala Z-Index Global (lapisan komposit).
+   *   0   : dekorasi di dalam area bergulir (mis. NowIndicator "garis merah")
+   *   10  : event/chip di dalam grid (LogbookEventBlock)
+   *   20  : overlay internal grid (SelectionGhost, skeleton, empty state, TimeAxis sticky)
+   *   40  : kerangka aplikasi (Navbar sticky, Sidebar desktop, BottomNavbar, FabCreate)
+   *   50  : elemen terapung sekali pakai (Modal, Toast, Popover, Drawer, panel notifikasi)
+   * Navbar WAJIB berada di atas semua lapisan di dalam kontainer halaman agar
+   * konten yang digulir tidak pernah menembus/menimpa header.
+   */
+  --z-grid-decor: 0;
+  --z-grid-content: 10;
+  --z-grid-overlay: 20;
+  --z-navbar: 40;
+  --z-floating: 50;
+
   /* Konstanta Layout Planner / Input Logbook (UI-SPEC 3.3) */
   --planner-panel-width: 248px;
   --planner-gap: 16px;

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="absolute left-0 right-0 z-30 pointer-events-none flex items-center"
+    class="absolute left-0 right-0 z-0 pointer-events-none flex items-center"
     :style="{ top: `calc(var(--planner-hour-h) * ${(nowMin / 60).toFixed(4)})` }"
     aria-hidden="true"
   >
