@@ -32,14 +32,33 @@
         :disabled="disabled"
         placeholder="Cari sparepart (nama / kode / spesifikasi)..."
         autocomplete="off"
-        class="w-full h-10 pl-9 pr-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
+        :class="[
+          'w-full h-10 pl-9 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted',
+          /* Sembunyikan tombol clear bawaan browser agar tidak bertumpuk dengan tombol X. */
+          '[&::-webkit-search-cancel-button]:appearance-none',
+          isDropdownOpen ? 'pr-10' : 'pr-3',
+        ]"
+        :aria-expanded="isDropdownOpen"
+        aria-controls="sparepart-search-results"
         @focus="openDropdown"
         @keydown.esc="closeDropdown"
         @keydown.enter.prevent
       />
 
+      <!-- Tombol tutup dropdown: alternatif click-away yang ramah layar sempit. -->
+      <button
+        v-if="isDropdownOpen"
+        type="button"
+        class="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-8 h-8 rounded-md text-ink-3 hover:bg-muted hover:text-ink transition focus:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+        aria-label="Tutup daftar sparepart"
+        @click="closeDropdown"
+      >
+        <X class="w-4 h-4" />
+      </button>
+
       <div
         v-if="isDropdownOpen"
+        id="sparepart-search-results"
         class="absolute z-30 mt-1 w-full rounded-md border border-line bg-surface shadow-card max-h-64 overflow-y-auto"
       >
         <!-- Loading state: skeleton 3 baris -->
@@ -188,7 +207,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { Plus, Search, Trash2 } from "lucide-vue-next";
+import { Plus, Search, Trash2, X } from "lucide-vue-next";
 import { masterService } from "../../services/masterService";
 import {
   mergeSparepartItem,
