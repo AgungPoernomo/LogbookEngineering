@@ -640,10 +640,13 @@
 
         <!-- ======================================================== -->
         <!-- FASE 4.1a: KODE KERUSAKAN (ISO 14224)                    -->
-        <!-- Wajib untuk Perbaikan Mesin / Rawat Rutin → memicu        -->
-        <!-- deteksi "Repeat Failure" di approval Supervisor.         -->
+        <!-- MACHINE_TROUBLE → selalu tampil (memicu deteksi          -->
+        <!-- "Repeat Failure" di approval Supervisor).                -->
+        <!-- PREVENTIVE_PM   → hanya bila chip aksi "Cek Rutin"       -->
+        <!-- (inspeksi menemukan anomali). Lubrikasi/Cleaning/        -->
+        <!-- Backwash tidak mengklasifikasi kerusakan → disembunyikan. -->
         <!-- ======================================================== -->
-        <div v-if="isFailureCodeVisible">
+        <div v-if="isFailureCodeVisibleComputed">
           <label
             for="form-failure-code"
             class="block text-xs font-semibold text-ink mb-1.5"
@@ -651,13 +654,14 @@
             Kode Kerusakan
             <span class="text-danger">*</span>
             <span class="text-[10px] font-medium text-ink-3 ml-1"
-              >(wajib diisi untuk Perbaikan Mesin)</span
+              >(wajib diisi — menandai jenis kerusakan/anomali yang
+              ditemukan)</span
             >
           </label>
           <select
             id="form-failure-code"
             v-model="form.failure_code_id"
-            :required="isFailureCodeRequired && !isUnmappedAsset"
+            :required="isFailureCodeRequiredComputed && !isUnmappedAsset"
             :disabled="isUnmappedAsset"
             class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
           >
@@ -1196,6 +1200,10 @@ import {
   mapDraftSpareparts,
   toSparepartPayload,
 } from "../../utils/sparepartItems";
+import {
+  isFailureCodeRequired,
+  isFailureCodeVisible,
+} from "../../utils/failureCodeVisibility";
 
 import {
   Server,
@@ -1582,18 +1590,24 @@ const isMachineRequired = computed(
     selectedCategory.value === "PREVENTIVE_PM",
 );
 
-// FASE 4.1a: dropdown Kode Kerusakan hanya untuk kategori perawatan mesin.
-// `MACHINE_TROUBLE` diwajibkan agar fitur "Repeat Failure" (Fase 4.1a)
-// selalu punya data `failure_code_id`. `PREVENTIVE_PM` opsional karena
-// pekerjaan preventif tidak selalu berasal dari kerusakan.
-const isFailureCodeVisible = computed(() => isMachineRequired.value);
-const isFailureCodeRequired = computed(
-  () => selectedCategory.value === "MACHINE_TROUBLE",
+// FASE 4.1a: dropdown Kode Kerusakan hanya ditampilkan bila memang ada
+// kerusakan/anomali yang perlu diklasifikasi (lihat `failureCodeVisibility.js`):
+// - `MACHINE_TROUBLE` → selalu tampil & wajib (sumber data "Repeat Failure").
+// - `PREVENTIVE_PM`   → hanya bila chip aksi "Cek Rutin" (inspeksi menemukan
+//   anomali). Lubrikasi / Cleaning / Backwash tidak mengklasifikasi kerusakan,
+//   jadi dropdown disembunyikan agar teknisi tidak bingung (dulu tampil tapi
+//   opsional).
+// - Kategori lain     → tidak pernah tampil.
+const isFailureCodeVisibleComputed = computed(() =>
+  isFailureCodeVisible(selectedCategory.value, quickActionTag.value),
+);
+const isFailureCodeRequiredComputed = computed(() =>
+  isFailureCodeRequired(selectedCategory.value, quickActionTag.value),
 );
 
-/** Kode kerusakan yang dikirim ke payload (hanya kategori perawatan mesin). */
+/** Kode kerusakan yang dikirim ke payload (hanya saat dropdown ditampilkan). */
 const selectedFailureCode = computed(() => {
-  if (!isFailureCodeVisible.value) return null;
+  if (!isFailureCodeVisibleComputed.value) return null;
   return (
     masterStore.failureCodes.find(
       (fc) => fc.id === Number(form.failure_code_id),
@@ -1627,11 +1641,29 @@ function selectCategory(category) {
   if (category !== "KERETA_TRAY_REPAIR") {
     form.unit_repaired_qty = null;
   }
-  // FASE 4.1a: kode kerusakan hanya relevan untuk kategori perawatan mesin
-  if (category !== "MACHINE_TROUBLE" && category !== "PREVENTIVE_PM") {
+  // Ganti kategori → chip di-reset ke kosong, sehingga kondisi dropdown berubah.
+  // Bersihkan sisa kode kerusakan agar tidak terbawa ke kategori yang tidak
+  // memakainya (mis. MACHINE_TROUBLE → PREVENTIVE_PM sebelum pilih chip).
+  syncFailureCodeToVisibility();
+}
+
+/**
+ * Lepas `form.failure_code_id` bila dropdown Kode Kerusakan sedang tersembunyi.
+ *
+ * Contoh: MACHINE_TROUBLE (kode terisi) → PREVENTIVE_PM + chip "Lubrikasi" →
+ * dropdown hilang, jadi nilainya harus ikut dikosongkan agar tidak terkirim
+ * diam-diam ke backend. Saat chip "Cek Rutin" dipilih kembali, dropdown muncul
+ * lagi dengan pilihan kosong (teknisi memilih ulang kode yang benar).
+ */
+function syncFailureCodeToVisibility() {
+  if (!isFailureCodeVisibleComputed.value) {
     form.failure_code_id = null;
   }
 }
+
+// Kondisi dropdown ikut berubah saat teknisi memilih chip aksi cepat
+// (mis. PREVENTIVE_PM: "Lubrikasi" → "Cek Rutin" memunculkan kembali dropdown).
+watch(quickActionTag, syncFailureCodeToVisibility);
 
 // State Kalender Picker Tanggal Tugas
 const viewYear = ref(new Date().getFullYear());
@@ -1906,10 +1938,10 @@ async function handleSubmit(isSubmitForApproval) {
     return;
   }
 
-  // FASE 4.1a: kode kerusakan wajib untuk Perbaikan Mesin (mesin terdaftar)
-  // agar deteksi "Repeat Failure" di approval Supervisor dapat berjalan.
+  // FASE 4.1a: kode kerusakan wajib selama dropdown-nya tampil — Perbaikan
+  // Mesin selalu, Rawat Rutin hanya pada chip "Cek Rutin" (inspeksi/anomali).
   // Aset belum terdaftar (D12) dikecualikan karena tidak ada mesin pada master.
-  if (isFailureCodeRequired.value && !isUnmappedAsset.value && !form.failure_code_id) {
+  if (isFailureCodeRequiredComputed.value && !isUnmappedAsset.value && !form.failure_code_id) {
     await alert.error(
       "Kode Kerusakan Belum Dipilih",
       "Pilih kode kerusakan (ISO 14224) yang paling sesuai agar riwayat keandalan mesin tercatat.",

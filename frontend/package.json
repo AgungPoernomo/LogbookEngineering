@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:v6": "vitest run src/utils/approvalFilter.test.js src/utils/repeatFailure.test.js src/utils/technicianScope.test.js src/services/machineQrService.test.js src/utils/mobileNav.test.js src/utils/logbookQuickStart.test.js"
+    "test:v6": "vitest run src/utils/approvalFilter.test.js src/utils/repeatFailure.test.js src/utils/technicianScope.test.js src/services/machineQrService.test.js src/utils/mobileNav.test.js src/utils/logbookQuickStart.test.js src/utils/failureCodeVisibility.test.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

@@ -93,6 +93,11 @@ Upgrade besar dari v4.8 (**Supervisor-Oriented**) menjadi **Teknisi-Oriented & R
 
 ### Changed
 - Label UI "Plant" → "Line".
+- **Dropdown "Kode Kerusakan" hanya muncul saat relevan** (`InputLogbookView.vue`, helper baru `frontend/src/utils/failureCodeVisibility.js` + 10 unit test):
+  - `MACHINE_TROUBLE` (Perbaikan Mesin) → **selalu** tampil & wajib (backend membiarkannya opsional, UI yang menegakkan agar data Repeat Failure terisi).
+  - `PREVENTIVE_PM` (Rawat Rutin) → muncul **hanya** bila chip aksi **"Cek Rutin"** (inspeksi menemukan anomali). Chip Lubrikasi / Greasing, Cleaning Mesin / Area, dan Backwash / Kuras **menyembunyikan** dropdown karena aktivitas rutin tidak mengklasifikasi kerusakan.
+  - Ganti kategori (mis. `MACHINE_TROUBLE` → `PREVENTIVE_PM` sebelum memilih chip) atau ganti chip ke non-inspeksi otomatis mengosongkan `form.failure_code_id` (`selectCategory` + `watch(quickActionTag)`), sehingga kode kerusakan tidak ikut terkirim diam-diam. Memilih "Cek Rutin" memunculkan kembali dropdown (pilihan kosong).
+  - **Backend tidak diubah** — bobot validasi `failure_code_id` tetap di sisi UI.
 - "Skill Matrix" → **"Peta Keahlian & Kontak"** (P1 alignment, urutan abjad + email kontak).
 - Library notifikasi: SweetAlert2 (standar tunggal, tanpa banner error inline).
 - Cache master: Stale-While-Revalidate (`masterStore.js` + `localStorage`) + force refresh saat buka form input.
