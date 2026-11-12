@@ -40,7 +40,7 @@
           type="button"
           class="h-8 px-3 rounded-md border border-line bg-surface text-ink hover:bg-muted transition text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
           :disabled="isLoading || !plantId"
-          @click="loadCards()"
+          @click="loadCards(true)"
         >
           <RefreshCw :class="['w-3.5 h-3.5', isLoading ? 'animate-spin' : '']" />
           <span>Muat Ulang</span>
@@ -185,7 +185,7 @@ const plantLabel = computed(() => {
   return found ? found.name : ''
 })
 
-async function loadCards() {
+async function loadCards(force = false) {
   if (!plantId.value) {
     cards.value = []
     errorMessage.value = ''
@@ -198,7 +198,7 @@ async function loadCards() {
 
   try {
     const result = await prepareBatchPrint(
-      { plantId: plantId.value },
+      { plantId: plantId.value, force },
       (done, total) => {
         progress.value = { done, total }
       }

@@ -77,6 +77,18 @@
         <p class="mt-2 text-[10px] text-ink-3 text-center break-all">
           {{ qrUrlString || `Tempel di mesin • scan untuk membuka Buku Pintar Mesin` }}
         </p>
+
+        <!-- Cache buster: paksa ambil ulang QR dari server (abaikan cache Pinia & HTTP). -->
+        <button
+          type="button"
+          class="mt-1.5 h-6 px-2 rounded-sm border border-line bg-surface text-ink-2 hover:bg-muted hover:text-ink transition text-[10px] font-medium inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Muat ulang QR dari server tanpa cache"
+          :disabled="isLoadingQr"
+          @click="loadQr(true)"
+        >
+          <RefreshCw :class="['w-3 h-3', isLoadingQr ? 'animate-spin' : '']" />
+          <span>Muat Ulang QR</span>
+        </button>
       </div>
 
       <p class="text-[11px] text-ink-3 leading-relaxed">
@@ -128,7 +140,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Cpu, Factory, Wrench, Download, Printer, AlertCircle, Grid3x3 } from 'lucide-vue-next'
+import { Cpu, Factory, Wrench, Download, Printer, AlertCircle, Grid3x3, RefreshCw } from 'lucide-vue-next'
 import AppModal from '../common/AppModal.vue'
 import { useMachineQrStore } from '../../stores/machineQr'
 import { alert } from '../../utils/alert'
@@ -142,7 +154,10 @@ import {
 // FASE 5.3 — Modal "QR Code Mesin".
 // Menampilkan info mesin (nama, Line/Plant, sub-mesin), preview QR dari backend,
 // tombol Unduh PNG, dan Cetak (window baru + window.print()).
-// Cache QR dikelola store Pinia `machineQr` → buka-tutup modal tidak re-fetch.
+// Cache QR dikelola store Pinia `machineQr` (TTL 5 menit) + cache buster di
+// `machineQrService` → buka-tutup modal tidak re-fetch, tapi data tidak pernah
+// tertahan lama saat `FRONTEND_URL` backend berubah. Tombol "Muat Ulang QR"
+// memaksa ambil ulang tanpa cache.
 
 const props = defineProps({
   isOpen: {

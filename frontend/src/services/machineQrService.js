@@ -12,11 +12,25 @@ import api from './api'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
+// Cache buster — `FRONTEND_URL` di backend bisa berubah kapan pun (mis. setelah
+// update env di Vercel), sedangkan endpoint PNG mengirim
+// `Cache-Control: private, max-age=3600`. Tanpa query unik, browser bisa
+// menyajikan PNG lama (QR masih berisi URL localhost) meski backend sudah benar.
+// Setiap permintaan diberi `?t=<timestamp>` + `cache: 'no-store'` agar gambar QR
+// selalu fresh dan tidak bergantung pada sisa cache browser.
+const NO_CACHE = { cache: 'no-store' }
+
+function cacheBuster() {
+  return Date.now()
+}
+
 /**
  * URL absolut endpoint PNG QR (untuk debug / dibuka di tab baru).
+ * Default menyertakan cache buster; pakai `{ cacheBust: false }` bila butuh URL bersih.
  */
-export function getMachineQrEndpoint(machineId) {
-  return `${API_BASE_URL}/machines/${Number(machineId)}/qr`
+export function getMachineQrEndpoint(machineId, { cacheBust = true } = {}) {
+  const base = `${API_BASE_URL}/machines/${Number(machineId)}/qr`
+  return cacheBust ? `${base}?t=${cacheBuster()}` : base
 }
 
 // Cache object URL QR per sesi (Map machineId → { blobUrl, dataUrl, data, promise }).
@@ -34,13 +48,20 @@ function getCacheEntry(machineId) {
 
 /**
  * GET /machines/:id/qr-data — info mesin + string QR (dipakai header modal).
+ * Cache buster dipakai juga di sini karena `qr_url_string` ikut berubah saat
+ * `FRONTEND_URL` backend diperbarui.
  *
  * @param {number|string} machineId
+ * @param {{ force?: boolean }} [options]
  */
-export async function getMachineQrData(machineId) {
+export async function getMachineQrData(machineId, { force = false } = {}) {
   const entry = getCacheEntry(machineId)
-  if (entry.data) return entry.data
-  const data = await api.get(`/machines/${Number(machineId)}/qr-data`)
+  if (!force && entry.data) return entry.data
+  const data = await api.get(
+    `/machines/${Number(machineId)}/qr-data`,
+    { t: cacheBuster() },
+    NO_CACHE
+  )
   entry.data = data
   return data
 }
@@ -59,7 +80,9 @@ function blobToDataUrl(blob) {
 
 /**
  * GET /machines/:id/qr — PNG blob, dikonversi menjadi object URL + data URL.
- * Hasil di-cache selama sesi (tidak re-fetch setiap buka modal).
+ * URL selalu diberi cache buster (`?t=`) + `no-store` sehingga hasil QR tidak
+ * pernah diambil dari HTTP cache browser.
+ * Hasil di-cache selama sesi (tidak re-fetch setiap buka modal) kecuali `force`.
  *
  * @param {number|string} machineId
  * @param {{ force?: boolean }} [options]
@@ -72,12 +95,23 @@ export async function getMachineQrImage(machineId, { force = false } = {}) {
   }
 
   // Dedup permintaan bersamaan (mis. modal & batch print meminta mesin yang sama).
-  if (!force && entry.promise) return entry.promise
+  if (entry.promise) return entry.promise
 
   entry.promise = (async () => {
-    const blob = await api.getBlob(`/machines/${Number(machineId)}/qr`)
+    const url = `/machines/${Number(machineId)}/qr?t=${cacheBuster()}`
+    const blob = await api.getBlob(url, {}, NO_CACHE)
     const blobUrl = URL.createObjectURL(blob)
     const dataUrl = await blobToDataUrl(blob)
+
+    // Lepas object URL lama agar tidak menumpuk di memori saat refresh paksa.
+    if (entry.blobUrl && entry.blobUrl !== blobUrl) {
+      try {
+        URL.revokeObjectURL(entry.blobUrl)
+      } catch (e) {
+        // noop
+      }
+    }
+
     entry.blobUrl = blobUrl
     entry.dataUrl = dataUrl
     return { blobUrl, dataUrl }
@@ -114,6 +148,8 @@ async function mapWithConcurrency(items, limit, worker) {
  * GET /machines/qr-batch — daftar mesin untuk cetak batch (grid kartu QR).
  * Meta (total, plant_id, frontend_url) ditempel sebagai properti non-enumerable
  * `_meta` (pola sama dengan unmappedAssetService) agar serialisasi array aman.
+ * `frontend_url` di meta ikut berubah saat env backend diperbarui → cache buster
+ * dipakai agar data batch tidak berasal dari cache browser.
  *
  * @param {{ plantId?: number|string|null, machineIds?: Array<number|string> }} params
  */
@@ -121,8 +157,9 @@ export async function getMachineQrBatch({ plantId = null, machineIds = [] } = {}
   const params = {}
   if (plantId) params.plant_id = plantId
   if (Array.isArray(machineIds) && machineIds.length > 0) params.machine_ids = machineIds.join(',')
+  params.t = cacheBuster()
 
-  const res = await api.get('/machines/qr-batch', params)
+  const res = await api.get('/machines/qr-batch', params, NO_CACHE)
   const list = Array.isArray(res) ? res : []
   if (res && res._meta) {
     try {
@@ -139,16 +176,16 @@ export async function getMachineQrBatch({ plantId = null, machineIds = [] } = {}
  * `onProgress(done, total)` dipanggil setiap satu QR selesai agar UI bisa
  * menampilkan progress bar.
  *
- * @param {{ plantId?: number|string|null, machineIds?: Array<number|string> }} params
+ * @param {{ plantId?: number|string|null, machineIds?: Array<number|string>, force?: boolean }} params
  * @param {(done:number, total:number) => void} [onProgress]
  */
-export async function prepareBatchPrint({ plantId = null, machineIds = [] } = {}, onProgress) {
+export async function prepareBatchPrint({ plantId = null, machineIds = [], force = false } = {}, onProgress) {
   const machines = await getMachineQrBatch({ plantId, machineIds })
   let done = 0
 
   const cards = await mapWithConcurrency(machines, 4, async (machine) => {
     try {
-      const { dataUrl } = await getMachineQrImage(machine.id)
+      const { dataUrl } = await getMachineQrImage(machine.id, { force })
       return { ...machine, image_src: dataUrl }
     } catch (err) {
       // Satu QR gagal tidak boleh menggagalkan seluruh batch.
