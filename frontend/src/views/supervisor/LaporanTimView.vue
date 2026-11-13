@@ -139,8 +139,9 @@
               </td>
             </tr>
             <tr
-              v-for="item in reportItems"
+              v-for="(item, index) in reportItems"
               :key="item.id"
+              v-show="isRowOnCurrentPage(index)"
               class="hover:bg-muted/40 transition-colors"
             >
               <td class="px-4 py-2.5 font-medium text-ink whitespace-nowrap">
@@ -172,12 +173,53 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Pagination (client-side) — pola sama dengan halaman Approval -->
+      <nav
+        v-if="reportItems.length > 0"
+        class="px-3.5 py-3 border-t border-line flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-surface print:hidden"
+        aria-label="Navigasi halaman pratinjau laporan"
+      >
+        <p class="text-[11px] text-ink-3">
+          Menampilkan
+          <span class="font-semibold text-ink font-mono">{{ rangeStart }}–{{ rangeEnd }}</span>
+          dari <span class="font-semibold text-ink font-mono">{{ reportItems.length }}</span> logbook
+          <span class="text-ink-3/80">({{ itemsPerPage }} baris per halaman)</span>
+        </p>
+        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage <= 1"
+            title="Halaman sebelumnya"
+            @click="goToPage(currentPage - 1)"
+          >
+            <ChevronLeft class="w-3.5 h-3.5" />
+            <span>Prev</span>
+          </button>
+          <span class="text-[11px] text-ink-2 font-medium px-1 whitespace-nowrap">
+            Halaman <strong class="text-ink font-mono">{{ currentPage }}</strong> dari
+            <strong class="text-ink font-mono">{{ totalPages }}</strong>
+          </span>
+          <button
+            type="button"
+            class="h-7 px-2.5 rounded-md border border-line bg-surface text-xs font-medium text-ink hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-1"
+            :disabled="currentPage >= totalPages"
+            title="Halaman berikutnya"
+            @click="goToPage(currentPage + 1)"
+          >
+            <span>Next</span>
+            <ChevronRight class="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </nav>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { useMasterStore } from '../../stores/master'
 import { useLogbookStore } from '../../stores/logbook'
 import { reportService } from '../../services/reportService'
@@ -232,6 +274,48 @@ const reportSummary = computed(() => {
   }
 })
 
+// ========================================================
+// Pagination client-side (10 baris per halaman)
+// `reportItems` tetap sumber kebenaran untuk ringkasan & ekspor,
+// sedangkan tabel hanya menampilkan baris pada halaman aktif.
+// ========================================================
+const itemsPerPage = 10
+const currentPage = ref(1)
+
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(reportItems.value.length / itemsPerPage))
+)
+
+const pageStartIndex = computed(() => (currentPage.value - 1) * itemsPerPage)
+
+/** Baris ke-`index` termasuk halaman aktif? (dipakai `v-show` agar cetak tetap penuh). */
+function isRowOnCurrentPage(index) {
+  return index >= pageStartIndex.value && index < pageStartIndex.value + itemsPerPage
+}
+
+const rangeStart = computed(() =>
+  reportItems.value.length === 0 ? 0 : pageStartIndex.value + 1
+)
+
+const rangeEnd = computed(() =>
+  Math.min(currentPage.value * itemsPerPage, reportItems.value.length)
+)
+
+function goToPage(page) {
+  if (!Number.isFinite(page) || page < 1 || page > totalPages.value) return
+  currentPage.value = page
+}
+
+// Filter berubah → kembali ke halaman pertama agar tidak "terdampar" kosong.
+watch(filters, () => {
+  currentPage.value = 1
+}, { deep: true })
+
+// Data menyusut (mis. filter status) → tarik ke halaman terakhir yang valid.
+watch(totalPages, (max) => {
+  if (currentPage.value > max) currentPage.value = max
+})
+
 function exportExcel() {
   reportService.exportToCSV(reportItems.value, `Laporan-Logbook-Satoria-${new Date().toISOString().substring(0, 10)}.csv`)
 }
@@ -254,6 +338,11 @@ function printPDF() {
     left: 0;
     top: 0;
     width: 100%;
+  }
+  /* v-show memakai display:none inline — paksa semua baris tampil saat cetak
+     agar Cetak/PDF tetap memuat seluruh data hasil filter, bukan 1 halaman. */
+  #printable-report tbody tr {
+    display: table-row !important;
   }
 }
 </style>

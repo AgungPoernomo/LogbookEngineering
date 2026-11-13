@@ -153,39 +153,20 @@
       </div>
 
       <!-- ======================================================== -->
-      <!-- 1. BAGIAN PALING ATAS: TANGGAL MASUK (OTOMATIS SISTEM)   -->
+      <!-- 1. WAKTU DIBUAT (OTOMATIS SISTEM) — MODE STRIP READ-ONLY  -->
       <!-- ======================================================== -->
       <div
-        class="bg-surface rounded-lg p-4 border border-line shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-[11px] text-ink-3"
       >
-        <div class="flex items-center gap-3 min-w-0">
-          <div
-            class="w-9 h-9 rounded-md bg-primary-soft text-primary flex items-center justify-center shrink-0"
-          >
-            <Server class="w-5 h-5" />
-          </div>
-          <div class="min-w-0">
-            <div
-              class="text-[10px] uppercase font-semibold text-ink-3 tracking-wider flex items-center gap-1.5"
-            >
-              <span>Tanggal Masuk (Sistem / Server)</span>
-              <span
-                class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold bg-status-approved-bg text-status-approved-fg border border-success/20"
-              >
-                Otomatis
-              </span>
-            </div>
-            <div class="text-xs sm:text-sm font-bold text-ink truncate mt-0.5">
-              {{ serverEntryTimestamp }}
-            </div>
-          </div>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <Server class="w-3.5 h-3.5 text-ink-3 shrink-0" />
+          <span class="shrink-0">Waktu Dibuat (Sistem / Server):</span>
+          <span class="font-medium text-ink-2 truncate">{{ serverEntryTimestamp }}</span>
         </div>
 
-        <div
-          class="text-left sm:text-right pt-2 sm:pt-0 border-t sm:border-t-0 border-line text-[11px] text-ink-2"
-        >
+        <div class="text-left sm:text-right">
           <span>Pelaksana: </span>
-          <strong class="text-ink font-semibold">{{ currentUserName }}</strong>
+          <span class="font-medium text-ink-2">{{ currentUserName }}</span>
           <span class="text-ink-3 font-mono ml-1">({{ currentUserNik }})</span>
         </div>
       </div>
@@ -475,32 +456,6 @@
           <p class="hidden sm:block text-[10px] text-ink-3 mt-1">
             Mesin otomatis tercatat sebagai "KERETA". Minimal 1 unit.
           </p>
-
-          <!-- Aset belum terdaftar (D12) juga berlaku untuk kereta/tray -->
-          <div class="flex items-start gap-2 mt-3">
-            <input
-              id="unmapped-kereta"
-              v-model="isUnmappedAsset"
-              type="checkbox"
-              class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary cursor-pointer shrink-0"
-            />
-            <label
-              for="unmapped-kereta"
-              class="text-sm font-medium text-ink cursor-pointer leading-tight"
-            >
-              Mesin / Bagian ini belum terdaftar (Input Manual)
-            </label>
-          </div>
-          <input
-            v-if="isUnmappedAsset"
-            id="form-unmapped-note-kereta"
-            v-model="unmappedAssetNote"
-            type="text"
-            required
-            maxlength="200"
-            placeholder="Contoh: Tray Autoclave Line 2 tipe baru (belum ada di master)"
-            class="mt-2 w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
-          />
         </div>
 
         <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -515,22 +470,6 @@
                 >*</span
               >
             </label>
-
-            <!-- Aset belum terdaftar (D12): lapor mesin/bagian yang belum ada di master -->
-            <div class="flex items-start gap-2 mb-2">
-              <input
-                id="unmapped"
-                v-model="isUnmappedAsset"
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary cursor-pointer shrink-0"
-              />
-              <label
-                for="unmapped"
-                class="text-sm font-medium text-ink cursor-pointer leading-tight"
-              >
-                Mesin / Bagian ini belum terdaftar (Input Manual)
-              </label>
-            </div>
 
             <select
               id="form-machine"
@@ -594,6 +533,23 @@
           </div>
         </div>
 
+        <!-- Aset belum terdaftar (D12): posisi di BAWAH dropdown
+             Area Pekerjaan & Komponen Mesin -->
+        <div class="flex items-start gap-2 pt-1">
+          <input
+            id="unmapped"
+            v-model="isUnmappedAsset"
+            type="checkbox"
+            class="mt-0.5 h-4 w-4 rounded border-line text-primary focus:ring-primary cursor-pointer shrink-0"
+          />
+          <label
+            for="unmapped"
+            class="text-sm font-medium text-ink cursor-pointer leading-tight"
+          >
+            Mesin / Bagian ini belum terdaftar (Input Manual)
+          </label>
+        </div>
+
         <!-- Catatan Aset Belum Terdaftar (muncul saat checkbox dicentang) -->
         <div
           v-if="isUnmappedAsset"
@@ -639,61 +595,13 @@
         </div>
 
         <!-- ======================================================== -->
-        <!-- FASE 4.1a: KODE KERUSAKAN (ISO 14224)                    -->
-        <!-- MACHINE_TROUBLE → selalu tampil (memicu deteksi          -->
-        <!-- "Repeat Failure" di approval Supervisor).                -->
-        <!-- PREVENTIVE_PM   → hanya bila chip aksi "Cek Rutin"       -->
-        <!-- (inspeksi menemukan anomali). Lubrikasi/Cleaning/        -->
-        <!-- Backwash tidak mengklasifikasi kerusakan → disembunyikan. -->
+        <!-- Kode Kerusakan disembunyikan dari UI (revisi H-1).        -->
+        <!-- Nilai `failure_code_id` diisi otomatis pada payload:      -->
+        <!-- MACHINE_TROUBLE → 1, kategori lain → null (auto-generate  -->
+        <!-- kode kerusakan akan ditangani backend).                   -->
         <!-- ======================================================== -->
-        <div v-if="isFailureCodeVisibleComputed">
-          <label
-            for="form-failure-code"
-            class="block text-xs font-semibold text-ink mb-1.5"
-          >
-            Kode Kerusakan
-            <span class="text-danger">*</span>
-            <span class="text-[10px] font-medium text-ink-3 ml-1"
-              >(wajib diisi — menandai jenis kerusakan/anomali yang
-              ditemukan)</span
-            >
-          </label>
-          <select
-            id="form-failure-code"
-            v-model="form.failure_code_id"
-            :required="isFailureCodeRequiredComputed && !isUnmappedAsset"
-            :disabled="isUnmappedAsset"
-            class="w-full h-10 px-3 rounded-md border border-line bg-surface text-xs font-medium text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted"
-          >
-            <option :value="null">
-              {{
-                isUnmappedAsset
-                  ? "-- Kode kerusakan tidak tersedia untuk aset belum terdaftar --"
-                  : "-- Pilih Kode Kerusakan --"
-              }}
-            </option>
-            <option
-              v-for="fc in masterStore.failureCodes"
-              :key="fc.id"
-              :value="fc.id"
-            >
-              {{ fc.code }} — {{ fc.name }}
-            </option>
-          </select>
-          <p
-            v-if="masterStore.failureCodes.length === 0"
-            class="text-[10px] text-warning mt-1"
-          >
-            Master kode kerusakan belum termuat. Periksa koneksi lalu muat ulang
-            halaman.
-          </p>
-          <p v-else class="hidden sm:block text-[10px] text-ink-3 mt-1">
-            Pilih jenis kerusakan sesuai taksonomi ISO 14224 agar riwayat
-            keandalan mesin tercatat (memicu deteksi kerusakan berulang).
-          </p>
-        </div>
 
-        <!-- MACHINE_TROUBLE: kondisi akhir mesin + toggle downtime -->
+        <!-- MACHINE_TROUBLE: kondisi akhir mesin -->
         <div
           v-if="isMachineTroubleCategory"
           class="pt-3 border-t border-line space-y-3"
@@ -723,33 +631,6 @@
                   st.label
                 }}</span>
               </button>
-            </div>
-          </div>
-
-          <div
-            class="flex flex-col sm:flex-row sm:items-center gap-3 bg-muted/40 p-3 rounded-lg border border-line"
-          >
-            <label
-              class="inline-flex items-center gap-2 cursor-pointer select-none"
-            >
-              <input
-                v-model="form.is_downtime"
-                type="checkbox"
-                class="w-4 h-4 rounded border-line text-primary focus:ring-primary cursor-pointer"
-              />
-              <span class="text-xs font-semibold text-ink"
-                >Mesin berhenti produksi?</span
-              >
-            </label>
-            <div v-if="form.is_downtime" class="flex items-center gap-2">
-              <input
-                v-model.number="form.downtime_minutes"
-                type="number"
-                min="0"
-                step="1"
-                class="w-28 h-9 px-2.5 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
-              />
-              <span class="text-xs text-ink-2">menit downtime</span>
             </div>
           </div>
         </div>
@@ -1183,7 +1064,11 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useMasterStore } from "../../stores/master";
-import { logbookService } from "../../services/logbookService";
+import {
+  logbookService,
+  OFFLINE_STATUS,
+  isNetworkError,
+} from "../../services/logbookService";
 import { LOG_STATUS } from "../../constants/logStatus";
 import { calculateDurationMinutes, formatDuration } from "../../utils/duration";
 import { toLocalDateString, parseLocalDate } from "../../utils/dateKeys";
@@ -1200,10 +1085,6 @@ import {
   mapDraftSpareparts,
   toSparepartPayload,
 } from "../../utils/sparepartItems";
-import {
-  isFailureCodeRequired,
-  isFailureCodeVisible,
-} from "../../utils/failureCodeVisibility";
 
 import {
   Server,
@@ -1313,8 +1194,6 @@ const form = reactive({
   shift_id: 1,
   machine_id: null,
   sub_machine_id: null,
-  // FASE 4.1a: kode kerusakan ISO 14224 (wajib untuk Perbaikan Mesin / Rawat Rutin)
-  failure_code_id: null,
   sparepart: "",
   // FASE 5.2 / v6: sparepart dari katalog → [{ sparepart_id, qty_used, part_name, part_code, unit }]
   sparepart_items: [],
@@ -1323,8 +1202,6 @@ const form = reactive({
   end_time: "10:00",
   // F3.1: field adaptif sesuai kategori aktivitas
   machine_end_status: "NORMAL_RESOLVED",
-  is_downtime: false,
-  downtime_minutes: 0,
   unit_repaired_qty: null,
 });
 
@@ -1434,8 +1311,6 @@ function applyQuickStartQuery(query = {}, { silent = false } = {}) {
   if (isTechnicianRole(authStore.role) && query?.task_type) {
     const category = resolveQuickStartCategory(query.task_type);
     form.machine_end_status = "NORMAL_RESOLVED";
-    form.is_downtime = false;
-    form.downtime_minutes = 0;
     selectCategory(category);
   }
 
@@ -1543,14 +1418,17 @@ const ACTIVITY_CATEGORY_OPTIONS = [
 ];
 
 const MACHINE_END_STATUS_OPTIONS = [
-  { value: "NORMAL_RESOLVED", icon: "🟢", label: "Sudah Normal / Aman" },
+  { value: "NORMAL_RESOLVED", icon: "🟢", label: "Mesin sudah normal & aman" },
   {
     value: "MONITORING_NEEDED",
     icon: "🟡",
-    label: "Jalan, tapi minta shift berikutnya pantau",
+    label: "Masih jalan, perlu dipantau shift berikutnya",
   },
-  { value: "TEMPORARY_FIX", icon: "🔴", label: "Baru diakali sementara" },
-  { value: "WAITING_SPAREPART", icon: "🔴", label: "Tunggu sparepart" },
+  {
+    value: "TEMPORARY_FIX",
+    icon: "🟠",
+    label: "Perbaikan sementara (belum permanen)",
+  },
 ];
 
 // Default kategori otomatis dari sub_team user (spec F3.1).
@@ -1590,31 +1468,6 @@ const isMachineRequired = computed(
     selectedCategory.value === "PREVENTIVE_PM",
 );
 
-// FASE 4.1a: dropdown Kode Kerusakan hanya ditampilkan bila memang ada
-// kerusakan/anomali yang perlu diklasifikasi (lihat `failureCodeVisibility.js`):
-// - `MACHINE_TROUBLE` → selalu tampil & wajib (sumber data "Repeat Failure").
-// - `PREVENTIVE_PM`   → hanya bila chip aksi "Cek Rutin" (inspeksi menemukan
-//   anomali). Lubrikasi / Cleaning / Backwash tidak mengklasifikasi kerusakan,
-//   jadi dropdown disembunyikan agar teknisi tidak bingung (dulu tampil tapi
-//   opsional).
-// - Kategori lain     → tidak pernah tampil.
-const isFailureCodeVisibleComputed = computed(() =>
-  isFailureCodeVisible(selectedCategory.value, quickActionTag.value),
-);
-const isFailureCodeRequiredComputed = computed(() =>
-  isFailureCodeRequired(selectedCategory.value, quickActionTag.value),
-);
-
-/** Kode kerusakan yang dikirim ke payload (hanya saat dropdown ditampilkan). */
-const selectedFailureCode = computed(() => {
-  if (!isFailureCodeVisibleComputed.value) return null;
-  return (
-    masterStore.failureCodes.find(
-      (fc) => fc.id === Number(form.failure_code_id),
-    ) || null
-  );
-});
-
 /** Placeholder dropdown mesin — kosong secara default sampai teknisi memilih. */
 const machinePlaceholder = computed(() => {
   if (isUnmappedAsset.value) return "-- Mesin tidak ada di master (lihat catatan) --";
@@ -1634,36 +1487,12 @@ function selectCategory(category) {
     resetUnmappedAsset();
   }
   if (category !== "MACHINE_TROUBLE") {
-    form.is_downtime = false;
-    form.downtime_minutes = 0;
     form.machine_end_status = "NORMAL_RESOLVED";
   }
   if (category !== "KERETA_TRAY_REPAIR") {
     form.unit_repaired_qty = null;
   }
-  // Ganti kategori → chip di-reset ke kosong, sehingga kondisi dropdown berubah.
-  // Bersihkan sisa kode kerusakan agar tidak terbawa ke kategori yang tidak
-  // memakainya (mis. MACHINE_TROUBLE → PREVENTIVE_PM sebelum pilih chip).
-  syncFailureCodeToVisibility();
 }
-
-/**
- * Lepas `form.failure_code_id` bila dropdown Kode Kerusakan sedang tersembunyi.
- *
- * Contoh: MACHINE_TROUBLE (kode terisi) → PREVENTIVE_PM + chip "Lubrikasi" →
- * dropdown hilang, jadi nilainya harus ikut dikosongkan agar tidak terkirim
- * diam-diam ke backend. Saat chip "Cek Rutin" dipilih kembali, dropdown muncul
- * lagi dengan pilihan kosong (teknisi memilih ulang kode yang benar).
- */
-function syncFailureCodeToVisibility() {
-  if (!isFailureCodeVisibleComputed.value) {
-    form.failure_code_id = null;
-  }
-}
-
-// Kondisi dropdown ikut berubah saat teknisi memilih chip aksi cepat
-// (mis. PREVENTIVE_PM: "Lubrikasi" → "Cek Rutin" memunculkan kembali dropdown).
-watch(quickActionTag, syncFailureCodeToVisibility);
 
 // State Kalender Picker Tanggal Tugas
 const viewYear = ref(new Date().getFullYear());
@@ -1879,7 +1708,6 @@ function handleResetForm() {
   form.shift_id = 1;
   form.machine_id = null;
   form.sub_machine_id = null;
-  form.failure_code_id = null;
   form.sparepart = "";
   form.sparepart_items = [];
   form.activity_description = "";
@@ -1889,8 +1717,6 @@ function handleResetForm() {
   selectedCategory.value = defaultCategory;
   quickActionTag.value = "";
   form.machine_end_status = "NORMAL_RESOLVED";
-  form.is_downtime = false;
-  form.downtime_minutes = 0;
   form.unit_repaired_qty = null;
   // D12: bersihkan penanda & catatan aset belum terdaftar
   resetUnmappedAsset();
@@ -1938,16 +1764,8 @@ async function handleSubmit(isSubmitForApproval) {
     return;
   }
 
-  // FASE 4.1a: kode kerusakan wajib selama dropdown-nya tampil — Perbaikan
-  // Mesin selalu, Rawat Rutin hanya pada chip "Cek Rutin" (inspeksi/anomali).
-  // Aset belum terdaftar (D12) dikecualikan karena tidak ada mesin pada master.
-  if (isFailureCodeRequiredComputed.value && !isUnmappedAsset.value && !form.failure_code_id) {
-    await alert.error(
-      "Kode Kerusakan Belum Dipilih",
-      "Pilih kode kerusakan (ISO 14224) yang paling sesuai agar riwayat keandalan mesin tercatat.",
-    );
-    return;
-  }
+  // FASE 4.1a: kode kerusakan disembunyikan dari UI (revisi H-1) dan diisi
+  // otomatis pada payload — tidak ada validasi pilihan manual lagi.
 
   // F3.1: chip aksi cepat (quick_action_tag) wajib dipilih untuk semua kategori.
   if (!quickActionTag.value) {
@@ -2068,11 +1886,10 @@ async function handleSubmit(isSubmitForApproval) {
       // FASE 5.2 / v6: sparepart katalog (array) → tersimpan di logbook_spareparts
       has_sparepart: sparepartItemsPayload.length > 0,
       sparepart_items: sparepartItemsPayload,
-      // FASE 4.1a: kode kerusakan ISO 14224 (hanya kategori perawatan mesin)
-      failure_code_id: selectedFailureCode.value
-        ? selectedFailureCode.value.id
-        : null,
-      failure_code: selectedFailureCode.value || null,
+      // FASE 4.1a (revisi H-1): dropdown Kode Kerusakan disembunyikan dari UI.
+      // MACHINE_TROUBLE → default 1, kategori lain → null (auto-generate kode
+      // kerusakan akan ditangani backend).
+      failure_code_id: selectedCategory.value === "MACHINE_TROUBLE" ? 1 : null,
       activity_description: form.activity_description.trim(),
       start_time: form.start_time,
       end_time: form.end_time,
@@ -2081,11 +1898,9 @@ async function handleSubmit(isSubmitForApproval) {
       activity_category: selectedCategory.value,
       quick_action_tag: quickActionTag.value,
       machine_end_status: form.machine_end_status,
-      is_downtime: isMachineTroubleCategory.value ? !!form.is_downtime : false,
-      downtime_minutes:
-        isMachineTroubleCategory.value && form.is_downtime
-          ? Number(form.downtime_minutes) || 0
-          : 0,
+      // Toggle downtime dihapus dari UI (revisi H-1) → selalu false / 0.
+      is_downtime: false,
+      downtime_minutes: 0,
       unit_repaired_qty: isKeretaCategory.value
         ? Number(form.unit_repaired_qty) || null
         : null,
@@ -2097,7 +1912,7 @@ async function handleSubmit(isSubmitForApproval) {
       status: isSubmitForApproval ? LOG_STATUS.PENDING : LOG_STATUS.DRAFT,
     };
 
-    await logbookService.createLogbook(payload, authStore.user);
+    const created = await logbookService.createLogbook(payload, authStore.user);
 
     const successTitle = isSubmitForApproval
       ? "Logbook Berhasil Diajukan!"
@@ -2105,6 +1920,20 @@ async function handleSubmit(isSubmitForApproval) {
     const successMsg = isSubmitForApproval
       ? "Pengajuan logbook harian berhasil dikirim untuk pemeriksaan Supervisor."
       : "Logbook tersimpan sebagai draft dan dapat Anda lanjutkan nanti.";
+
+    // Eksperimen Offline-First (PWA): jika tersimpan ke antrean offline,
+    // tampilkan toast peringatan (kuning) — BUKAN toast sukses — agar teknisi
+    // tahu data belum terkirim dan akan disinkronkan otomatis saat sinyal kembali.
+    const isOfflineQueued = created && (created.offline === true || created.status === OFFLINE_STATUS);
+    if (isOfflineQueued) {
+      showToast(
+        'warning',
+        'Koneksi Terputus',
+        'Koneksi terputus. Logbook disimpan di perangkat Anda dan akan dikirim otomatis saat sinyal kembali.'
+      );
+      submitting.value = false;
+      return;
+    }
 
     // F1.3: gunakan SweetAlert2 untuk sukses kirim logbook
     if (isSubmitForApproval) {
@@ -2118,12 +1947,9 @@ async function handleSubmit(isSubmitForApproval) {
       form.activity_description = "";
       form.sparepart = "";
       form.sparepart_items = [];
-      form.failure_code_id = null;
       // F3.1: bersihkan chip & field adaptif untuk input berikutnya
       quickActionTag.value = "";
       form.machine_end_status = "NORMAL_RESOLVED";
-      form.is_downtime = false;
-      form.downtime_minutes = 0;
       form.unit_repaired_qty = null;
       // D12: lepas penanda aset belum terdaftar untuk input berikutnya
       resetUnmappedAsset();
@@ -2159,6 +1985,14 @@ const totalDraftDurationFormatted = computed(() => {
 
 async function fetchDraftLogs() {
   if (!authStore.user?.id) return;
+
+  // Offline: jangan panggil API yang pasti gagal (memunculkan error merah di
+  // console). Biarkan form kosong — draft tetap bisa dimuat saat sinyal kembali.
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    loadingDrafts.value = false;
+    return;
+  }
+
   loadingDrafts.value = true;
   try {
     const list = await logbookService.getLogbooks({
@@ -2167,7 +2001,16 @@ async function fetchDraftLogs() {
     });
     draftLogs.value = list;
   } catch (err) {
-    console.error("Gagal memuat draft logbook:", err);
+    // Offline / jaringan putus → bukan error sesungguhnya, cukup warn agar
+    // console tidak merah. Form sengaja dibiarkan kosong (memang offline).
+    if (isNetworkError(err)) {
+      console.warn(
+        "Draft logbook tidak dimuat (offline) — akan dimuat saat sinyal kembali.",
+        err,
+      );
+    } else {
+      console.error("Gagal memuat draft logbook:", err);
+    }
   } finally {
     loadingDrafts.value = false;
   }
@@ -2264,12 +2107,10 @@ function handleLoadDraftToForm(draft) {
   clearQuickStart();
   form.machine_id = draft.machine_id;
   form.sub_machine_id = draft.sub_machine_id || null;
-  // FASE 4.1a: kembalikan kategori (agar dropdown kode kerusakan tampil) &
-  // kode kerusakan yang tersimpan pada draft.
+  // Kembalikan kategori agar field adaptif (mis. kondisi akhir mesin) tampil.
   if (draft.activity_category) {
     selectedCategory.value = draft.activity_category;
   }
-  form.failure_code_id = draft.failure_code_id || null;
   form.sparepart = draft.sparepart === "-" ? "" : draft.sparepart || "";
   // FASE 5.2 / v6: draft menyimpan item katalog → kembalikan ke picker (qty + cache nama part)
   form.sparepart_items = mapDraftSpareparts(draft.spareparts);

@@ -11,9 +11,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "node prisma/seed.js",
+    "ai:backfill:dry": "node scripts/ai-backfill-legacy.js",
     "test": "node --test test/",
     "test:v6": "node --test test/masterFailureCode.test.js test/repeatFailure.test.js test/supervisorTeamOverview.test.js test/adminUnmappedAsset.test.js test/masterSparepart.test.js test/machineQr.test.js",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "ai:backfill:apply": "node scripts/ai-backfill-legacy-apply.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
