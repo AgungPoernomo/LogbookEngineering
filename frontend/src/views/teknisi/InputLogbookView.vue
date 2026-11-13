@@ -1963,18 +1963,6 @@ async function handleSubmit(isSubmitForApproval) {
     // Eksperimen Offline-First (PWA): jika tersimpan ke antrean offline,
     // tampilkan toast peringatan (kuning) — BUKAN toast sukses — agar teknisi
     // tahu data belum terkirim dan akan disinkronkan otomatis saat sinyal kembali.
-    const isOfflineQueued =
-      created &&
-      (created.offline === true || created.status === OFFLINE_STATUS);
-    if (isOfflineQueued) {
-      showToast(
-        "warning",
-        "Koneksi Terputus",
-        "Koneksi terputus. Logbook disimpan di perangkat Anda dan akan dikirim otomatis saat sinyal kembali.",
-      );
-      submitting.value = false;
-      return;
-    }
 
     // F1.3: gunakan SweetAlert2 untuk sukses kirim logbook
     if (isSubmitForApproval) {
