@@ -161,7 +161,9 @@
         <div class="flex items-center gap-1.5 min-w-0">
           <Server class="w-3.5 h-3.5 text-ink-3 shrink-0" />
           <span class="shrink-0">Waktu Dibuat (Sistem / Server):</span>
-          <span class="font-medium text-ink-2 truncate">{{ serverEntryTimestamp }}</span>
+          <span class="font-medium text-ink-2 truncate">{{
+            serverEntryTimestamp
+          }}</span>
         </div>
 
         <div class="text-left sm:text-right">
@@ -466,7 +468,9 @@
               class="block text-xs font-semibold text-ink mb-1.5"
             >
               Peralatan Mesin
-              <span v-if="isMachineRequired && !isUnmappedAsset" class="text-danger"
+              <span
+                v-if="isMachineRequired && !isUnmappedAsset"
+                class="text-danger"
                 >*</span
               >
             </label>
@@ -573,7 +577,9 @@
           />
           <p class="text-[10px] text-ink-3 leading-relaxed">
             Catatan ini tampil di
-            <span class="font-semibold text-ink-2">Radar Aset Belum Terdaftar</span>
+            <span class="font-semibold text-ink-2"
+              >Radar Aset Belum Terdaftar</span
+            >
             Admin untuk dipromosikan menjadi mesin resmi. Mesin &amp; sub-mesin
             tidak wajib dipilih selama catatan ini terisi.
           </p>
@@ -784,7 +790,9 @@
             Bersihkan Formulir
           </button>
 
-          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+          <div
+            class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto"
+          >
             <button
               type="button"
               :disabled="submitting"
@@ -929,7 +937,9 @@
               <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="font-semibold text-ink flex items-center gap-1">
                   <Cpu class="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span class="break-words min-w-0">{{ draft.machine_name }}</span>
+                  <span class="break-words min-w-0">{{
+                    draft.machine_name
+                  }}</span>
                 </span>
                 <span
                   v-if="
@@ -939,10 +949,7 @@
                 >
                   • {{ draft.sub_machine_name }}
                 </span>
-                <span
-                  v-if="draft.unmapped_asset_note"
-                  class="text-ink-2"
-                >
+                <span v-if="draft.unmapped_asset_note" class="text-ink-2">
                   • {{ draft.unmapped_asset_note }}
                 </span>
                 <span
@@ -963,7 +970,9 @@
                   v-if="draft.failure_code || draft.failure_code_id"
                   class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-ink-2 border border-line"
                 >
-                  {{ draft.failure_code?.code || `Kode #${draft.failure_code_id}` }}
+                  {{
+                    draft.failure_code?.code || `Kode #${draft.failure_code_id}`
+                  }}
                 </span>
               </div>
 
@@ -1064,11 +1073,7 @@ import { ref, reactive, computed, onMounted, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
 import { useMasterStore } from "../../stores/master";
-import {
-  logbookService,
-  OFFLINE_STATUS,
-  isNetworkError,
-} from "../../services/logbookService";
+import { logbookService } from "../../services/logbookService";
 import { LOG_STATUS } from "../../constants/logStatus";
 import { calculateDurationMinutes, formatDuration } from "../../utils/duration";
 import { toLocalDateString, parseLocalDate } from "../../utils/dateKeys";
@@ -1470,7 +1475,8 @@ const isMachineRequired = computed(
 
 /** Placeholder dropdown mesin — kosong secara default sampai teknisi memilih. */
 const machinePlaceholder = computed(() => {
-  if (isUnmappedAsset.value) return "-- Mesin tidak ada di master (lihat catatan) --";
+  if (isUnmappedAsset.value)
+    return "-- Mesin tidak ada di master (lihat catatan) --";
   return isMachineRequired.value ? "Pilih Mesin" : "-- Tanpa Mesin Spesifik --";
 });
 
@@ -1747,7 +1753,11 @@ async function handleSubmit(isSubmitForApproval) {
     return;
   }
 
-  if (isMachineRequired.value && !isUnmappedAsset.value && !form.sub_machine_id) {
+  if (
+    isMachineRequired.value &&
+    !isUnmappedAsset.value &&
+    !form.sub_machine_id
+  ) {
     await alert.error(
       "Data Belum Lengkap",
       "Silakan pilih bagian mesin (sub-mesin) yang ditangani, atau centang “Mesin / Bagian ini belum terdaftar” dan isi catatannya.",
@@ -1924,12 +1934,14 @@ async function handleSubmit(isSubmitForApproval) {
     // Eksperimen Offline-First (PWA): jika tersimpan ke antrean offline,
     // tampilkan toast peringatan (kuning) — BUKAN toast sukses — agar teknisi
     // tahu data belum terkirim dan akan disinkronkan otomatis saat sinyal kembali.
-    const isOfflineQueued = created && (created.offline === true || created.status === OFFLINE_STATUS);
+    const isOfflineQueued =
+      created &&
+      (created.offline === true || created.status === OFFLINE_STATUS);
     if (isOfflineQueued) {
       showToast(
-        'warning',
-        'Koneksi Terputus',
-        'Koneksi terputus. Logbook disimpan di perangkat Anda dan akan dikirim otomatis saat sinyal kembali.'
+        "warning",
+        "Koneksi Terputus",
+        "Koneksi terputus. Logbook disimpan di perangkat Anda dan akan dikirim otomatis saat sinyal kembali.",
       );
       submitting.value = false;
       return;
