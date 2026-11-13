@@ -718,13 +718,28 @@
             >
               Waktu Mulai <span class="text-danger">*</span>
             </label>
-            <input
-              id="form-start-time"
-              v-model="form.start_time"
-              type="time"
-              required
-              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
-            />
+            <div class="relative">
+              <input
+                id="form-start-time"
+                v-model="form.start_time"
+                type="time"
+                required
+                placeholder="--.--"
+                :class="[
+                  'time-field w-full h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition',
+                  form.start_time ? '' : 'time-field--empty',
+                ]"
+              />
+              <!-- Placeholder kustom: input type="time" tidak menampilkan
+                   atribut placeholder di Chromium, jadi "--.--" dirender
+                   sebagai overlay saat nilai masih kosong. -->
+              <span
+                v-if="!form.start_time"
+                class="time-placeholder"
+                aria-hidden="true"
+                >--.--</span
+              >
+            </div>
             <p class="text-[10px] text-ink-3 mt-1">Format 24 jam (HH:mm)</p>
           </div>
 
@@ -736,13 +751,25 @@
             >
               Waktu Selesai <span class="text-danger">*</span>
             </label>
-            <input
-              id="form-end-time"
-              v-model="form.end_time"
-              type="time"
-              required
-              class="w-full h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
-            />
+            <div class="relative">
+              <input
+                id="form-end-time"
+                v-model="form.end_time"
+                type="time"
+                required
+                placeholder="--.--"
+                :class="[
+                  'time-field w-full h-10 px-3 rounded-md border border-line bg-surface text-sm font-semibold font-mono text-ink focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition',
+                  form.end_time ? '' : 'time-field--empty',
+                ]"
+              />
+              <span
+                v-if="!form.end_time"
+                class="time-placeholder"
+                aria-hidden="true"
+                >--.--</span
+              >
+            </div>
             <p class="text-[10px] text-ink-3 mt-1">Format 24 jam (HH:mm)</p>
           </div>
 
@@ -1203,8 +1230,9 @@ const form = reactive({
   // FASE 5.2 / v6: sparepart dari katalog → [{ sparepart_id, qty_used, part_name, part_code, unit }]
   sparepart_items: [],
   activity_description: "",
-  start_time: route.query.time || "08:00",
-  end_time: "10:00",
+  // Waktu sengaja kosong agar placeholder "--.--" tampil sampai teknisi mengisi
+  start_time: route.query.time || "",
+  end_time: "",
   // F3.1: field adaptif sesuai kategori aktivitas
   machine_end_status: "NORMAL_RESOLVED",
   unit_repaired_qty: null,
@@ -1685,8 +1713,8 @@ function handleMachineChange() {
 function handleShiftChange() {
   const s = masterStore.shifts.find((item) => item.id === form.shift_id);
   if (s) {
-    // Saran otomatis waktu jika masih default
-    if (form.start_time === "08:00" && form.end_time === "10:00") {
+    // Saran otomatis waktu hanya bila teknisi belum mengisi kedua kolom waktu
+    if (!form.start_time && !form.end_time) {
       form.start_time = s.start_time;
       form.end_time = s.end_time;
     }
@@ -1717,8 +1745,9 @@ function handleResetForm() {
   form.sparepart = "";
   form.sparepart_items = [];
   form.activity_description = "";
-  form.start_time = "08:00";
-  form.end_time = "10:00";
+  // Kosongkan waktu agar placeholder "--.--" muncul kembali
+  form.start_time = "";
+  form.end_time = "";
   // F3.1: reset kategori adaptif ke default sub_team & bersihkan chip
   selectedCategory.value = defaultCategory;
   quickActionTag.value = "";
@@ -1954,6 +1983,11 @@ async function handleSubmit(isSubmitForApproval) {
       showToast("success", successTitle, successMsg);
     }
 
+    // Kosongkan waktu setelah logbook tersimpan (kirim maupun draft) agar
+    // field kembali menampilkan placeholder "--.--" untuk input berikutnya.
+    form.start_time = "";
+    form.end_time = "";
+
     if (isSubmitForApproval) {
       // Bersihkan deskripsi dan sparepart agar siap input aktivitas berikutnya tanpa berpindah halaman
       form.activity_description = "";
@@ -2178,3 +2212,53 @@ onMounted(async () => {
   await fetchDraftLogs();
 });
 </script>
+
+<style scoped>
+/* ==========================================================
+   Field Waktu (type="time") — placeholder kustom "--.--"
+   Chromium tidak merender atribut `placeholder` pada input time,
+   sehingga teks "--.--" ditampilkan sebagai overlay saat kosong.
+   ========================================================== */
+.time-placeholder {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  padding-left: 0.75rem; /* selaras dengan px-3 input */
+  pointer-events: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #9ca3af; /* ink-3 */
+  user-select: none;
+}
+
+/* Sembunyikan teks bawaan browser ("--:--") saat kolom masih kosong dan
+   tidak fokus, agar tidak bertumpuk dengan placeholder "--.--". */
+.time-field--empty:not(:focus)::-webkit-datetime-edit {
+  color: transparent;
+}
+
+/* Saat fokus, sembunyikan placeholder kustom supaya segment editor
+   bawaan browser (jam : menit) terlihat jelas untuk diisi. */
+.time-field--empty:focus + .time-placeholder {
+  display: none;
+}
+
+/* Fallback non-WebKit (mis. Firefox): tidak punya pseudo-element
+   ::-webkit-datetime-edit, jadi warna teks input dibuat transparan
+   selama kolom masih kosong & tidak fokus. */
+@supports not selector(::-webkit-datetime-edit) {
+  .time-field--empty:not(:focus) {
+    color: transparent;
+  }
+}
+
+/* Sembunyikan spinner/ikon picker bawaan agar visual kolom waktu bersih. */
+.time-field::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+</style>
